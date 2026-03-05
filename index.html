@@ -26,7 +26,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   background:radial-gradient(ellipse at 50% 0%,#1e1030 0%,transparent 55%),var(--bg);padding:16px 8px 32px;}
 .map-wrap::-webkit-scrollbar{width:4px;}
 .map-wrap::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px;}
-.map-head{text-align:center;margin-bottom:12px;}
+.map-head{text-align:center;margin-bottom:20px;}
 .map-title{font-family:'Cinzel',serif;font-size:2.2rem;font-weight:700;color:var(--gold);
   text-shadow:0 0 24px var(--gold-glow);letter-spacing:.08em;line-height:1;}
 .map-sub{font-size:1rem;color:var(--text-dim);font-style:italic;margin-top:4px;}
@@ -34,29 +34,51 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .lives-label{font-family:'Cinzel',serif;font-size:.8rem;color:var(--text-dim);}
 .lheart{font-size:2rem;transition:transform .3s,opacity .3s;color:var(--life);}
 .lheart.losing{animation:heartpop .4s ease forwards;}
-@keyframes heartpop{0%{transform:scale(1.4);opacity:1;}100%{transform:scale(0);opacity:0;width:0;margin:0;padding:0;}}
+@keyframes heartpop{0%{transform:scale(1.4);opacity:1;}100%{transform:scale(0);opacity:0;width:0;margin:0;}}
 
-.tower{display:flex;flex-direction:column;align-items:center;width:100%;max-width:540px;gap:0;}
-.f-row{display:flex;flex-direction:column;align-items:center;width:100%;}
-.f-pipe{width:2px;height:20px;background:linear-gradient(180deg,var(--gold-dim),transparent);opacity:.5;flex-shrink:0;}
-.f-node{display:flex;align-items:center;gap:10px;width:100%;padding:6px 12px;}
-.f-num{font-family:'Cinzel',serif;font-size:.75rem;color:var(--text-dim);width:56px;text-align:right;flex-shrink:0;}
-.f-choices{display:flex;gap:10px;flex:1;justify-content:center;align-items:center;}
-.f-or{color:var(--text-dim);font-size:.8rem;font-style:italic;flex-shrink:0;}
+/* Tower container */
+.tower-container{position:relative;width:700px;max-width:100%;}
+.tower-svg{width:100%;display:block;}
+.floors-overlay{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  display:flex;flex-direction:column;
+  padding: 52px 0 10px 0;
+}
 
-.cbtn{padding:10px 16px;border:1.5px solid var(--gold-dim);border-radius:6px;
-  background:var(--surface);color:var(--text);font-family:'Cinzel',serif;font-size:.78rem;
-  cursor:pointer;transition:all .18s;min-width:120px;text-align:center;letter-spacing:.04em;line-height:1.3;}
-.cbtn:hover:not(:disabled){border-color:var(--gold);background:var(--surface2);
-  box-shadow:0 0 14px var(--gold-glow);transform:translateY(-2px);}
-.cbtn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+/* Floor nodes */
+.f-floor{
+  flex:1;display:flex;align-items:center;
+  padding:0 16px;gap:10px;
+  border-bottom:1px solid rgba(212,168,75,0.08);
+  position:relative;
+}
+.f-floor-cur{background:rgba(212,168,75,0.04);}
+.f-level-label{
+  font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold-dim);
+  writing-mode:horizontal-tb;min-width:28px;text-align:right;flex-shrink:0;
+}
+.f-content{display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;}
+.cur-marker{font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold);letter-spacing:.1em;
+  animation:blink 1.2s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+.f-choices{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;}
+.f-or{color:var(--text-dim);font-size:.7rem;font-style:italic;flex-shrink:0;}
+
+.cbtn{padding:5px 10px;border:1.5px solid var(--gold-dim);border-radius:4px;
+  background:rgba(10,8,20,.7);color:var(--text);font-family:'Cinzel',serif;font-size:.65rem;
+  cursor:pointer;transition:all .18s;min-width:88px;text-align:center;letter-spacing:.03em;line-height:1.3;
+  backdrop-filter:blur(4px);}
+.cbtn:hover:not(:disabled){border-color:var(--gold);background:rgba(30,20,50,.8);
+  box-shadow:0 0 10px var(--gold-glow);transform:translateY(-1px);}
+.cbtn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
 .cbtn.cur{border-color:var(--gold);animation:pgold 1.8s infinite;}
-.cbtn.done{border-color:#3a7a3a;background:#131f13;color:#5aaa5a;cursor:default;}
-.cbtn.boss{border-color:#7a2020;background:#120808;color:#dd8888;min-width:180px;}
+.cbtn.done{border-color:#3a6a3a;background:rgba(0,20,0,.5);color:#5aaa5a;cursor:default;}
+.cbtn.boss{border-color:#7a2020;background:rgba(20,0,0,.6);color:#dd8888;min-width:140px;}
 .cbtn.boss.cur{animation:pred 1.8s infinite;}
-.cbtn.boss:hover:not(:disabled){border-color:#c03030;box-shadow:0 0 14px rgba(160,40,40,.4);}
-@keyframes pgold{0%,100%{box-shadow:0 0 8px var(--gold-glow);}50%{box-shadow:0 0 18px rgba(212,168,75,.6);}}
-@keyframes pred{0%,100%{box-shadow:0 0 8px rgba(160,40,40,.3);}50%{box-shadow:0 0 18px rgba(200,50,50,.6);}}
+.cbtn.boss:hover:not(:disabled){border-color:#c03030;box-shadow:0 0 10px rgba(160,40,40,.4);}
+.cbtn.mystery{border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.2);font-size:.8rem;letter-spacing:.2em;}
+@keyframes pgold{0%,100%{box-shadow:0 0 6px var(--gold-glow);}50%{box-shadow:0 0 14px rgba(212,168,75,.6);}}
+@keyframes pred{0%,100%{box-shadow:0 0 6px rgba(160,40,40,.3);}50%{box-shadow:0 0 14px rgba(200,50,50,.6);}}
 
 /* ── GAME HEADER ── */
 .ghdr{display:flex;align-items:center;padding:7px 14px;background:rgba(0,0,0,.45);
@@ -425,11 +447,19 @@ function tpPos(idx){
 function initTripeaks(floor){
   const rng=mkRng(Date.now()^(Math.random()*0xFFFFF|0));
   const deck=shuffle(makeDeck(),rng);
-  const pyramid=deck.slice(0,28).map((c,i)=>({...c,faceUp:i>=18}));
+  // Cards 0-17: pyramid (face-down), 18-27: base row (face-up)
+  const pyramid=deck.slice(0,28).map((c,i)=>({...c,faceUp:false}));
+  // Reveal all cards with no blockers
+  tpUpdateFaceUp(pyramid);
   const stock=deck.slice(28).map(c=>({...c,faceUp:false}));
-  // first stock card becomes waste
   const waste=stock.length?[{...stock.shift(),faceUp:true}]:[];
   return{type:'tripeaks',pyramid,stock,waste,floor};
+}
+
+function tpUpdateFaceUp(pyramid){
+  for(let i=0;i<28;i++){
+    if(pyramid[i]&&tpFree(pyramid,i)) pyramid[i].faceUp=true;
+  }
 }
 
 function tpFree(pyramid,idx){
@@ -542,49 +572,154 @@ function render(){
 // ── MAP ────────────────────────────────────────────────────
 function renderMap(app){
   const liv=Array.from({length:A.lives},()=>`<span class="lheart">♥</span>`).join('');
-  let rows='';
+
+  // Build 10 floor nodes (f=0 is top = Floor 10, f=9 is bottom = Floor 1)
+  let floorNodes='';
   for(let f=0;f<10;f++){
     const ch=A.choices[f];
     const isCur=f===A.floor;
     const isDone=A.done.has(f);
     const isFuture=f>A.floor;
+    const displayNum=10-f;  // Floor 10 at top, Floor 1 at bottom
     const isLast=f===9;
 
     let choicesHTML;
-    if(isLast){
+    if(isFuture){
+      // Hidden — show question marks
+      if(isLast){
+        choicesHTML=`<button class="cbtn mystery" disabled>? ? ?</button>`;
+      } else {
+        choicesHTML=`<button class="cbtn mystery" disabled>?</button><span class="f-or">or</span><button class="cbtn mystery" disabled>?</button>`;
+      }
+    } else if(isLast){
       const cls=isDone?'done':isCur?'boss cur':'boss';
       const lbl=isDone?'✓ FreeCell':'👑 FreeCell — Final Boss';
-      const dis=isFuture?'disabled':'';
-      choicesHTML=`<button class="cbtn ${cls}" ${dis} onclick="startGame('freecell',${f})">${lbl}</button>`;
+      choicesHTML=`<button class="cbtn ${cls}" onclick="startGame('freecell',${f})">${lbl}</button>`;
     } else {
       const mkB=(type)=>{
         const cls=isDone?'done':isCur?'cur':'';
-        const dis=isFuture||isDone?'disabled':'';
         const lbl=isDone?`✓ ${NAMES[type]}`:`${ICONS[type]} ${NAMES[type]}`;
-        return`<button class="cbtn ${cls}" ${dis} onclick="startGame('${type}',${f})">${lbl}</button>`;
+        return`<button class="cbtn ${cls}" ${isDone?'disabled':''} onclick="startGame('${type}',${f})">${lbl}</button>`;
       };
-      if(isDone){
-        choicesHTML=`${mkB(ch.left)}<span class="f-or">/</span>${mkB(ch.right)}`;
-      } else {
-        choicesHTML=`${mkB(ch.left)}<span class="f-or">or</span>${mkB(ch.right)}`;
-      }
+      choicesHTML=`${mkB(ch.left)}<span class="f-or">${isDone?'/':'or'}</span>${mkB(ch.right)}`;
     }
-    rows+=`<div class="f-row">
-      <div class="f-node">
-        <div class="f-num">Floor ${f+1}</div>
+
+    const curMark=isCur?`<div class="cur-marker">▶ YOU</div>`:'';
+    floorNodes+=`<div class="f-floor ${isCur?'f-floor-cur':''} ${isDone?'f-floor-done':''}" id="floor-${f}">
+      <div class="f-level-label">${displayNum}</div>
+      <div class="f-content">
+        ${curMark}
         <div class="f-choices">${choicesHTML}</div>
       </div>
-      ${f<9?'<div class="f-pipe"></div>':''}
     </div>`;
   }
+
   app.innerHTML=`<div class="map-wrap">
     <div class="map-head">
       <div class="map-title">The Solitaire Tower of Doom</div>
-      <div class="map-sub">Descend through the tower. One floor at a time.</div>
+      <div class="map-sub">Trapped on the top floor. Descend to escape.</div>
       <div class="lives-row"><span class="lives-label">Lives</span>${liv}</div>
     </div>
-    <div class="tower">${rows}</div>
+    <div class="tower-container">
+      <svg class="tower-svg" viewBox="0 0 700 1100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <!-- Sky glow -->
+        <defs>
+          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0c0a10"/>
+            <stop offset="100%" stop-color="#0c0a10"/>
+          </linearGradient>
+          <linearGradient id="bldGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1a1230"/>
+            <stop offset="60%" stop-color="#130f22"/>
+            <stop offset="100%" stop-color="#0c0a14"/>
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- MAIN TOWER BODY -->
+        <!-- Central tall tower -->
+        <rect x="175" y="40" width="350" height="1060" fill="url(#bldGrad)" rx="2"/>
+        <!-- Left wing -->
+        <rect x="80" y="180" width="110" height="920" fill="#14102a" rx="1"/>
+        <!-- Right wing -->
+        <rect x="510" y="180" width="110" height="920" fill="#14102a" rx="1"/>
+        <!-- Far left low building -->
+        <rect x="0" y="420" width="95" height="680" fill="#0f0d1e"/>
+        <!-- Far right low building -->
+        <rect x="605" y="380" width="95" height="720" fill="#0f0d1e"/>
+
+        <!-- ROOFTOP DETAILS -->
+        <!-- Main tower crown -->
+        <polygon points="350,0 290,42 410,42" fill="#1e1535"/>
+        <rect x="335" y="10" width="30" height="35" fill="#241b40"/>
+        <!-- Antenna -->
+        <line x1="350" y1="0" x2="350" y2="-20" stroke="#d4a84b" stroke-width="2"/>
+        <circle cx="350" cy="-22" r="3" fill="#d4a84b" opacity="0.8"/>
+        <!-- Left wing roof -->
+        <rect x="80" y="165" width="110" height="20" fill="#1e1535" rx="1"/>
+        <!-- Right wing roof -->
+        <rect x="510" y="165" width="110" height="20" fill="#1e1535" rx="1"/>
+        <!-- Far buildings rooftops -->
+        <rect x="0" y="408" width="95" height="15" fill="#161030"/>
+        <rect x="605" y="368" width="95" height="15" fill="#161030"/>
+
+        <!-- WINDOWS — main tower, columns of windows -->
+        ${genWindows(200,60,270,1030,5,26,28,16,'#d4a84b')}
+        <!-- Left wing windows -->
+        ${genWindows(88,200,92,880,2,22,14,12,'#b8943a')}
+        <!-- Right wing windows -->
+        ${genWindows(518,200,92,880,2,22,14,12,'#b8943a')}
+        <!-- Far left building windows -->
+        ${genWindows(8,440,79,630,2,16,14,10,'#7a6030')}
+        <!-- Far right building windows -->
+        ${genWindows(613,400,79,680,2,17,14,10,'#7a6030')}
+
+        <!-- FLOOR DIVIDERS on main tower -->
+        ${[...Array(9)].map((_,i)=>{
+          const y=60+(i+1)*((1040)/10);
+          return`<line x1="175" y1="${y}" x2="525" y2="${y}" stroke="rgba(212,168,75,0.15)" stroke-width="1"/>`;
+        }).join('')}
+
+        <!-- GROUND line -->
+        <rect x="0" y="1090" width="700" height="10" fill="#d4a84b" opacity="0.3"/>
+
+        <!-- Lit windows effect - scattered random ones brighter -->
+        <rect x="220" y="80" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.9"/>
+        <rect x="320" y="140" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.8"/>
+        <rect x="440" y="100" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.9"/>
+        <rect x="260" y="260" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.7"/>
+        <rect x="390" y="340" width="12" height="10" fill="#ffd060" rx="1" opacity="0.9"/>
+        <rect x="230" y="460" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.8"/>
+      </svg>
+
+      <div class="floors-overlay">
+        ${floorNodes}
+      </div>
+    </div>
   </div>`;
+
+  // Scroll to current floor
+  const curEl=document.getElementById(`floor-${A.floor}`);
+  if(curEl)setTimeout(()=>curEl.scrollIntoView({behavior:'smooth',block:'center'}),100);
+}
+
+function genWindows(x,y,w,h,cols,rows,cw,ch,color){
+  const colGap=(w-cols*cw)/(cols+1);
+  const rowGap=(h-rows*ch)/(rows+1);
+  let out='';
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const wx=x+colGap+(cw+colGap)*c;
+      const wy=y+rowGap+(ch+rowGap)*r;
+      const lit=Math.random()>0.45;
+      const opacity=lit?0.55:0.12;
+      out+=`<rect x="${wx.toFixed(1)}" y="${wy.toFixed(1)}" width="${cw}" height="${ch}" fill="${color}" rx="1" opacity="${opacity}"/>`;
+    }
+  }
+  return out;
 }
 
 // ── GAME FRAME ─────────────────────────────────────────────
@@ -602,7 +737,7 @@ function renderGame(app){
     <div class="ghdr">
       <div class="ghdr-left">
         <span class="gtitle">${ICONS[t]} ${NAMES[t]}</span>
-        <span class="gfloor">Floor ${A.floor+1}/10</span>
+        <span class="gfloor">Floor ${10-A.floor}/10</span>
         <span class="gmoves">${A.moves} moves</span>
       </div>
       <div class="hlives">${liv}</div>
@@ -619,11 +754,11 @@ function renderGame(app){
 
 function winOverlayHTML(){
   const isLast=A.floor>=9;
-  return`<div class="overlay" onclick="nextFloor()">
+  return`<div class="overlay">
     <div class="panel">
-      <h2>${isLast?'🏆 Tower Conquered!':'✨ Floor Cleared!'}</h2>
-      <p>${isLast?'You have reached the bottom of the tower. Victory is yours!':'You descend deeper into the tower...'}</p>
-      <button class="btn" onclick="nextFloor()">${isLast?'Victory!':'Next Floor'}</button>
+      <h2>${isLast?'🚪 Escaped!':'✨ Floor Cleared!'}</h2>
+      <p>${isLast?'You have broken through the ground floor and escaped the Tower of Doom. Freedom is yours!':'You find the staircase and descend further into the tower...'}</p>
+      <button class="btn" onclick="nextFloor()">${isLast?'Escape!':'Descend'}</button>
     </div>
   </div>`;
 }
@@ -942,13 +1077,13 @@ function renderFreecell(gs){
 function renderEnd(app,isVictory){
   app.innerHTML=isVictory
     ?`<div class="end-screen">
-        <h1>🏆 Tower Conquered!</h1>
-        <p>You have reached the depths of the Tower of Cards and faced the final challenge. The tower is yours.</p>
+        <h1>🚪 You Escaped!</h1>
+        <p>You descended all 10 floors of the Tower of Doom and burst through the front doors into the light. The tower stands empty behind you.</p>
         <button class="btn btn-lg" onclick="init()">Play Again</button>
       </div>`
     :`<div class="end-screen lose-screen">
-        <h1>☠ The Tower Claims You</h1>
-        <p>You have exhausted your three lives. The tower stands unconquered. Do you dare try again?</p>
+        <h1>☠ Trapped Forever</h1>
+        <p>You have exhausted your three lives. The Tower of Doom swallows you whole. Perhaps next time you'll find a way out.</p>
         <button class="btn btn-lg" onclick="init()">Try Again</button>
       </div>`;
 }
@@ -991,6 +1126,7 @@ function handleClick(e){
       const s=cloneState(gs);
       s.waste.push({...s.pyramid[idx],faceUp:true});
       s.pyramid[idx]=null;
+      tpUpdateFaceUp(s.pyramid);
       A.gs=s;A.moves++;
       if(tpWon(A.gs))handleWin();
     }
@@ -1362,7 +1498,7 @@ function handleWin(){
 }
 
 function instaWin(){
-  handleWin();
+  A.winOverlay=true;
   render();
 }
 
