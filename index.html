@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Solitaire Tower of Doom</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:#0c0a10;--surface:#1a1624;--surface2:#221c30;
@@ -80,55 +80,292 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 @keyframes pgold{0%,100%{box-shadow:0 0 6px var(--gold-glow);}50%{box-shadow:0 0 14px rgba(212,168,75,.6);}}
 @keyframes pred{0%,100%{box-shadow:0 0 6px rgba(160,40,40,.3);}50%{box-shadow:0 0 14px rgba(200,50,50,.6);}}
 
-/* ── GAME HEADER ── */
-.ghdr{display:flex;align-items:center;padding:7px 14px;background:rgba(0,0,0,.45);
-  gap:12px;flex-shrink:0;z-index:20;border-bottom:1px solid rgba(255,255,255,.06);}
-.ghdr-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
-.gtitle{font-family:'Cinzel',serif;font-size:1.2rem;color:var(--gold);white-space:nowrap;}
-.gfloor{font-size:1rem;color:var(--text-dim);white-space:nowrap;}
-.gmoves{font-size:.9rem;color:var(--text-dim);white-space:nowrap;}
-.hlives{display:flex;gap:5px;}
-.hlheart{font-size:1.6rem;color:var(--life);transition:transform .3s,opacity .3s;}
-.hlheart.losing{animation:heartpop .4s ease forwards;}
-.btn{padding:8px 16px;border:1px solid var(--gold-dim);border-radius:4px;
-  background:rgba(0,0,0,.3);color:var(--text);font-family:'Cinzel',serif;font-size:.88rem;
-  cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
-.btn:hover{border-color:var(--gold);background:rgba(0,0,0,.5);}
-.btn-d{border-color:#7a2020;color:#dd8888;}
-.btn-d:hover{border-color:#c03030;background:rgba(60,0,0,.3);}
+/* ══════════════════════════════════════════
+   RETRO 90s COMPUTER INTERFACE — GAME SCREENS
+   ══════════════════════════════════════════ */
 
-/* ── GAME AREA ── */
-.garea{flex:1;overflow:auto;background:var(--table);
-  background-image:radial-gradient(ellipse at 50% 0%,#1d3a1d 0%,transparent 60%),
-    repeating-linear-gradient(45deg,transparent,transparent 18px,rgba(0,0,0,.025) 18px,rgba(0,0,0,.025) 36px);
-  padding:12px 10px;display:flex;justify-content:center;}
-.garea::-webkit-scrollbar{width:4px;height:4px;}
-.garea::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px;}
+/* Win95 system variables */
+:root {
+  --w95-bg:#c0c0c0;
+  --w95-dark:#808080;
+  --w95-darker:#404040;
+  --w95-white:#ffffff;
+  --w95-titlebar1:#000080;
+  --w95-titlebar2:#1084d0;
+  --w95-text:#000000;
+  --felt:#007700;
+  --felt2:#006600;
+  --felt-shadow:#005500;
+  --pixel:'VT323',monospace;
+  --card-red:#cc0000;
+  --card-black:#000000;
+  --crt-green:rgba(180,255,180,0.03);
+}
+
+/* ── OUTER GAME WRAPPER (fills app between map and nothing) ── */
+.game-screen{
+  flex:1;overflow:hidden;display:flex;flex-direction:column;
+  background:#008080; /* Win95 teal desktop */
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 1px,rgba(0,0,0,0.04) 1px,rgba(0,0,0,0.04) 2px),
+    repeating-linear-gradient(90deg,transparent,transparent 1px,rgba(0,0,0,0.02) 1px,rgba(0,0,0,0.02) 2px);
+  padding:8px;
+  position:relative;
+}
+/* CRT scanline overlay over entire game */
+.game-screen::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
+  );
+}
+
+/* ── WIN95 WINDOW ── */
+.win95-window{
+  display:flex;flex-direction:column;height:100%;
+  border:2px solid;
+  border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+  box-shadow:1px 1px 0 var(--w95-dark),inset 1px 1px 0 var(--w95-white);
+  background:var(--w95-bg);
+}
+
+/* ── TITLE BAR ── */
+.win95-title{
+  display:flex;align-items:center;gap:6px;
+  background:linear-gradient(90deg,var(--w95-titlebar1) 0%,var(--w95-titlebar2) 100%);
+  padding:3px 4px;flex-shrink:0;
+  font-family:var(--pixel);font-size:20px;color:white;letter-spacing:.03em;
+  user-select:none;
+}
+.win95-title-icon{font-size:18px;line-height:1;}
+.win95-title-text{flex:1;text-shadow:1px 1px 0 rgba(0,0,0,0.5);}
+.win95-winbtns{display:flex;gap:2px;margin-left:auto;}
+.win95-wbtn{
+  width:18px;height:16px;
+  background:var(--w95-bg);
+  border:1.5px solid;
+  border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+  font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--w95-text);
+  display:flex;align-items:center;justify-content:center;
+  cursor:default;flex-shrink:0;
+}
+.win95-wbtn:active{border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);}
+
+/* ── TOOLBAR / MENU BAR ── */
+.win95-toolbar{
+  display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+  padding:4px 6px;background:var(--w95-bg);flex-shrink:0;
+  border-bottom:1px solid var(--w95-dark);
+}
+.win95-toolbar-sep{width:1px;height:20px;background:var(--w95-dark);margin:0 3px;flex-shrink:0;}
+.win95-info{
+  font-family:var(--pixel);font-size:18px;color:var(--w95-darker);
+  margin-left:4px;line-height:1;white-space:nowrap;
+}
+.win95-hearts{display:flex;gap:3px;margin-left:auto;}
+.win95-heart{font-size:20px;color:#cc0000;}
+.win95-heart.losing{animation:heartpop .4s ease forwards;}
+@keyframes heartpop{0%{transform:scale(1.4);opacity:1;}100%{transform:scale(0);opacity:0;width:0;margin:0;}}
+
+/* ── WIN95 BUTTONS ── */
+.btn{
+  padding:4px 12px;
+  background:var(--w95-bg);
+  border:2px solid;
+  border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+  box-shadow:1px 1px 0 var(--w95-dark),inset 1px 1px 0 rgba(255,255,255,0.8);
+  font-family:var(--pixel);font-size:18px;color:var(--w95-text);
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  line-height:1.2;letter-spacing:.02em;
+  transition:none;
+}
+.btn:hover{background:#d4d0c8;}
+.btn:active{
+  border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  box-shadow:inset 1px 1px 0 rgba(0,0,0,0.2);
+  padding:5px 11px 3px 13px;
+}
+.btn-d{color:#800000;}
+.btn-insta{color:#006400;}
+
+/* ── GAME AREA (the felt table) ── */
+.garea{
+  flex:1;overflow:auto;
+  background:var(--felt);
+  background-image:
+    radial-gradient(ellipse at 50% 0%, #008800 0%, transparent 70%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,transparent 12px,
+      rgba(0,0,0,0.04) 12px,rgba(0,0,0,0.04) 24px
+    );
+  padding:16px 12px;
+  display:flex;justify-content:center;
+  border:2px solid;
+  border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  image-rendering:pixelated;
+}
+.garea::-webkit-scrollbar{width:16px;height:16px;}
+.garea::-webkit-scrollbar-track{background:var(--w95-bg);}
+.garea::-webkit-scrollbar-thumb{
+  background:var(--w95-bg);
+  border:2px solid;
+  border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+}
+.garea::-webkit-scrollbar-button{
+  background:var(--w95-bg);width:16px;height:16px;
+  border:2px solid;
+  border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+}
+.garea::-webkit-scrollbar-corner{background:var(--w95-bg);}
+
+/* ── STATUS BAR ── */
+.win95-status{
+  display:flex;align-items:center;gap:0;
+  background:var(--w95-bg);flex-shrink:0;
+  border-top:1px solid var(--w95-dark);
+  font-family:var(--pixel);font-size:18px;color:var(--w95-darker);
+}
+.win95-status-pane{
+  padding:3px 10px;
+  border:1px solid;
+  border-color:var(--w95-dark) var(--w95-white) var(--w95-white) var(--w95-dark);
+  margin:3px 2px;line-height:1;
+}
 
 /* ── CARDS ── */
-.card{width:140px;height:192px;border-radius:10px;border:2px solid var(--card-border);
-  background:var(--card-bg);position:relative;cursor:pointer;flex-shrink:0;
-  transition:box-shadow .12s,transform .1s;font-family:'EB Garamond',serif;}
-.card.red{color:var(--red-suit);}
-.card.blk{color:var(--black-suit);}
-.card.back{background:linear-gradient(135deg,#1a0a28 25%,transparent 25%) -10px 0,
-  linear-gradient(225deg,#1a0a28 25%,transparent 25%) -10px 0,
-  linear-gradient(315deg,#1a0a28 25%,transparent 25%),
-  linear-gradient(45deg,#1a0a28 25%,transparent 25%);
-  background-size:28px 28px;background-color:#240e38;border-color:#4a2a60;cursor:default;}
-.card .ct{position:absolute;top:5px;left:7px;line-height:1.1;font-size:22px;font-weight:600;display:flex;flex-direction:column;align-items:flex-start;}
-.card .cb{position:absolute;bottom:5px;right:7px;line-height:1.1;font-size:22px;font-weight:600;
-  display:flex;flex-direction:column;align-items:flex-end;transform:rotate(180deg);}
-.card .cc{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:52px;line-height:1;}
-.card.sel{box-shadow:var(--sel-glow);transform:translateY(-10px);}
-.card.vdrop{box-shadow:0 0 0 3px rgba(80,220,80,.8),0 0 14px rgba(80,220,80,.3);}
-.card.dragging{opacity:.5;transform:scale(1.05);}
-.empty-slot{width:140px;height:192px;border-radius:10px;border:2px dashed rgba(255,255,255,.13);
-  background:rgba(0,0,0,.1);flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  color:rgba(255,255,255,.15);font-size:2.5rem;}
-.empty-slot.vdrop{border-color:var(--valid-border);background:rgba(80,220,80,.06);}
+.card{
+  width:140px;height:192px;
+  border-radius:2px;
+  border:2px solid var(--w95-darker);
+  background:#ffffff;
+  position:relative;cursor:pointer;flex-shrink:0;
+  transition:none;
+  font-family:var(--pixel);
+  box-shadow:2px 2px 0 rgba(0,0,0,0.4);
+  image-rendering:pixelated;
+}
+.card.red{color:var(--card-red);}
+.card.blk{color:var(--card-black);}
 
-/* ── KLONDIKE ── */
+/* Classic Win3.1 card back — diagonal crosshatch */
+.card.back{
+  background-color:#0000aa;
+  background-image:
+    repeating-linear-gradient(45deg,
+      rgba(255,255,255,0.15) 0px,rgba(255,255,255,0.15) 2px,
+      transparent 2px,transparent 10px),
+    repeating-linear-gradient(-45deg,
+      rgba(255,255,255,0.15) 0px,rgba(255,255,255,0.15) 2px,
+      transparent 2px,transparent 10px);
+  border-color:#000088;
+  cursor:default;
+}
+.card.back::after{
+  content:'';position:absolute;inset:5px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-radius:1px;
+}
+
+.card .ct{
+  position:absolute;top:4px;left:5px;
+  line-height:1;font-size:26px;font-weight:normal;
+  display:flex;flex-direction:column;align-items:flex-start;
+}
+.card .cb{
+  position:absolute;bottom:4px;right:5px;
+  line-height:1;font-size:26px;font-weight:normal;
+  display:flex;flex-direction:column;align-items:flex-end;
+  transform:rotate(180deg);
+}
+.card .cc{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  font-size:60px;line-height:1;
+}
+
+/* Selected card — dashed outline, no smooth animation */
+.card.sel{
+  outline:3px dashed #ffff00;
+  outline-offset:1px;
+  transform:translateY(-8px);
+  box-shadow:2px 10px 0 rgba(0,0,0,0.4);
+}
+/* Valid drop target — green border blink */
+.card.vdrop{
+  outline:3px solid #00ff00;
+  outline-offset:1px;
+  animation:vblink .5s step-end infinite;
+}
+@keyframes vblink{0%,100%{outline-color:#00ff00;}50%{outline-color:#008800;}}
+
+.card.dragging{opacity:.5;}
+
+/* Empty slots — inset Win95 well */
+.empty-slot{
+  width:140px;height:192px;
+  border-radius:2px;
+  border:2px solid;
+  border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  background:rgba(0,0,0,0.18);
+  box-shadow:inset 1px 1px 0 rgba(0,0,0,0.3);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  color:rgba(255,255,255,0.2);font-size:2.2rem;
+  font-family:var(--pixel);
+}
+.empty-slot.vdrop{
+  background:rgba(0,255,0,0.1);
+  border-color:#00aa00 var(--w95-white) var(--w95-white) #00aa00;
+}
+
+/* ── SPIDER COMPLETE SLOT ── */
+.sp-complete-slot{
+  width:140px;height:192px;border-radius:2px;
+  border:2px solid;
+  border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  background:rgba(0,0,0,0.18);box-shadow:inset 1px 1px 0 rgba(0,0,0,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;color:rgba(255,255,255,.3);font-family:var(--pixel);text-align:center;}
+.sp-complete-slot.filled{
+  background:rgba(0,80,0,0.5);
+  border-color:#006600;color:#00ff00;
+  box-shadow:inset 0 0 8px rgba(0,200,0,0.2);
+}
+
+/* ── WIN OVERLAY ── (Win95 dialog box) */
+.overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.4);
+  display:flex;align-items:center;justify-content:center;
+  z-index:200;
+}
+.panel{
+  background:var(--w95-bg);
+  border:2px solid;
+  border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+  box-shadow:2px 2px 0 var(--w95-darker);
+  max-width:440px;width:90%;
+  padding:0;
+  font-family:var(--pixel);
+}
+.panel-titlebar{
+  background:linear-gradient(90deg,var(--w95-titlebar1),var(--w95-titlebar2));
+  padding:4px 8px;color:white;font-size:20px;letter-spacing:.04em;
+  display:flex;align-items:center;gap:6px;margin-bottom:0;
+}
+.panel-body{padding:24px 28px;text-align:center;}
+.panel h2{font-size:28px;color:var(--w95-text);margin-bottom:10px;letter-spacing:.05em;}
+.panel p{color:var(--w95-darker);font-size:20px;margin-bottom:20px;line-height:1.5;}
+.panel .btn{font-size:20px;padding:5px 24px;margin:4px;}
+.panel.red-panel .panel-titlebar{background:linear-gradient(90deg,#800000,#cc2222);}
+
+/* ── STATUS LABELS ── */
+.tp-label{font-family:var(--pixel);font-size:20px;color:rgba(255,255,255,.7);}
+.py-info{font-family:var(--pixel);font-size:20px;color:rgba(255,255,255,.7);text-align:center;}
+
+/* ── GAME LAYOUTS ── */
 .kl-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1120px;}
 .kl-top{display:flex;gap:12px;align-items:flex-start;}
 .kl-stock-area{display:flex;gap:10px;}
@@ -136,62 +373,36 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .kl-tableau{display:flex;gap:10px;align-items:flex-start;}
 .tcol{position:relative;width:140px;flex-shrink:0;}
 
-/* ── SPIDER ── */
 .sp-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1560px;}
 .sp-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
 .sp-founds{display:flex;gap:8px;flex-wrap:wrap;}
-.sp-complete-slot{width:140px;height:192px;border-radius:10px;border:2px solid rgba(255,255,255,.08);
-  background:rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;
-  font-size:1.1rem;color:rgba(255,255,255,.3);font-family:'Cinzel',serif;text-align:center;}
-.sp-complete-slot.filled{background:rgba(40,90,40,.4);border-color:#3a7a3a;color:#7abf7a;}
 .sp-stock-stack{display:flex;}
-.sp-stock-stack .card + .card{margin-left:-116px;}
+.sp-stock-stack .card+.card{margin-left:-116px;}
 .sp-tableau{display:flex;gap:8px;align-items:flex-start;}
 
-/* ── TRIPEAKS ── */
 .tp-wrap{display:flex;flex-direction:column;gap:20px;align-items:center;width:100%;max-width:1520px;}
-.tp-bottom{display:flex;gap:10px;align-items:flex-start;justify-content:center;}
 .tp-stock-area{display:flex;gap:18px;align-items:center;justify-content:center;}
-.tp-label{font-family:'Cinzel',serif;font-size:1rem;color:var(--text-dim);}
 
-/* ── PYRAMID ── */
 .py-wrap{display:flex;flex-direction:column;gap:20px;align-items:center;width:100%;max-width:1280px;}
 .py-stock-area{display:flex;gap:18px;align-items:center;justify-content:center;}
-.py-info{font-family:'Cinzel',serif;font-size:1rem;color:var(--text-dim);text-align:center;}
 
-/* ── FREECELL ── */
 .fc-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1360px;}
 .fc-top{display:flex;gap:10px;justify-content:space-between;}
 .fc-cells{display:flex;gap:10px;}
 .fc-founds{display:flex;gap:10px;}
 .fc-tableau{display:flex;gap:10px;align-items:flex-start;}
 
-/* ── OVERLAYS ── */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;
-  justify-content:center;z-index:200;animation:fadein .3s ease;}
-.panel{background:var(--surface);border:2px solid var(--gold);border-radius:12px;
-  padding:36px 44px;text-align:center;box-shadow:0 0 40px var(--gold-glow);max-width:400px;}
-.panel h2{font-family:'Cinzel',serif;font-size:1.8rem;color:var(--gold);margin-bottom:10px;}
-.panel p{color:var(--text-dim);font-style:italic;margin-bottom:22px;line-height:1.6;}
-.panel .btn{font-size:.95rem;padding:9px 28px;border-color:var(--gold);margin:4px;}
-.panel.red-panel{border-color:#b03030;}
-.panel.red-panel h2{color:#dd8888;}
-
-.end-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+/* ── END SCREENS ── */
+.end-screen{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;gap:18px;padding:40px;
-  background:radial-gradient(ellipse at center,#1a0a0a 0%,#090810 100%);}
-.end-screen h1{font-family:'Cinzel',serif;font-size:2.8rem;color:var(--gold);
-  text-shadow:0 0 30px var(--gold-glow);}
-.end-screen.lose-screen{background:radial-gradient(ellipse at center,#1a0808 0%,#090810 100%);}
-.end-screen.lose-screen h1{color:#dd8888;text-shadow:0 0 30px rgba(200,60,60,.4);}
-.end-screen p{font-size:1.1rem;color:var(--text-dim);max-width:360px;line-height:1.7;}
-.btn-lg{padding:12px 36px;font-size:.9rem;border-width:2px;}
-
-/* ── DRAG GHOST ── */
-#drag-ghost{position:fixed;pointer-events:none;z-index:1000;display:none;opacity:.85;}
-#drag-ghost .card{box-shadow:0 8px 24px rgba(0,0,0,.6);}
-
-@keyframes fadein{from{opacity:0}to{opacity:1}}
+  background:#008080;
+  font-family:var(--pixel);
+}
+.end-screen h1{font-size:3.5rem;color:white;text-shadow:2px 2px 0 rgba(0,0,0,0.5);}
+.end-screen.lose-screen h1{color:#ffcccc;}
+.end-screen p{font-size:1.4rem;color:rgba(255,255,255,.85);max-width:440px;line-height:1.6;}
+.btn-lg{padding:8px 36px;font-size:22px;}
 </style>
 </head>
 <body>
@@ -725,7 +936,7 @@ function genWindows(x,y,w,h,cols,rows,cw,ch,color){
 // ── GAME FRAME ─────────────────────────────────────────────
 function renderGame(app){
   const t=A.gtype,gs=A.gs;
-  const liv=Array.from({length:A.lives},()=>`<span class="hlheart">♥</span>`).join('');
+  const liv=Array.from({length:A.lives},()=>`<span class="win95-heart">♥</span>`).join('');
   let gameHTML='';
   if(t==='klondike')gameHTML=renderKlondike(gs);
   else if(t==='spider')gameHTML=renderSpider(gs);
@@ -734,19 +945,41 @@ function renderGame(app){
   else if(t==='freecell')gameHTML=renderFreecell(gs);
 
   app.innerHTML=`
-    <div class="ghdr">
-      <div class="ghdr-left">
-        <span class="gtitle">${ICONS[t]} ${NAMES[t]}</span>
-        <span class="gfloor">Floor ${10-A.floor}/10</span>
-        <span class="gmoves">${A.moves} moves</span>
+    <div class="game-screen">
+      <div class="win95-window">
+        <!-- Title bar -->
+        <div class="win95-title">
+          <span class="win95-title-icon">🃏</span>
+          <span class="win95-title-text">Solitaire Tower of Doom — ${NAMES[t]} (Floor ${10-A.floor})</span>
+          <div class="win95-winbtns">
+            <div class="win95-wbtn">_</div>
+            <div class="win95-wbtn">□</div>
+            <div class="win95-wbtn" style="font-weight:bold">✕</div>
+          </div>
+        </div>
+        <!-- Toolbar -->
+        <div class="win95-toolbar">
+          <button class="btn" onclick="undoMove()">↩ Undo</button>
+          <button class="btn" onclick="newDeal()">⟳ New Game</button>
+          <div class="win95-toolbar-sep"></div>
+          <button class="btn btn-insta" onclick="instaWin()">⚡ InstaWin</button>
+          <div class="win95-toolbar-sep"></div>
+          <button class="btn btn-d" onclick="abandonGame()">✕ Abandon</button>
+          <div class="win95-toolbar-sep"></div>
+          <span class="win95-info">${A.moves} moves</span>
+          <div class="win95-hearts">${liv}</div>
+        </div>
+        <!-- Green felt game area -->
+        <div class="garea" id="garea">${gameHTML}</div>
+        <!-- Status bar -->
+        <div class="win95-status">
+          <div class="win95-status-pane">Floor ${10-A.floor} of 10</div>
+          <div class="win95-status-pane">${ICONS[t]} ${NAMES[t]}</div>
+          <div class="win95-status-pane">${A.lives} ${A.lives===1?'life':'lives'} remaining</div>
+          <div class="win95-status-pane" style="margin-left:auto">The Solitaire Tower of Doom v1.0</div>
+        </div>
       </div>
-      <div class="hlives">${liv}</div>
-      <button class="btn" onclick="undoMove()">↩ Undo</button>
-      <button class="btn" onclick="newDeal()">⟳ New Deal</button>
-      <button class="btn" style="border-color:#4a9a4a;color:#8acc8a" onclick="instaWin()">⚡ InstaWin</button>
-      <button class="btn btn-d" onclick="abandonGame()">✕ Abandon</button>
     </div>
-    <div class="garea" id="garea">${gameHTML}</div>
     ${A.winOverlay?winOverlayHTML():''}
   `;
   attachEvents();
@@ -754,11 +987,16 @@ function renderGame(app){
 
 function winOverlayHTML(){
   const isLast=A.floor>=9;
+  const title=isLast?'🚪 ESCAPED!':'✅ FLOOR CLEARED';
+  const msg=isLast?'You smashed through the ground floor and burst into the streets! You are FREE!':'Staircase located. Descending to the next floor...';
   return`<div class="overlay">
     <div class="panel">
-      <h2>${isLast?'🚪 Escaped!':'✨ Floor Cleared!'}</h2>
-      <p>${isLast?'You have broken through the ground floor and escaped the Tower of Doom. Freedom is yours!':'You find the staircase and descend further into the tower...'}</p>
-      <button class="btn" onclick="nextFloor()">${isLast?'Escape!':'Descend'}</button>
+      <div class="panel-titlebar">${isLast?'🚪':'✅'} ${title}</div>
+      <div class="panel-body">
+        <h2>${isLast?'YOU ESCAPED':'FLOOR CLEARED'}</h2>
+        <p>${msg}</p>
+        <button class="btn" onclick="nextFloor()">${isLast?'[ ESCAPE ]':'[ DESCEND ]'}</button>
+      </div>
     </div>
   </div>`;
 }
@@ -1077,14 +1315,16 @@ function renderFreecell(gs){
 function renderEnd(app,isVictory){
   app.innerHTML=isVictory
     ?`<div class="end-screen">
-        <h1>🚪 You Escaped!</h1>
-        <p>You descended all 10 floors of the Tower of Doom and burst through the front doors into the light. The tower stands empty behind you.</p>
-        <button class="btn btn-lg" onclick="init()">Play Again</button>
+        <div style="font-size:5rem">🚪</div>
+        <h1>YOU ESCAPED!</h1>
+        <p>You smashed through all 10 floors and burst into the street.<br>The Tower of Doom stands empty behind you.</p>
+        <button class="btn btn-lg" onclick="init()">[ PLAY AGAIN ]</button>
       </div>`
     :`<div class="end-screen lose-screen">
-        <h1>☠ Trapped Forever</h1>
-        <p>You have exhausted your three lives. The Tower of Doom swallows you whole. Perhaps next time you'll find a way out.</p>
-        <button class="btn btn-lg" onclick="init()">Try Again</button>
+        <div style="font-size:5rem">💀</div>
+        <h1>GAME OVER</h1>
+        <p>You ran out of lives.<br>The Tower of Doom claims another soul.</p>
+        <button class="btn btn-lg" onclick="init()">[ TRY AGAIN ]</button>
       </div>`;
 }
 
@@ -1515,8 +1755,7 @@ function abandonGame(){
 }
 
 function animateLoseLife(){
-  // Animate the last heart popping out before losing
-  const hearts=document.querySelectorAll('.hlheart');
+  const hearts=document.querySelectorAll('.win95-heart');
   const last=hearts[hearts.length-1];
   if(last){
     last.classList.add('losing');
