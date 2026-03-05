@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Tower of Cards</title>
+<title>The Solitaire Tower of Doom</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -32,9 +32,9 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .map-sub{font-size:1rem;color:var(--text-dim);font-style:italic;margin-top:4px;}
 .lives-row{display:flex;align-items:center;gap:10px;justify-content:center;margin:10px 0;}
 .lives-label{font-family:'Cinzel',serif;font-size:.8rem;color:var(--text-dim);}
-.lheart{font-size:1.5rem;transition:transform .2s;}
-.lheart.on{color:var(--life);}
-.lheart.off{color:var(--life-empty);filter:grayscale(1);}
+.lheart{font-size:2rem;transition:transform .3s,opacity .3s;color:var(--life);}
+.lheart.losing{animation:heartpop .4s ease forwards;}
+@keyframes heartpop{0%{transform:scale(1.4);opacity:1;}100%{transform:scale(0);opacity:0;width:0;margin:0;padding:0;}}
 
 .tower{display:flex;flex-direction:column;align-items:center;width:100%;max-width:540px;gap:0;}
 .f-row{display:flex;flex-direction:column;align-items:center;width:100%;}
@@ -62,13 +62,14 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .ghdr{display:flex;align-items:center;padding:7px 14px;background:rgba(0,0,0,.45);
   gap:12px;flex-shrink:0;z-index:20;border-bottom:1px solid rgba(255,255,255,.06);}
 .ghdr-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
-.gtitle{font-family:'Cinzel',serif;font-size:.95rem;color:var(--gold);white-space:nowrap;}
-.gfloor{font-size:.82rem;color:var(--text-dim);white-space:nowrap;}
-.gmoves{font-size:.78rem;color:var(--text-dim);white-space:nowrap;}
+.gtitle{font-family:'Cinzel',serif;font-size:1.2rem;color:var(--gold);white-space:nowrap;}
+.gfloor{font-size:1rem;color:var(--text-dim);white-space:nowrap;}
+.gmoves{font-size:.9rem;color:var(--text-dim);white-space:nowrap;}
 .hlives{display:flex;gap:5px;}
-.hlheart{font-size:1rem;}
-.btn{padding:5px 12px;border:1px solid var(--gold-dim);border-radius:4px;
-  background:rgba(0,0,0,.3);color:var(--text);font-family:'Cinzel',serif;font-size:.72rem;
+.hlheart{font-size:1.6rem;color:var(--life);transition:transform .3s,opacity .3s;}
+.hlheart.losing{animation:heartpop .4s ease forwards;}
+.btn{padding:8px 16px;border:1px solid var(--gold-dim);border-radius:4px;
+  background:rgba(0,0,0,.3);color:var(--text);font-family:'Cinzel',serif;font-size:.88rem;
   cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
 .btn:hover{border-color:var(--gold);background:rgba(0,0,0,.5);}
 .btn-d{border-color:#7a2020;color:#dd8888;}
@@ -83,7 +84,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .garea::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px;}
 
 /* ── CARDS ── */
-.card{width:70px;height:96px;border-radius:6px;border:1.5px solid var(--card-border);
+.card{width:140px;height:192px;border-radius:10px;border:2px solid var(--card-border);
   background:var(--card-bg);position:relative;cursor:pointer;flex-shrink:0;
   transition:box-shadow .12s,transform .1s;font-family:'EB Garamond',serif;}
 .card.red{color:var(--red-suit);}
@@ -92,58 +93,56 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   linear-gradient(225deg,#1a0a28 25%,transparent 25%) -10px 0,
   linear-gradient(315deg,#1a0a28 25%,transparent 25%),
   linear-gradient(45deg,#1a0a28 25%,transparent 25%);
-  background-size:18px 18px;background-color:#240e38;border-color:#4a2a60;cursor:default;}
-.card .ct{position:absolute;top:3px;left:4px;line-height:1.1;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:flex-start;}
-.card .cb{position:absolute;bottom:3px;right:4px;line-height:1.1;font-size:12px;font-weight:600;
+  background-size:28px 28px;background-color:#240e38;border-color:#4a2a60;cursor:default;}
+.card .ct{position:absolute;top:5px;left:7px;line-height:1.1;font-size:22px;font-weight:600;display:flex;flex-direction:column;align-items:flex-start;}
+.card .cb{position:absolute;bottom:5px;right:7px;line-height:1.1;font-size:22px;font-weight:600;
   display:flex;flex-direction:column;align-items:flex-end;transform:rotate(180deg);}
-.card .cc{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:26px;line-height:1;}
-.card.sel{box-shadow:var(--sel-glow);transform:translateY(-5px);}
-.card.vdrop{box-shadow:0 0 0 2.5px rgba(80,220,80,.8),0 0 10px rgba(80,220,80,.3);}
+.card .cc{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:52px;line-height:1;}
+.card.sel{box-shadow:var(--sel-glow);transform:translateY(-10px);}
+.card.vdrop{box-shadow:0 0 0 3px rgba(80,220,80,.8),0 0 14px rgba(80,220,80,.3);}
 .card.dragging{opacity:.5;transform:scale(1.05);}
-.empty-slot{width:70px;height:96px;border-radius:6px;border:1.5px dashed rgba(255,255,255,.13);
+.empty-slot{width:140px;height:192px;border-radius:10px;border:2px dashed rgba(255,255,255,.13);
   background:rgba(0,0,0,.1);flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  color:rgba(255,255,255,.15);font-size:1.4rem;}
+  color:rgba(255,255,255,.15);font-size:2.5rem;}
 .empty-slot.vdrop{border-color:var(--valid-border);background:rgba(80,220,80,.06);}
 
 /* ── KLONDIKE ── */
-.kl-wrap{display:flex;flex-direction:column;gap:10px;width:100%;max-width:580px;}
-.kl-top{display:flex;gap:8px;align-items:flex-start;}
-.kl-stock-area{display:flex;gap:7px;}
-.kl-founds{display:flex;gap:7px;margin-left:auto;}
-.kl-tableau{display:flex;gap:7px;align-items:flex-start;}
-.tcol{position:relative;width:70px;flex-shrink:0;}
+.kl-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1120px;}
+.kl-top{display:flex;gap:12px;align-items:flex-start;}
+.kl-stock-area{display:flex;gap:10px;}
+.kl-founds{display:flex;gap:10px;margin-left:auto;}
+.kl-tableau{display:flex;gap:10px;align-items:flex-start;}
+.tcol{position:relative;width:140px;flex-shrink:0;}
 
 /* ── SPIDER ── */
-.sp-wrap{display:flex;flex-direction:column;gap:10px;width:100%;max-width:780px;}
-.sp-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
-.sp-founds{display:flex;gap:6px;flex-wrap:wrap;}
-.sp-complete-slot{width:70px;height:96px;border-radius:6px;border:1.5px solid rgba(255,255,255,.08);
+.sp-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1560px;}
+.sp-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.sp-founds{display:flex;gap:8px;flex-wrap:wrap;}
+.sp-complete-slot{width:140px;height:192px;border-radius:10px;border:2px solid rgba(255,255,255,.08);
   background:rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;
-  font-size:.75rem;color:rgba(255,255,255,.3);font-family:'Cinzel',serif;text-align:center;}
+  font-size:1.1rem;color:rgba(255,255,255,.3);font-family:'Cinzel',serif;text-align:center;}
 .sp-complete-slot.filled{background:rgba(40,90,40,.4);border-color:#3a7a3a;color:#7abf7a;}
 .sp-stock-stack{display:flex;}
-.sp-stock-stack .card + .card{margin-left:-60px;}
-.sp-tableau{display:flex;gap:5px;align-items:flex-start;}
+.sp-stock-stack .card + .card{margin-left:-116px;}
+.sp-tableau{display:flex;gap:8px;align-items:flex-start;}
 
 /* ── TRIPEAKS ── */
-.tp-wrap{display:flex;flex-direction:column;gap:14px;align-items:center;width:100%;max-width:760px;}
-.tp-pyramid{position:relative;width:760px;height:270px;flex-shrink:0;}
-.tp-bottom{display:flex;gap:7px;align-items:flex-start;justify-content:center;}
-.tp-stock-area{display:flex;gap:10px;align-items:center;justify-content:center;}
-.tp-label{font-family:'Cinzel',serif;font-size:.8rem;color:var(--text-dim);}
+.tp-wrap{display:flex;flex-direction:column;gap:20px;align-items:center;width:100%;max-width:1520px;}
+.tp-bottom{display:flex;gap:10px;align-items:flex-start;justify-content:center;}
+.tp-stock-area{display:flex;gap:18px;align-items:center;justify-content:center;}
+.tp-label{font-family:'Cinzel',serif;font-size:1rem;color:var(--text-dim);}
 
 /* ── PYRAMID ── */
-.py-wrap{display:flex;flex-direction:column;gap:14px;align-items:center;width:100%;max-width:640px;}
-.py-grid{position:relative;width:600px;flex-shrink:0;}
-.py-stock-area{display:flex;gap:10px;align-items:center;justify-content:center;}
-.py-info{font-family:'Cinzel',serif;font-size:.82rem;color:var(--text-dim);text-align:center;}
+.py-wrap{display:flex;flex-direction:column;gap:20px;align-items:center;width:100%;max-width:1280px;}
+.py-stock-area{display:flex;gap:18px;align-items:center;justify-content:center;}
+.py-info{font-family:'Cinzel',serif;font-size:1rem;color:var(--text-dim);text-align:center;}
 
 /* ── FREECELL ── */
-.fc-wrap{display:flex;flex-direction:column;gap:10px;width:100%;max-width:680px;}
-.fc-top{display:flex;gap:7px;justify-content:space-between;}
-.fc-cells{display:flex;gap:7px;}
-.fc-founds{display:flex;gap:7px;}
-.fc-tableau{display:flex;gap:7px;align-items:flex-start;}
+.fc-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1360px;}
+.fc-top{display:flex;gap:10px;justify-content:space-between;}
+.fc-cells{display:flex;gap:10px;}
+.fc-founds{display:flex;gap:10px;}
+.fc-tableau{display:flex;gap:10px;align-items:flex-start;}
 
 /* ── OVERLAYS ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;
@@ -217,7 +216,7 @@ function cardH(card,cls=''){
   const r=LBL[card.rank],s=SYM[card.suit];
   return`<div class="card ${c} ${cls}" draggable="true">
     <div class="ct"><span>${r}</span><span>${s}</span></div>
-    <div class="cc">${r==='10'?'<span style="font-size:18px">10</span>':s}</div>
+    <div class="cc">${r==='10'?'<span style="font-size:36px">10</span>':s}</div>
     <div class="cb"><span>${r}</span><span>${s}</span></div>
   </div>`;
 }
@@ -403,24 +402,24 @@ const TP_BLK={
 };
 
 function tpPos(idx){
-  const TW=74; // 70px card + 4px gap
+  const TW=148; // 140px card + 8px gap
   if(idx<3){
-    const xs=[39,261,483];
+    const xs=[78,522,966];
     return{x:xs[idx],y:0};
   }
   if(idx<9){
-    const pos=[{x:37,y:56},{x:111,y:56},{x:259,y:56},{x:333,y:56},{x:481,y:56},{x:555,y:56}];
+    const pos=[{x:74,y:112},{x:222,y:112},{x:518,y:112},{x:666,y:112},{x:962,y:112},{x:1110,y:112}];
     return pos[idx-3];
   }
   if(idx<18){
     const pos=[
-      {x:0,y:112},{x:74,y:112},{x:148,y:112},
-      {x:222,y:112},{x:296,y:112},{x:370,y:112},
-      {x:444,y:112},{x:518,y:112},{x:592,y:112},
+      {x:0,y:224},{x:148,y:224},{x:296,y:224},
+      {x:444,y:224},{x:592,y:224},{x:740,y:224},
+      {x:888,y:224},{x:1036,y:224},{x:1184,y:224},
     ];
     return pos[idx-9];
   }
-  return{x:(idx-18)*TW,y:168};
+  return{x:(idx-18)*TW,y:336};
 }
 
 function initTripeaks(floor){
@@ -456,11 +455,11 @@ function initSpiderWrap(floor){return initSpider(floor);}
 function pyIdx(r,c){return r*(r+1)/2+c;}
 
 function pyPos(r,c){
-  const W=70,G=8,ROWS=7;
+  const W=140,G=10,ROWS=7;
   const rowW=(W+G)*(r+1)-G;
   const totalW=(W+G)*ROWS-G;
   const x=(totalW-rowW)/2+c*(W+G);
-  const y=r*38;
+  const y=r*76;
   return{x,y};
 }
 
@@ -542,7 +541,7 @@ function render(){
 
 // ── MAP ────────────────────────────────────────────────────
 function renderMap(app){
-  const liv=[1,2,3].map(i=>`<span class="lheart ${i<=A.lives?'on':'off'}">♥</span>`).join('');
+  const liv=Array.from({length:A.lives},()=>`<span class="lheart">♥</span>`).join('');
   let rows='';
   for(let f=0;f<10;f++){
     const ch=A.choices[f];
@@ -580,7 +579,7 @@ function renderMap(app){
   }
   app.innerHTML=`<div class="map-wrap">
     <div class="map-head">
-      <div class="map-title">Tower of Cards</div>
+      <div class="map-title">The Solitaire Tower of Doom</div>
       <div class="map-sub">Descend through the tower. One floor at a time.</div>
       <div class="lives-row"><span class="lives-label">Lives</span>${liv}</div>
     </div>
@@ -591,7 +590,7 @@ function renderMap(app){
 // ── GAME FRAME ─────────────────────────────────────────────
 function renderGame(app){
   const t=A.gtype,gs=A.gs;
-  const liv=[1,2,3].map(i=>`<span class="hlheart ${i<=A.lives?'on':'off'}">♥</span>`).join('');
+  const liv=Array.from({length:A.lives},()=>`<span class="hlheart">♥</span>`).join('');
   let gameHTML='';
   if(t==='klondike')gameHTML=renderKlondike(gs);
   else if(t==='spider')gameHTML=renderSpider(gs);
@@ -609,6 +608,7 @@ function renderGame(app){
       <div class="hlives">${liv}</div>
       <button class="btn" onclick="undoMove()">↩ Undo</button>
       <button class="btn" onclick="newDeal()">⟳ New Deal</button>
+      <button class="btn" style="border-color:#4a9a4a;color:#8acc8a" onclick="instaWin()">⚡ InstaWin</button>
       <button class="btn btn-d" onclick="abandonGame()">✕ Abandon</button>
     </div>
     <div class="garea" id="garea">${gameHTML}</div>
@@ -643,7 +643,7 @@ function renderKlondike(gs){
   const wasteDom=wasteTop
     ?`<div class="card ${isRed(wasteTop.suit)?'red':'blk'} ${isSel('waste',-1,-1)?'sel':''}" data-src="waste" draggable="true">
       <div class="ct"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
-      <div class="cc">${LBL[wasteTop.rank]==='10'?'<span style="font-size:18px">10</span>':SYM[wasteTop.suit]}</div>
+      <div class="cc">${LBL[wasteTop.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[wasteTop.suit]}</div>
       <div class="cb"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
     </div>`
     :emptyH();
@@ -659,16 +659,16 @@ function renderKlondike(gs){
     return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;
   }).join('');
 
-  const OVER=26;
+  const OVER=52;
   let tabH='';
   for(let c=0;c<7;c++){
     const pile=tableau[c];
     if(!pile.length){
-      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:96px"></div>`;
+      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:192px"></div>`;
       continue;
     }
-    const h=(pile.length-1)*OVER+96;
-    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:70px">`;
+    const h=(pile.length-1)*OVER+192;
+    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:140px">`;
     pile.forEach((card,idx)=>{
       const selCls=isSel('tab',c,idx)?'sel':'';
       if(!card.faceUp){
@@ -678,7 +678,7 @@ function renderKlondike(gs){
         tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}">
           <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-            <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:18px">10</span>':SYM[card.suit]}</div>
+            <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
           </div>
         </div>`;
@@ -702,18 +702,18 @@ function renderKlondike(gs){
 // ── SPIDER RENDER ──────────────────────────────────────────
 function renderSpider(gs){
   const {tableau,stockGroups,foundations,suits}=gs;
-  const OVER=22;
+  const OVER=44;
   const isSel=(c,i)=>A.sel&&A.sel.type==='tab'&&A.sel.col===c&&A.sel.idx===i;
 
   let tabH='';
   for(let c=0;c<10;c++){
     const pile=tableau[c];
     if(!pile.length){
-      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:96px;width:70px;flex-shrink:0"></div>`;
+      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:192px;width:140px;flex-shrink:0"></div>`;
       continue;
     }
-    const h=(pile.length-1)*OVER+96;
-    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:70px">`;
+    const h=(pile.length-1)*OVER+192;
+    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:140px">`;
     pile.forEach((card,idx)=>{
       const selCls=isSel(c,idx)?'sel':'';
       if(!card.faceUp){
@@ -723,7 +723,7 @@ function renderSpider(gs){
         tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}">
           <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-            <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:18px">10</span>':SYM[card.suit]}</div>
+            <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
           </div>
         </div>`;
@@ -768,10 +768,7 @@ function renderTripeaks(gs){
 
   // Pyramid
   let pyH='';
-  const maxX=11*(70+8);
-  const rows=4;
-  const rowHeights=[0,48+28,96+56,144+84];
-  const totalH=rowHeights[3]+96+10;
+  const totalH=336+192+10;
   for(let i=0;i<28;i++){
     const card=pyramid[i];
     if(!card)continue;
@@ -786,7 +783,7 @@ function renderTripeaks(gs){
       const cls=`${cc} ${canPlay?'vdrop':''} ${selCls}`;
       pyH+=`<div class="card ${cls}" data-src="pycard" data-idx="${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
         <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-        <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:18px">10</span>':SYM[card.suit]}</div>
+        <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
         <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
       </div>`;
     }
@@ -806,7 +803,7 @@ function renderTripeaks(gs){
   const remaining=pyramid.filter(c=>!!c).length;
 
   return`<div class="tp-wrap">
-    <div class="tp-pyramid" style="height:${totalH}px">${pyH}</div>
+    <div style="position:relative;width:1324px;height:${totalH}px;flex-shrink:0">${pyH}</div>
     <div class="tp-stock-area">
       ${stockH}
       <div style="text-align:center">
@@ -824,7 +821,8 @@ function renderPyramid(gs){
   const wasteTop=waste.length?waste[waste.length-1]:null;
 
   let pyH='';
-  const totalH=6*38+96+10;
+  const totalH=6*76+192+10;
+  const gridW=7*150-10;
   for(let r=0;r<7;r++){
     for(let c=0;c<=r;c++){
       const idx=pyIdx(r,c);
@@ -844,7 +842,7 @@ function renderPyramid(gs){
         const cls=`${cc} ${(wasteMatch||selMatch)?'vdrop':''} ${selCls}`;
         pyH+=`<div class="card ${cls}" data-src="pycard" data-idx="${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:18px">10</span>':SYM[card.suit]}</div>
+          <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         </div>`;
       }
@@ -866,7 +864,7 @@ function renderPyramid(gs){
   const cycInfo=`${gs.maxCycles-gs.cycles} cycle${gs.maxCycles-gs.cycles!==1?'s':''} left`;
 
   return`<div class="py-wrap">
-    <div class="py-grid" style="height:${totalH}px">${pyH}</div>
+    <div style="position:relative;width:${gridW}px;height:${totalH}px">${pyH}</div>
     <div class="py-stock-area">
       ${stockH}
       <div style="text-align:center">
@@ -881,7 +879,7 @@ function renderPyramid(gs){
 // ── FREECELL RENDER ────────────────────────────────────────
 function renderFreecell(gs){
   const {tableau,freecells,foundations}=gs;
-  const OVER=24;
+  const OVER=48;
   const isSel=(type,col,idx)=>A.sel&&A.sel.type===type&&A.sel.col===col&&A.sel.idx===idx;
 
   const fcH=freecells.map((card,i)=>{
@@ -912,18 +910,18 @@ function renderFreecell(gs){
   for(let c=0;c<8;c++){
     const pile=tableau[c];
     if(!pile.length){
-      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:96px;width:70px;flex-shrink:0"></div>`;
+      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:192px;width:140px;flex-shrink:0"></div>`;
       continue;
     }
-    const h=(pile.length-1)*OVER+96;
-    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:70px">`;
+    const h=(pile.length-1)*OVER+192;
+    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:140px">`;
     pile.forEach((card,idx)=>{
       const selCls=isSel('tab',c,idx)?'sel':'';
       const cc=isRed(card.suit)?'red':'blk';
       tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}">
         <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:18px">10</span>':SYM[card.suit]}</div>
+          <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         </div>
       </div>`;
@@ -1363,6 +1361,11 @@ function handleWin(){
   A.winOverlay=true;
 }
 
+function instaWin(){
+  handleWin();
+  render();
+}
+
 function nextFloor(){
   A.done.add(A.floor);
   if(A.floor>=9){A.screen='victory';render();return;}
@@ -1372,14 +1375,25 @@ function nextFloor(){
 
 function abandonGame(){
   if(!confirm('Abandon this game? You will lose a life.'))return;
-  loseLife();
+  animateLoseLife();
+}
+
+function animateLoseLife(){
+  // Animate the last heart popping out before losing
+  const hearts=document.querySelectorAll('.hlheart');
+  const last=hearts[hearts.length-1];
+  if(last){
+    last.classList.add('losing');
+    setTimeout(()=>loseLife(),420);
+  } else {
+    loseLife();
+  }
 }
 
 function loseLife(){
   A.lives--;
   A.sel=null;A.winOverlay=false;
   if(A.lives<=0){A.screen='gameover';render();return;}
-  // Restart same game type
   startGame(A.gtype,A.floor);
 }
 
@@ -1433,6 +1447,7 @@ window.newDeal=newDeal;
 window.abandonGame=abandonGame;
 window.nextFloor=nextFloor;
 window.init=init;
+window.instaWin=instaWin;
 </script>
 </body>
 </html>
