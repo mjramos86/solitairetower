@@ -235,9 +235,12 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   margin:3px 2px;line-height:1;
 }
 
+/* ── RESPONSIVE CARD SIZING (set by JS on each render) ── */
+:root{--cw:140px;--ch:192px;--cfs:26px;--cfc:60px;}
+
 /* ── CARDS ── */
 .card{
-  width:140px;height:192px;
+  width:var(--cw);height:var(--ch);
   border-radius:2px;
   border:2px solid var(--w95-darker);
   background:#ffffff;
@@ -245,80 +248,32 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   transition:none;
   font-family:var(--pixel);
   box-shadow:2px 2px 0 rgba(0,0,0,0.4);
-  image-rendering:pixelated;
 }
 .card.red{color:var(--card-red);}
 .card.blk{color:var(--card-black);}
-
-/* Classic Win3.1 card back — diagonal crosshatch */
 .card.back{
   background-color:#0000aa;
   background-image:
-    repeating-linear-gradient(45deg,
-      rgba(255,255,255,0.15) 0px,rgba(255,255,255,0.15) 2px,
-      transparent 2px,transparent 10px),
-    repeating-linear-gradient(-45deg,
-      rgba(255,255,255,0.15) 0px,rgba(255,255,255,0.15) 2px,
-      transparent 2px,transparent 10px);
-  border-color:#000088;
-  cursor:default;
+    repeating-linear-gradient(45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 2px,transparent 2px,transparent 10px),
+    repeating-linear-gradient(-45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 2px,transparent 2px,transparent 10px);
+  border-color:#000088;cursor:default;
 }
-.card.back::after{
-  content:'';position:absolute;inset:5px;
-  border:2px solid rgba(255,255,255,0.3);
-  border-radius:1px;
-}
-
-.card .ct{
-  position:absolute;top:4px;left:5px;
-  line-height:1;font-size:26px;font-weight:normal;
-  display:flex;flex-direction:column;align-items:flex-start;
-}
-.card .cb{
-  position:absolute;bottom:4px;right:5px;
-  line-height:1;font-size:26px;font-weight:normal;
-  display:flex;flex-direction:column;align-items:flex-end;
-  transform:rotate(180deg);
-}
-.card .cc{
-  position:absolute;top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  font-size:60px;line-height:1;
-}
-
-/* Selected card — dashed outline, no smooth animation */
-.card.sel{
-  outline:3px dashed #ffff00;
-  outline-offset:1px;
-  transform:translateY(-8px);
-  box-shadow:2px 10px 0 rgba(0,0,0,0.4);
-}
-/* Valid drop target — green border blink */
-.card.vdrop{
-  outline:3px solid #00ff00;
-  outline-offset:1px;
-  animation:vblink .5s step-end infinite;
-}
+.card.back::after{content:'';position:absolute;inset:5px;border:2px solid rgba(255,255,255,.3);border-radius:1px;}
+.card .ct{position:absolute;top:3px;left:4px;line-height:1;font-size:var(--cfs);font-weight:normal;display:flex;flex-direction:column;align-items:flex-start;}
+.card .cb{position:absolute;bottom:3px;right:4px;line-height:1;font-size:var(--cfs);font-weight:normal;display:flex;flex-direction:column;align-items:flex-end;transform:rotate(180deg);}
+.card .cc{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:var(--cfc);line-height:1;}
+.card.sel{outline:3px dashed #ffff00;outline-offset:1px;transform:translateY(-8px);box-shadow:2px 10px 0 rgba(0,0,0,.4);}
+.card.vdrop{outline:3px solid #00ff00;outline-offset:1px;animation:vblink .5s step-end infinite;}
 @keyframes vblink{0%,100%{outline-color:#00ff00;}50%{outline-color:#008800;}}
-
-.card.dragging{opacity:.5;}
-
-/* Empty slots — inset Win95 well */
+.card.dragging{opacity:.4;}
 .empty-slot{
-  width:140px;height:192px;
-  border-radius:2px;
-  border:2px solid;
-  border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
-  background:rgba(0,0,0,0.18);
-  box-shadow:inset 1px 1px 0 rgba(0,0,0,0.3);
+  width:var(--cw);height:var(--ch);border-radius:2px;
+  border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  background:rgba(0,0,0,.18);box-shadow:inset 1px 1px 0 rgba(0,0,0,.3);
   flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  color:rgba(255,255,255,0.2);font-size:2.2rem;
-  font-family:var(--pixel);
+  color:rgba(255,255,255,.2);font-size:1.8rem;font-family:var(--pixel);
 }
-.empty-slot.vdrop{
-  background:rgba(0,255,0,0.1);
-  border-color:#00aa00 var(--w95-white) var(--w95-white) #00aa00;
-}
+.empty-slot.vdrop{background:rgba(0,255,0,.1);border-color:#00aa00 var(--w95-white) var(--w95-white) #00aa00;}
 
 /* ── SPIDER COMPLETE SLOT ── */
 .sp-complete-slot{
@@ -366,43 +321,77 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .py-info{font-family:var(--pixel);font-size:20px;color:rgba(255,255,255,.7);text-align:center;}
 
 /* ── GAME LAYOUTS ── */
-.kl-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1120px;}
-.kl-top{display:flex;gap:12px;align-items:flex-start;}
-.kl-stock-area{display:flex;gap:10px;}
-.kl-founds{display:flex;gap:10px;margin-left:auto;}
-.kl-tableau{display:flex;gap:10px;align-items:flex-start;}
-.tcol{position:relative;width:140px;flex-shrink:0;}
+.kl-wrap{display:flex;flex-direction:column;gap:12px;width:100%;}
+.kl-top{display:flex;gap:var(--cgap,10px);align-items:flex-start;}
+.kl-stock-area{display:flex;gap:var(--cgap,10px);}
+.kl-founds{display:flex;gap:var(--cgap,10px);margin-left:auto;}
+.kl-tableau{display:flex;gap:var(--cgap,10px);align-items:flex-start;}
+.tcol{position:relative;width:var(--cw);flex-shrink:0;}
 
-.sp-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1560px;}
-.sp-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
-.sp-founds{display:flex;gap:8px;flex-wrap:wrap;}
+.sp-wrap{display:flex;flex-direction:column;gap:12px;width:100%;}
+.sp-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.sp-founds{display:flex;gap:6px;flex-wrap:wrap;}
 .sp-stock-stack{display:flex;}
-.sp-stock-stack .card+.card{margin-left:-116px;}
-.sp-tableau{display:flex;gap:8px;align-items:flex-start;}
+.sp-tableau{display:flex;gap:var(--cgap,8px);align-items:flex-start;}
 
-.tp-wrap{display:flex;flex-direction:column;gap:20px;align-items:center;width:100%;max-width:1520px;}
-.tp-stock-area{display:flex;gap:18px;align-items:center;justify-content:center;}
+.tp-wrap{display:flex;flex-direction:column;gap:14px;align-items:center;width:100%;}
+.tp-stock-area{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;}
 
-.py-wrap{display:flex;flex-direction:column;gap:20px;align-items:center;width:100%;max-width:1280px;}
-.py-stock-area{display:flex;gap:18px;align-items:center;justify-content:center;}
+.py-wrap{display:flex;flex-direction:column;gap:14px;align-items:center;width:100%;}
+.py-stock-area{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;}
 
-.fc-wrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1360px;}
-.fc-top{display:flex;gap:10px;justify-content:space-between;}
-.fc-cells{display:flex;gap:10px;}
-.fc-founds{display:flex;gap:10px;}
-.fc-tableau{display:flex;gap:10px;align-items:flex-start;}
+.fc-wrap{display:flex;flex-direction:column;gap:12px;width:100%;}
+.fc-top{display:flex;gap:var(--cgap,10px);justify-content:space-between;}
+.fc-cells{display:flex;gap:var(--cgap,10px);}
+.fc-founds{display:flex;gap:var(--cgap,10px);}
+.fc-tableau{display:flex;gap:var(--cgap,10px);align-items:flex-start;}
+
+/* ── SP COMPLETE SLOT ── */
+.sp-complete-slot{
+  width:var(--cw);height:var(--ch);border-radius:2px;
+  border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  background:rgba(0,0,0,.18);box-shadow:inset 1px 1px 0 rgba(0,0,0,.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;color:rgba(255,255,255,.3);font-family:var(--pixel);text-align:center;}
+.sp-complete-slot.filled{background:rgba(0,80,0,.5);border-color:#006600;color:#00ff00;}
+
+/* ── RESPONSIVE BREAKPOINTS ── */
+@media(max-width:900px){
+  .map-title{font-size:1.6rem;}
+  .tower-container{width:100%;max-width:600px;}
+  .win95-title{font-size:16px;}
+  .win95-info{font-size:15px;}
+  .win95-status-pane:last-child{display:none;}
+}
+@media(max-width:600px){
+  .map-title{font-size:1.2rem;}
+  .map-sub{font-size:.85rem;}
+  .tower-container{width:100%;}
+  .floors-overlay{padding:40px 0 8px 0;}
+  .f-level-label{font-size:.6rem;min-width:20px;}
+  .cbtn{font-size:.55rem;min-width:72px;padding:4px 6px;}
+  .cbtn.boss{min-width:120px;}
+  .win95-title{font-size:14px;padding:2px 4px;}
+  .win95-toolbar{padding:3px 4px;gap:3px;}
+  .btn{font-size:14px;padding:3px 8px;}
+  .win95-status-pane{font-size:13px;padding:2px 6px;}
+  .win95-status-pane:nth-child(3),.win95-status-pane:last-child{display:none;}
+  .win95-heart{font-size:16px;}
+}
+@media(max-width:400px){
+  .cbtn{font-size:.5rem;min-width:60px;padding:3px 5px;}
+  .btn{font-size:13px;padding:2px 6px;}
+}
 
 /* ── END SCREENS ── */
 .end-screen{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;gap:18px;padding:40px;
-  background:#008080;
-  font-family:var(--pixel);
+  text-align:center;gap:18px;padding:24px;background:#008080;font-family:var(--pixel);
 }
-.end-screen h1{font-size:3.5rem;color:white;text-shadow:2px 2px 0 rgba(0,0,0,0.5);}
+.end-screen h1{font-size:clamp(1.6rem,6vw,3rem);color:white;text-shadow:2px 2px 0 rgba(0,0,0,.5);}
 .end-screen.lose-screen h1{color:#ffcccc;}
-.end-screen p{font-size:1.4rem;color:rgba(255,255,255,.85);max-width:440px;line-height:1.6;}
-.btn-lg{padding:8px 36px;font-size:22px;}
+.end-screen p{font-size:clamp(1rem,3vw,1.3rem);color:rgba(255,255,255,.85);max-width:440px;line-height:1.6;}
+.btn-lg{padding:8px 28px;font-size:clamp(16px,3vw,22px);}
 </style>
 </head>
 <body>
@@ -414,7 +403,22 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
    TOWER OF CARDS — Roguelike Solitaire
    ═══════════════════════════════════════════════════════════ */
 
-// ── SEEDED RNG ─────────────────────────────────────────────
+// ── RESPONSIVE CARD SIZING ─────────────────────────────────
+function getS(){
+  const vw=window.innerWidth;
+  if(vw>=1100) return{cw:140,ch:192,cgap:10,cover:52,spOver:44,fcOver:48,cfs:26,cfc:60,tenFs:36};
+  if(vw>=780)  return{cw:96, ch:132,cgap:7, cover:36,spOver:30,fcOver:33,cfs:18,cfc:42,tenFs:26};
+  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:26,spOver:22,fcOver:24,cfs:14,cfc:30,tenFs:18};
+               return{cw:54, ch:74, cgap:4, cover:20,spOver:17,fcOver:19,cfs:11,cfc:24,tenFs:14};
+}
+function applyS(s){
+  const r=document.documentElement.style;
+  r.setProperty('--cw',s.cw+'px');
+  r.setProperty('--ch',s.ch+'px');
+  r.setProperty('--cfs',s.cfs+'px');
+  r.setProperty('--cfc',s.cfc+'px');
+  r.setProperty('--cgap',s.cgap+'px');
+}
 function mkRng(seed){
   let s=seed|0;
   return()=>{s^=s<<13;s^=s>>17;s^=s<<5;return(s>>>0)/0xFFFFFFFF;};
@@ -634,25 +638,28 @@ const TP_BLK={
   15:[24,25],16:[25,26],17:[26,27]
 };
 
-function tpPos(idx){
-  const TW=148; // 140px card + 8px gap
+function tpPos(idx,cw,cgap){
+  const TW=cw+cgap;
+  const VG=Math.round(cw*0.77); // vertical gap between rows
   if(idx<3){
-    const xs=[78,522,966];
+    // Peak tops, centered over their 3-card base groups
+    const xs=[Math.round(TW*0.53), Math.round(TW*3.53), Math.round(TW*6.53)];
     return{x:xs[idx],y:0};
   }
   if(idx<9){
-    const pos=[{x:74,y:112},{x:222,y:112},{x:518,y:112},{x:666,y:112},{x:962,y:112},{x:1110,y:112}];
-    return pos[idx-3];
+    // Row 1: 2 per peak
+    const pk=Math.floor((idx-3)/2),sl=(idx-3)%2;
+    const starts=[Math.round(TW*0.03),Math.round(TW*3.03),Math.round(TW*6.03)];
+    return{x:starts[pk]+sl*TW,y:VG};
   }
   if(idx<18){
-    const pos=[
-      {x:0,y:224},{x:148,y:224},{x:296,y:224},
-      {x:444,y:224},{x:592,y:224},{x:740,y:224},
-      {x:888,y:224},{x:1036,y:224},{x:1184,y:224},
-    ];
-    return pos[idx-9];
+    // Row 2: 3 per peak
+    const pk=Math.floor((idx-9)/3),sl=(idx-9)%3;
+    const starts=[0,TW*3,TW*6];
+    return{x:starts[pk]+sl*TW,y:VG*2};
   }
-  return{x:(idx-18)*TW,y:336};
+  // Base row
+  return{x:(idx-18)*TW,y:VG*3};
 }
 
 function initTripeaks(floor){
@@ -695,12 +702,12 @@ function initSpiderWrap(floor){return initSpider(floor);}
 // 7 rows: row r has r+1 cards. Total 28 cards.
 function pyIdx(r,c){return r*(r+1)/2+c;}
 
-function pyPos(r,c){
-  const W=140,G=10,ROWS=7;
-  const rowW=(W+G)*(r+1)-G;
-  const totalW=(W+G)*ROWS-G;
-  const x=(totalW-rowW)/2+c*(W+G);
-  const y=r*76;
+function pyPos(r,c,cw,cgap){
+  const G=cgap,ROWS=7;
+  const rowW=(cw+G)*(r+1)-G;
+  const totalW=(cw+G)*ROWS-G;
+  const x=(totalW-rowW)/2+c*(cw+G);
+  const y=r*Math.round(cw*0.52);
   return{x,y};
 }
 
@@ -777,7 +784,8 @@ function render(){
   if(A.screen==='map'){renderMap(app);return;}
   if(A.screen==='gameover'){renderEnd(app,false);return;}
   if(A.screen==='victory'){renderEnd(app,true);return;}
-  renderGame(app);
+  const s=getS();applyS(s);
+  renderGame(app,s);
 }
 
 // ── MAP ────────────────────────────────────────────────────
@@ -934,15 +942,15 @@ function genWindows(x,y,w,h,cols,rows,cw,ch,color){
 }
 
 // ── GAME FRAME ─────────────────────────────────────────────
-function renderGame(app){
+function renderGame(app,s){
   const t=A.gtype,gs=A.gs;
   const liv=Array.from({length:A.lives},()=>`<span class="win95-heart">♥</span>`).join('');
   let gameHTML='';
-  if(t==='klondike')gameHTML=renderKlondike(gs);
-  else if(t==='spider')gameHTML=renderSpider(gs);
-  else if(t==='tripeaks')gameHTML=renderTripeaks(gs);
-  else if(t==='pyramid')gameHTML=renderPyramid(gs);
-  else if(t==='freecell')gameHTML=renderFreecell(gs);
+  if(t==='klondike')gameHTML=renderKlondike(gs,s);
+  else if(t==='spider')gameHTML=renderSpider(gs,s);
+  else if(t==='tripeaks')gameHTML=renderTripeaks(gs,s);
+  else if(t==='pyramid')gameHTML=renderPyramid(gs,s);
+  else if(t==='freecell')gameHTML=renderFreecell(gs,s);
 
   app.innerHTML=`
     <div class="game-screen">
@@ -1002,59 +1010,48 @@ function winOverlayHTML(){
 }
 
 // ── KLONDIKE RENDER ────────────────────────────────────────
-function renderKlondike(gs){
-  const {tableau,stock,waste,foundations,drawCount}=gs;
+function renderKlondike(gs,s){
+  const {tableau,stock,waste,foundations}=gs;
+  const {cw,ch,cgap,cover,cfs,cfc,tenFs}=s;
   const isSel=(type,col,idx)=>A.sel&&A.sel.type===type&&A.sel.col===col&&A.sel.idx===idx;
-  const stockH=stock.length
-    ?`<div class="card back" data-src="stock" style="cursor:pointer"></div>`
-    :emptyH('','↺');
+
+  const mkCard=(card,cls,attrs='')=>{
+    const cc=isRed(card.suit)?'red':'blk';
+    return`<div class="card ${cc} ${cls}" ${attrs}>
+      <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
+      <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
+      <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
+    </div>`;
+  };
+
+  const stockH=stock.length?`<div class="card back" data-src="stock" style="cursor:pointer"></div>`:emptyH('','↺');
   const wasteTop=waste.length?waste[waste.length-1]:null;
-  const wasteH=wasteTop
-    ?cardH({...wasteTop,faceUp:true},`${isSel('waste',-1,-1)?'sel':''}`)+`<!-- data patched below -->`
-    :emptyH();
-  // Build waste HTML with data
-  const wasteDom=wasteTop
-    ?`<div class="card ${isRed(wasteTop.suit)?'red':'blk'} ${isSel('waste',-1,-1)?'sel':''}" data-src="waste" draggable="true">
-      <div class="ct"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
-      <div class="cc">${LBL[wasteTop.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[wasteTop.suit]}</div>
-      <div class="cb"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
-    </div>`
-    :emptyH();
+  const wasteDom=wasteTop?mkCard(wasteTop,isSel('waste',-1,-1)?'sel':'',`data-src="waste" draggable="true"`):emptyH();
 
   const foundH=foundations.map((f,i)=>{
     const top=f.length?f[f.length-1]:null;
-    const cls=`data-src="found" data-col="${i}"`;
-    if(top)return`<div class="card ${isRed(top.suit)?'red':'blk'}" ${cls}>
-      <div class="ct"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div>
-      <div class="cc">${SYM[top.suit]}</div>
-      <div class="cb"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div>
-    </div>`;
+    if(top)return mkCard(top,'',`data-src="found" data-col="${i}"`);
     return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;
   }).join('');
 
-  const OVER=52;
   let tabH='';
   for(let c=0;c<7;c++){
     const pile=tableau[c];
-    if(!pile.length){
-      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:192px"></div>`;
-      continue;
-    }
-    const h=(pile.length-1)*OVER+192;
-    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:140px">`;
+    if(!pile.length){tabH+=`<div class="empty-slot" data-src="tab" data-col="${c}" style="min-height:${ch}px"></div>`;continue;}
+    const h=(pile.length-1)*cover+ch;
+    tabH+=`<div data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:${cw}px">`;
     pile.forEach((card,idx)=>{
       const selCls=isSel('tab',c,idx)?'sel':'';
       if(!card.faceUp){
-        tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}"><div class="card back" data-src="tab" data-col="${c}" data-idx="${idx}"></div></div>`;
+        tabH+=`<div style="position:absolute;top:${idx*cover}px;left:0;z-index:${idx}"><div class="card back" data-src="tab" data-col="${c}" data-idx="${idx}"></div></div>`;
       } else {
         const cc=isRed(card.suit)?'red':'blk';
-        tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}">
+        tabH+=`<div style="position:absolute;top:${idx*cover}px;left:0;z-index:${idx}">
           <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-            <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
+            <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          </div>
-        </div>`;
+          </div></div>`;
       }
     });
     tabH+=`</div>`;
@@ -1072,61 +1069,48 @@ function renderKlondike(gs){
   </div>`;
 }
 
-// ── SPIDER RENDER ──────────────────────────────────────────
-function renderSpider(gs){
+function renderSpider(gs,s){
   const {tableau,stockGroups,foundations,suits}=gs;
-  const OVER=44;
+  const {cw,ch,cgap,spOver,tenFs}=s;
   const isSel=(c,i)=>A.sel&&A.sel.type==='tab'&&A.sel.col===c&&A.sel.idx===i;
 
   let tabH='';
   for(let c=0;c<10;c++){
     const pile=tableau[c];
-    if(!pile.length){
-      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:192px;width:140px;flex-shrink:0"></div>`;
-      continue;
-    }
-    const h=(pile.length-1)*OVER+192;
-    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:140px">`;
+    if(!pile.length){tabH+=`<div class="empty-slot" data-src="tab" data-col="${c}" style="min-height:${ch}px;width:${cw}px;flex-shrink:0"></div>`;continue;}
+    const h=(pile.length-1)*spOver+ch;
+    tabH+=`<div data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:${cw}px">`;
     pile.forEach((card,idx)=>{
       const selCls=isSel(c,idx)?'sel':'';
       if(!card.faceUp){
-        tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}"><div class="card back"></div></div>`;
+        tabH+=`<div style="position:absolute;top:${idx*spOver}px;left:0;z-index:${idx}"><div class="card back"></div></div>`;
       } else {
         const cc=isRed(card.suit)?'red':'blk';
-        tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}">
+        tabH+=`<div style="position:absolute;top:${idx*spOver}px;left:0;z-index:${idx}">
           <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-            <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
+            <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          </div>
-        </div>`;
+          </div></div>`;
       }
     });
     tabH+=`</div>`;
   }
 
-  // Stock groups shown as stack
-  let stockH='';
-  for(let i=0;i<stockGroups.length;i++){
-    stockH+=`<div class="card back" style="${i>0?'margin-left:-56px':''}"></div>`;
-  }
-  const stockArea=stockGroups.length
-    ?`<div class="sp-stock-stack" data-src="sp-stock" style="cursor:pointer">${stockH}</div>`
+  const stockH=stockGroups.length
+    ?`<div class="sp-stock-stack" data-src="sp-stock" style="cursor:pointer">${stockGroups.map((_,i)=>`<div class="card back" style="${i>0?`margin-left:-${Math.round(cw*.8)}px`:''}"></div>`).join('')}</div>`
     :`<div class="empty-slot" style="opacity:.3">✓</div>`;
 
-  // Foundations
   let foundH='';
   for(let i=0;i<8;i++){
     const done=i<foundations;
-    foundH+=`<div class="sp-complete-slot ${done?'filled':''}">${done?'K→A<br>✓':`${i+1}`}</div>`;
+    foundH+=`<div class="sp-complete-slot ${done?'filled':''}">${done?'✓':`${i+1}`}</div>`;
   }
-  const suitLabel=suits===1?'1 Suit':suits===2?'2 Suits':'4 Suits';
 
   return`<div class="sp-wrap">
     <div class="sp-top">
-      <div style="display:flex;align-items:center;gap:12px">
-        ${stockArea}
-        <span style="font-family:'Cinzel',serif;font-size:.78rem;color:var(--text-dim)">${suitLabel} · ${stockGroups.length} deal${stockGroups.length!==1?'s':''} left</span>
+      <div style="display:flex;align-items:center;gap:10px">${stockH}
+        <span style="font-family:var(--pixel);font-size:16px;color:rgba(255,255,255,.7)">${suits===1?'1S':suits===2?'2S':'4S'} · ${stockGroups.length} left</span>
       </div>
       <div class="sp-founds">${foundH}</div>
     </div>
@@ -1134,18 +1118,19 @@ function renderSpider(gs){
   </div>`;
 }
 
-// ── TRIPEAKS RENDER ────────────────────────────────────────
-function renderTripeaks(gs){
+function renderTripeaks(gs,s){
   const {pyramid,stock,waste}=gs;
+  const {cw,ch,cgap,tenFs}=s;
   const wasteTop=waste.length?waste[waste.length-1]:null;
+  const VG=Math.round(cw*0.77);
+  const totalH=VG*3+ch+10;
+  const totalW=10*(cw+cgap)-cgap;
 
-  // Pyramid
   let pyH='';
-  const totalH=336+192+10;
   for(let i=0;i<28;i++){
     const card=pyramid[i];
     if(!card)continue;
-    const p=tpPos(i);
+    const p=tpPos(i,cw,cgap);
     const free=tpFree(pyramid,i);
     const canPlay=free&&wasteTop&&tpCanPlay(card,wasteTop);
     const selCls=(A.sel&&A.sel.type==='pycard'&&A.sel.idx===i)?'sel':'';
@@ -1153,113 +1138,90 @@ function renderTripeaks(gs){
       pyH+=`<div class="card back" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)}"></div>`;
     } else {
       const cc=isRed(card.suit)?'red':'blk';
-      const cls=`${cc} ${canPlay?'vdrop':''} ${selCls}`;
-      pyH+=`<div class="card ${cls}" data-src="pycard" data-idx="${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
+      pyH+=`<div class="card ${cc} ${canPlay?'vdrop':''} ${selCls}" data-src="pycard" data-idx="${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
         <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-        <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
+        <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
         <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
       </div>`;
     }
   }
 
-  const stockH=stock.length
-    ?`<div class="card back" data-src="tp-stock" style="cursor:pointer"></div>`
-    :emptyH('','✓');
+  const stockH=stock.length?`<div class="card back" data-src="tp-stock" style="cursor:pointer"></div>`:emptyH('','✓');
   const wasteH=wasteTop
     ?`<div class="card ${isRed(wasteTop.suit)?'red':'blk'}">
         <div class="ct"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
         <div class="cc">${SYM[wasteTop.suit]}</div>
         <div class="cb"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
-      </div>`
-    :emptyH();
-
-  const remaining=pyramid.filter(c=>!!c).length;
+      </div>`:emptyH();
 
   return`<div class="tp-wrap">
-    <div style="position:relative;width:1324px;height:${totalH}px;flex-shrink:0">${pyH}</div>
+    <div style="position:relative;width:${totalW}px;height:${totalH}px;flex-shrink:0">${pyH}</div>
     <div class="tp-stock-area">
       ${stockH}
-      <div style="text-align:center">
-        <div class="tp-label">Waste</div>
-        ${wasteH}
-      </div>
-      <div style="font-family:'Cinzel',serif;font-size:.8rem;color:var(--text-dim);align-self:center">${remaining} cards left</div>
+      <div style="text-align:center"><div class="tp-label">Waste</div>${wasteH}</div>
+      <div style="font-family:var(--pixel);font-size:16px;color:rgba(255,255,255,.7);align-self:center">${pyramid.filter(c=>!!c).length} left</div>
     </div>
   </div>`;
 }
 
-// ── PYRAMID RENDER ─────────────────────────────────────────
-function renderPyramid(gs){
+function renderPyramid(gs,s){
   const {pyramid,stock,waste}=gs;
+  const {cw,ch,cgap,tenFs}=s;
   const wasteTop=waste.length?waste[waste.length-1]:null;
+  const rowStep=Math.round(cw*0.52);
+  const totalH=6*rowStep+ch+10;
+  const gridW=7*(cw+cgap)-cgap;
 
   let pyH='';
-  const totalH=6*76+192+10;
-  const gridW=7*150-10;
   for(let r=0;r<7;r++){
     for(let c=0;c<=r;c++){
       const idx=pyIdx(r,c);
       const card=pyramid[idx];
       if(!card)continue;
-      const p=pyPos(r,c);
+      const p=pyPos(r,c,cw,cgap);
       const free=!pyBlocked(pyramid,r,c);
       const selCls=(A.sel&&A.sel.type==='pycard'&&A.sel.idx===idx)?'sel':'';
       if(!card.faceUp){
         pyH+=`<div class="card back" style="position:absolute;left:${p.x}px;top:${p.y}px"></div>`;
       } else {
         const cc=isRed(card.suit)?'red':'blk';
-        // Highlight if selected waste/card can match
         const wasteMatch=wasteTop&&free&&wasteTop.rank+card.rank===13;
-        const selMatch=A.sel&&A.sel.type==='pycard'&&A.sel.idx!==idx&&
-          pyramid[A.sel.idx]&&pyramid[A.sel.idx].rank+card.rank===13&&free;
-        const cls=`${cc} ${(wasteMatch||selMatch)?'vdrop':''} ${selCls}`;
-        pyH+=`<div class="card ${cls}" data-src="pycard" data-idx="${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
+        const selMatch=A.sel&&A.sel.type==='pycard'&&A.sel.idx!==idx&&pyramid[A.sel.idx]&&pyramid[A.sel.idx].rank+card.rank===13&&free;
+        pyH+=`<div class="card ${cc} ${(wasteMatch||selMatch)?'vdrop':''} ${selCls}" data-src="pycard" data-idx="${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
+          <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         </div>`;
       }
     }
   }
 
-  const stockH=stock.length
-    ?`<div class="card back" data-src="py-stock" style="cursor:pointer"></div>`
-    :emptyH();
+  const stockH=stock.length?`<div class="card back" data-src="py-stock" style="cursor:pointer"></div>`:emptyH();
   const wasteSelCls=A.sel&&A.sel.type==='waste-py'?'sel':'';
   const wasteH=wasteTop
     ?`<div class="card ${isRed(wasteTop.suit)?'red':'blk'} ${wasteSelCls}" data-src="py-waste">
         <div class="ct"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
         <div class="cc">${SYM[wasteTop.suit]}</div>
         <div class="cb"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div>
-      </div>`
-    :emptyH();
-  const remaining=pyramid.filter(c=>!!c).length;
-  const cycInfo=`${gs.maxCycles-gs.cycles} cycle${gs.maxCycles-gs.cycles!==1?'s':''} left`;
+      </div>`:emptyH();
 
   return`<div class="py-wrap">
-    <div style="position:relative;width:${gridW}px;height:${totalH}px">${pyH}</div>
+    <div style="position:relative;width:${gridW}px;height:${totalH}px;overflow:visible">${pyH}</div>
     <div class="py-stock-area">
       ${stockH}
-      <div style="text-align:center">
-        <div class="tp-label">Waste</div>
-        ${wasteH}
-      </div>
+      <div style="text-align:center"><div class="tp-label">Waste</div>${wasteH}</div>
     </div>
-    <div class="py-info">${remaining} pyramid cards remaining · ${cycInfo}</div>
+    <div class="py-info">${pyramid.filter(c=>!!c).length} remaining · ${gs.maxCycles-gs.cycles} cycle${gs.maxCycles-gs.cycles!==1?'s':''} left</div>
   </div>`;
 }
 
-// ── FREECELL RENDER ────────────────────────────────────────
-function renderFreecell(gs){
+function renderFreecell(gs,s){
   const {tableau,freecells,foundations}=gs;
-  const OVER=48;
+  const {cw,ch,cgap,fcOver,tenFs}=s;
   const isSel=(type,col,idx)=>A.sel&&A.sel.type===type&&A.sel.col===col&&A.sel.idx===idx;
 
   const fcH=freecells.map((card,i)=>{
-    if(!card){
-      const selCls='';
-      return`<div class="empty-slot" data-src="fc" data-col="${i}"></div>`;
-    }
+    if(!card)return`<div class="empty-slot" data-src="fc" data-col="${i}"></div>`;
     const cc=isRed(card.suit)?'red':'blk';
     const selCls=isSel('fc',i,-1)?'sel':'';
     return`<div class="card ${cc} ${selCls}" draggable="true" data-src="fc" data-col="${i}">
@@ -1282,19 +1244,16 @@ function renderFreecell(gs){
   let tabH='';
   for(let c=0;c<8;c++){
     const pile=tableau[c];
-    if(!pile.length){
-      tabH+=`<div class="empty-slot tcol" data-src="tab" data-col="${c}" style="min-height:192px;width:140px;flex-shrink:0"></div>`;
-      continue;
-    }
-    const h=(pile.length-1)*OVER+192;
-    tabH+=`<div class="tcol" data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:140px">`;
+    if(!pile.length){tabH+=`<div class="empty-slot" data-src="tab" data-col="${c}" style="min-height:${ch}px;width:${cw}px;flex-shrink:0"></div>`;continue;}
+    const h=(pile.length-1)*fcOver+ch;
+    tabH+=`<div data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:${cw}px">`;
     pile.forEach((card,idx)=>{
       const selCls=isSel('tab',c,idx)?'sel':'';
       const cc=isRed(card.suit)?'red':'blk';
-      tabH+=`<div style="position:absolute;top:${idx*OVER}px;left:0;z-index:${idx}">
+      tabH+=`<div style="position:absolute;top:${idx*fcOver}px;left:0;z-index:${idx}">
         <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          <div class="cc">${LBL[card.rank]==='10'?'<span style="font-size:36px">10</span>':SYM[card.suit]}</div>
+          <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         </div>
       </div>`;
@@ -1331,14 +1290,98 @@ function renderEnd(app,isVictory){
 // ═══════════════════════════════════════════════════════════
 //  EVENTS
 // ═══════════════════════════════════════════════════════════
+let TOUCH={active:false,startEl:null,startX:0,startY:0,ghost:null,moved:false};
+
 function attachEvents(){
   const ga=document.getElementById('garea');
   if(!ga)return;
   ga.addEventListener('click',handleClick);
+  // Desktop drag
   ga.addEventListener('dragstart',handleDragStart);
   ga.addEventListener('dragover',handleDragOver);
   ga.addEventListener('drop',handleDrop);
   ga.addEventListener('dragend',handleDragEnd);
+  // Touch drag
+  ga.addEventListener('touchstart',handleTouchStart,{passive:false});
+  ga.addEventListener('touchmove',handleTouchMove,{passive:false});
+  ga.addEventListener('touchend',handleTouchEnd,{passive:false});
+}
+
+// ── TOUCH DRAG ─────────────────────────────────────────────
+function handleTouchStart(e){
+  const el=e.target.closest('[data-src]');
+  if(!el)return;
+  const src=el.dataset.src;
+  // Don't start drag on stock/special-click sources
+  if(['stock','sp-stock','tp-stock','py-stock'].includes(src))return;
+  const t=e.touches[0];
+  TOUCH={active:true,startEl:el,startX:t.clientX,startY:t.clientY,ghost:null,moved:false,
+    src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0};
+}
+
+function handleTouchMove(e){
+  if(!TOUCH.active)return;
+  const t=e.touches[0];
+  const dx=t.clientX-TOUCH.startX, dy=t.clientY-TOUCH.startY;
+  if(!TOUCH.moved&&Math.sqrt(dx*dx+dy*dy)<8)return;
+  TOUCH.moved=true;
+  e.preventDefault();
+
+  if(!TOUCH.ghost){
+    // Try to set up drag from this element
+    const s=getS();
+    const col=TOUCH.col,idx=TOUCH.idx,src=TOUCH.src;
+    trySelect(src,col,idx);
+    if(!A.sel){TOUCH.active=false;return;}
+    // Create ghost element
+    const ghost=document.createElement('div');
+    ghost.style.cssText=`position:fixed;pointer-events:none;z-index:2000;opacity:.75;`;
+    const cardEl=TOUCH.startEl.closest('.card')||TOUCH.startEl.querySelector('.card')||TOUCH.startEl;
+    ghost.innerHTML=cardEl.outerHTML;
+    document.body.appendChild(ghost);
+    TOUCH.ghost=ghost;
+    TOUCH.startEl.style.opacity='0.3';
+  }
+
+  // Move ghost
+  const ghost=TOUCH.ghost;
+  const s=getS();
+  ghost.style.left=(t.clientX-s.cw/2)+'px';
+  ghost.style.top=(t.clientY-s.ch/2)+'px';
+  ghost.style.width=s.cw+'px';
+  ghost.style.height=s.ch+'px';
+}
+
+function handleTouchEnd(e){
+  if(!TOUCH.active)return;
+  if(TOUCH.ghost){TOUCH.ghost.remove();TOUCH.ghost=null;}
+  if(TOUCH.startEl)TOUCH.startEl.style.opacity='';
+
+  if(!TOUCH.moved){
+    // It was a tap — let handleClick process it via the click event
+    TOUCH.active=false;return;
+  }
+
+  const t=e.changedTouches[0];
+  // Find drop target
+  const els=document.elementsFromPoint(t.clientX,t.clientY);
+  let tgt=null;
+  for(const el of els){
+    const d=el.closest('[data-src]');
+    if(d&&d!==TOUCH.startEl){tgt=d;break;}
+  }
+
+  if(tgt&&A.sel){
+    const tsrc=tgt.dataset.src;
+    const tcol=parseInt(tgt.dataset.col)||0;
+    tryMoveFromSel(tsrc,tcol,0);
+    A.sel=null;
+  } else {
+    A.sel=null;
+  }
+
+  TOUCH={active:false,startEl:null,ghost:null,moved:false};
+  render();
 }
 
 function handleClick(e){
@@ -1816,6 +1859,7 @@ function init(){
 }
 
 window.addEventListener('DOMContentLoaded',init);
+window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS();applyS(s);}else render();});
 window.startGame=startGame;
 window.undoMove=undoMove;
 window.newDeal=newDeal;
