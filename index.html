@@ -383,15 +383,75 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   .btn{font-size:13px;padding:2px 6px;}
 }
 
-/* ── END SCREENS ── */
+/* ── NAME ENTRY & LEADERBOARD ── */
 .end-screen{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;gap:18px;padding:24px;background:#008080;font-family:var(--pixel);
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:16px;padding:24px 16px;background:#008080;font-family:var(--pixel);overflow-y:auto;
 }
-.end-screen h1{font-size:clamp(1.6rem,6vw,3rem);color:white;text-shadow:2px 2px 0 rgba(0,0,0,.5);}
-.end-screen.lose-screen h1{color:#ffcccc;}
-.end-screen p{font-size:clamp(1rem,3vw,1.3rem);color:rgba(255,255,255,.85);max-width:440px;line-height:1.6;}
-.btn-lg{padding:8px 28px;font-size:clamp(16px,3vw,22px);}
+.end-screen.lose-screen{background:#004040;}
+
+.ne-window{
+  background:var(--w95-bg);
+  border:2px solid;border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+  box-shadow:2px 2px 0 var(--w95-darker);width:100%;max-width:520px;
+}
+.ne-title{
+  background:linear-gradient(90deg,#000080,#1084d0);
+  padding:4px 10px;color:white;font-size:20px;letter-spacing:.05em;
+}
+.lose-screen .ne-title{background:linear-gradient(90deg,#800000,#cc2222);}
+.ne-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+.ne-stats{display:flex;gap:24px;justify-content:center;}
+.ne-stat{display:flex;flex-direction:column;align-items:center;gap:4px;
+  border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  padding:10px 24px;background:white;}
+.ne-stat-lbl{font-size:14px;color:#808080;letter-spacing:.1em;}
+.ne-stat-val{font-size:28px;color:#000080;font-weight:bold;}
+.lose-screen .ne-stat-val{color:#800000;}
+.ne-form{display:flex;flex-direction:column;gap:10px;align-items:flex-start;}
+.ne-label{font-size:18px;color:var(--w95-darker);}
+.ne-input{
+  font-family:var(--pixel);font-size:22px;
+  padding:4px 8px;width:100%;
+  border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);
+  box-shadow:inset 1px 1px 0 rgba(0,0,0,.2);
+  background:white;color:#000080;
+  outline:none;letter-spacing:.05em;
+}
+.ne-input:focus{outline:2px dotted #000080;outline-offset:2px;}
+
+.lb-window{
+  background:var(--w95-bg);
+  border:2px solid;border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+  box-shadow:2px 2px 0 var(--w95-darker);width:100%;max-width:520px;
+}
+.lb-title{
+  background:linear-gradient(90deg,#000080,#1084d0);
+  padding:4px 10px;color:white;font-size:20px;letter-spacing:.05em;
+}
+.lb-body{padding:8px;display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;}
+.lb-row{
+  display:grid;grid-template-columns:28px 1fr auto auto;
+  align-items:center;gap:8px;
+  padding:4px 8px;font-size:17px;
+  border:1px solid transparent;
+}
+.lb-row:hover{background:#d0d0d0;}
+.lb-first{background:rgba(255,215,0,.2);color:#886600;}
+.lb-second{background:rgba(192,192,192,.2);color:#666;}
+.lb-third{background:rgba(205,127,50,.15);color:#7a4a00;}
+.lb-rank{color:#808080;font-size:15px;text-align:right;}
+.lb-name{font-size:18px;color:#000080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lb-score{color:#006600;font-size:17px;white-space:nowrap;}
+.lb-time{color:#808080;font-size:15px;white-space:nowrap;}
+
+@media(max-width:600px){
+  .ne-stats{gap:12px;}
+  .ne-stat{padding:8px 14px;}
+  .ne-stat-val{font-size:22px;}
+  .lb-row{font-size:14px;}
+  .lb-name{font-size:15px;}
+}
 </style>
 </head>
 <body>
@@ -553,7 +613,7 @@ function klWon(gs){return gs.foundations.every(f=>f.length===13);}
 
 function klAutoReveal(gs){
   gs.tableau.forEach(col=>{
-    if(col.length&&!col[col.length-1].faceUp)col[col.length-1].faceUp=true;
+    if(col.length&&!col[col.length-1].faceUp){col[col.length-1].faceUp=true;addScore(5);}
   });
 }
 
@@ -782,8 +842,8 @@ function fcWon(gs){return gs.foundations.every(f=>f.length===13);}
 function render(){
   const app=document.getElementById('app');
   if(A.screen==='map'){renderMap(app);return;}
-  if(A.screen==='gameover'){renderEnd(app,false);return;}
-  if(A.screen==='victory'){renderEnd(app,true);return;}
+  if(A.screen==='gameover'){renderNameEntry(app,false);return;}
+  if(A.screen==='victory'){renderNameEntry(app,true);return;}
   const s=getS();applyS(s);
   renderGame(app,s);
 }
@@ -983,8 +1043,10 @@ function renderGame(app,s){
         <div class="win95-status">
           <div class="win95-status-pane">Floor ${10-A.floor} of 10</div>
           <div class="win95-status-pane">${ICONS[t]} ${NAMES[t]}</div>
-          <div class="win95-status-pane">${A.lives} ${A.lives===1?'life':'lives'} remaining</div>
-          <div class="win95-status-pane" style="margin-left:auto">The Solitaire Tower of Doom v1.0</div>
+          <div class="win95-status-pane">♥ ${A.lives} ${A.lives===1?'life':'lives'}</div>
+          <div class="win95-status-pane" id="score-pane">★ ${A.score.toLocaleString()} pts</div>
+          <div class="win95-status-pane" id="timer-pane">⏱ ${fmtTime(getElapsed())}</div>
+          <div class="win95-status-pane" style="margin-left:auto">Solitaire Tower of Doom v1.0</div>
         </div>
       </div>
     </div>
@@ -1411,7 +1473,13 @@ function handleClick(e){
       s.pyramid[idx]=null;
       tpUpdateFaceUp(s.pyramid);
       A.gs=s;A.moves++;
+      A.tpStreak=(A.tpStreak||0)+1;
+      addScore(A.tpStreak); // 1, 2, 3... per consecutive card
+      // Bonus for clearing a peak (indices 0,1,2)
+      if(idx<3)addScore(15);
       if(tpWon(A.gs))handleWin();
+    } else {
+      A.tpStreak=0; // broken streak on failed attempt
     }
     render();return;
   }
@@ -1463,10 +1531,10 @@ function handlePyramidClick(src,idx){
     const free=!pyBlocked(gs.pyramid,r,c);
     if(!free)return;
     if(card.rank===13){
-      // King matches alone
       pushUndo();
       const s=cloneState(gs);s.pyramid[idx]=null;
       A.gs=s;A.moves++;A.sel=null;
+      addScore(5);
       updatePyFaceUp(A.gs);
       if(pyWon(A.gs))handleWin();
       render();return;
@@ -1481,6 +1549,7 @@ function handlePyramidClick(src,idx){
           pushUndo();
           const s=cloneState(gs);s.pyramid[idx]=null;s.pyramid[A.sel.idx]=null;
           A.gs=s;A.moves++;A.sel=null;
+          addScore(10);
           updatePyFaceUp(A.gs);
           if(pyWon(A.gs))handleWin();
           render();return;
@@ -1492,6 +1561,7 @@ function handlePyramidClick(src,idx){
           pushUndo();
           const s=cloneState(gs);s.waste.pop();s.pyramid[idx]=null;
           A.gs=s;A.moves++;A.sel=null;
+          addScore(10);
           updatePyFaceUp(A.gs);
           if(pyWon(A.gs))handleWin();
           render();return;
@@ -1576,6 +1646,8 @@ function klMove(sel,targetSrc,targetCol){
     s.tableau[targetCol].push(...cards);
     klAutoReveal(s);
     A.gs=s;A.moves++;
+    if(sel.type==='waste')addScore(10);
+    else if(sel.type==='found')addScore(-15);
     if(klWon(A.gs))handleWin();
     return true;
   }
@@ -1591,6 +1663,7 @@ function klMove(sel,targetSrc,targetCol){
     s.foundations[card.suit].push(card);
     klAutoReveal(s);
     A.gs=s;A.moves++;
+    addScore(sel.type==='waste'?15:10);
     if(klWon(A.gs))handleWin();
     return true;
   }
@@ -1619,7 +1692,7 @@ function spMove(sel,targetSrc,targetCol){
   // Reveal top
   if(s.tableau[sel.col].length)s.tableau[sel.col][s.tableau[sel.col].length-1].faceUp=true;
   // Check completions
-  for(let c=0;c<10;c++){if(spCheckComplete(s.tableau[c])){s.tableau[c].splice(s.tableau[c].length-13);s.foundations++;}}
+  for(let c=0;c<10;c++){if(spCheckComplete(s.tableau[c])){s.tableau[c].splice(s.tableau[c].length-13);s.foundations++;addScore(100);}}
   A.gs=s;A.moves++;
   if(spWon(A.gs))handleWin();
   return true;
@@ -1666,6 +1739,7 @@ function fcMove(sel,targetSrc,targetCol){
     else s.tableau[sel.col].splice(sel.idx);
     s.foundations[card.suit].push(card);
     A.gs=s;A.moves++;
+    addScore(5);
     if(fcWon(A.gs))handleWin();
     return true;
   }
@@ -1787,7 +1861,10 @@ function instaWin(){
 
 function nextFloor(){
   A.done.add(A.floor);
-  if(A.floor>=9){A.screen='victory';render();return;}
+  // Floor clear bonus: harder floors (lower index) give more points
+  addScore(100*(10-A.floor));
+  A.tpStreak=0;
+  if(A.floor>=9){stopTimer();A.screen='victory';render();return;}
   A.floor++;
   A.screen='map';A.winOverlay=false;render();
 }
@@ -1810,8 +1887,8 @@ function animateLoseLife(){
 
 function loseLife(){
   A.lives--;
-  A.sel=null;A.winOverlay=false;
-  if(A.lives<=0){A.screen='gameover';render();return;}
+  A.sel=null;A.winOverlay=false;A.tpStreak=0;
+  if(A.lives<=0){stopTimer();A.screen='gameover';render();return;}
   startGame(A.gtype,A.floor);
 }
 
@@ -1850,13 +1927,152 @@ function checkWin(){
 }
 
 // ═══════════════════════════════════════════════════════════
-//  INIT
+//  SCORING & TIMER
 // ═══════════════════════════════════════════════════════════
+
+// Standard scoring per game type:
+// Klondike: +10 waste→tab, +15 waste/tab→found, +5 flip, -15 found→tab
+// Spider:   +100 per suit completed
+// TriPeaks: streak bonus (1st card=1, 2nd=2… pts each), +15 per peak cleared
+// Pyramid:  +5 per card removed, +25 for complete clear
+// FreeCell: +5 per card to foundation
+// Floor clear bonus: 100 * (10-floor) pts  (floor 0 = hardest = 1000, floor 9 = 100)
+
+function addScore(n){
+  A.score=Math.max(0,(A.score||0)+n);
+  startTimer();
+}
+
+function startTimer(){
+  if(!A.timerRunning&&!A.timerStart){
+    A.timerStart=Date.now()-A.timerElapsed;
+    A.timerRunning=true;
+  }
+}
+
+function stopTimer(){
+  if(A.timerRunning){
+    A.timerElapsed=Date.now()-A.timerStart;
+    A.timerRunning=false;
+  }
+}
+
+function getElapsed(){
+  if(!A.timerStart&&!A.timerElapsed)return 0;
+  if(A.timerRunning)return Date.now()-A.timerStart;
+  return A.timerElapsed;
+}
+
+function fmtTime(ms){
+  const s=Math.floor(ms/1000);
+  const h=Math.floor(s/3600);
+  const m=Math.floor((s%3600)/60);
+  const sc=s%60;
+  return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
+}
+
+// ── LEADERBOARD (persistent) ──────────────────────────────
+async function saveScore(name){
+  const entry={name:name.trim().substring(0,20)||'Anonymous',
+    score:A.score,time:getElapsed(),date:Date.now()};
+  let board=[];
+  try{const r=await window.storage.get('leaderboard');if(r)board=JSON.parse(r.value);}catch(e){}
+  board.push(entry);
+  // Sort: highest score first, then fastest time as tiebreaker
+  board.sort((a,b)=>b.score!==a.score?b.score-a.score:a.time-b.time);
+  board=board.slice(0,20); // keep top 20
+  try{await window.storage.set('leaderboard',JSON.stringify(board));}catch(e){}
+  return board;
+}
+
+async function loadBoard(){
+  try{const r=await window.storage.get('leaderboard');return r?JSON.parse(r.value):[];}
+  catch(e){return[];}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAME ENTRY & LEADERBOARD SCREENS
+// ═══════════════════════════════════════════════════════════
+function renderNameEntry(app,isVictory){
+  const elapsed=getElapsed();
+  const scoreLabel=A.score.toLocaleString();
+  const timeLabel=fmtTime(elapsed);
+  app.innerHTML=`
+  <div class="end-screen ${isVictory?'':'lose-screen'}">
+    <div class="ne-window">
+      <div class="ne-title">${isVictory?'🚪 YOU ESCAPED!':'💀 GAME OVER'}</div>
+      <div class="ne-body">
+        <div class="ne-stats">
+          <div class="ne-stat"><span class="ne-stat-lbl">SCORE</span><span class="ne-stat-val">${scoreLabel}</span></div>
+          <div class="ne-stat"><span class="ne-stat-lbl">TIME</span><span class="ne-stat-val">${timeLabel}</span></div>
+        </div>
+        <div class="ne-form">
+          <label class="ne-label">ENTER YOUR NAME:</label>
+          <input class="ne-input" id="pname" type="text" maxlength="20" placeholder="PLAYER_1" autocomplete="off" spellcheck="false"/>
+          <button class="btn" id="submit-score-btn" onclick="submitScore(${isVictory})">[ SUBMIT ]</button>
+        </div>
+      </div>
+    </div>
+    <div class="lb-window" id="lb-container">
+      <div class="lb-title">🏆 HIGH SCORES</div>
+      <div class="lb-body" id="lb-body"><div style="font-family:var(--pixel);color:#aaa;font-size:18px">Loading...</div></div>
+    </div>
+  </div>`;
+
+  // Focus input
+  setTimeout(()=>{
+    const inp=document.getElementById('pname');
+    if(inp)inp.focus();
+    // Also allow Enter key
+    inp&&inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitScore(isVictory);});
+  },100);
+
+  // Load and render board immediately
+  loadBoard().then(renderBoard);
+}
+
+function renderBoard(board){
+  const el=document.getElementById('lb-body');
+  if(!el)return;
+  if(!board.length){el.innerHTML=`<div style="font-family:var(--pixel);color:#888;font-size:18px;padding:12px">No scores yet. Be the first!</div>`;return;}
+  el.innerHTML=board.map((e,i)=>`
+    <div class="lb-row ${i===0?'lb-first':i===1?'lb-second':i===2?'lb-third':''}">
+      <span class="lb-rank">${i+1}</span>
+      <span class="lb-name">${e.name}</span>
+      <span class="lb-score">${e.score.toLocaleString()}</span>
+      <span class="lb-time">${fmtTime(e.time)}</span>
+    </div>`).join('');
+}
+
+async function submitScore(isVictory){
+  const inp=document.getElementById('pname');
+  const name=(inp&&inp.value.trim())||'Anonymous';
+  const board=await saveScore(name);
+  renderBoard(board);
+  // Disable submit
+  const btn=document.getElementById('submit-score-btn');
+  if(btn){btn.textContent='[ SAVED ✓ ]';btn.disabled=true;}
+  const formEl=document.querySelector('.ne-form');
+  if(formEl){
+    formEl.innerHTML=`<div style="font-family:var(--pixel);font-size:20px;color:#00ff00">Score saved! Good luck next time.</div>
+    <button class="btn" style="margin-top:12px" onclick="init()">[ PLAY AGAIN ]</button>`;
+  }
+}
 function init(){
   A={lives:3,floor:0,choices:genChoices(),done:new Set(),
-     screen:'map',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false};
+     screen:'map',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
+     score:0,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0};
   render();
 }
+
+// Live timer tick — updates only the timer pane without full re-render
+setInterval(()=>{
+  if(!A||!A.timerRunning)return;
+  const tp=document.getElementById('timer-pane');
+  if(tp)tp.textContent='⏱ '+fmtTime(getElapsed());
+  const sp=document.getElementById('score-pane');
+  if(sp)sp.textContent='★ '+(A.score||0).toLocaleString()+' pts';
+},1000);
 
 window.addEventListener('DOMContentLoaded',init);
 window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS();applyS(s);}else render();});
@@ -1867,6 +2083,7 @@ window.abandonGame=abandonGame;
 window.nextFloor=nextFloor;
 window.init=init;
 window.instaWin=instaWin;
+window.submitScore=submitScore;
 </script>
 </body>
 </html>
