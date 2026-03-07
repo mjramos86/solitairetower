@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Solitaire Tower of Doom</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyD5WyhbaRz209eadnuIO_2piPr5WsLY0RE",
+    authDomain: "solitaire-tower-9b415.firebaseapp.com",
+    projectId: "solitaire-tower-9b415",
+    storageBucket: "solitaire-tower-9b415.firebasestorage.app",
+    messagingSenderId: "4713192132",
+    appId: "1:4713192132:web:f1e118e2eea19221988791",
+    measurementId: "G-299T5Z904Y"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
 <style>
 :root {
   --bg:#0c0a10;--surface:#1a1624;--surface2:#221c30;
@@ -2037,23 +2053,34 @@ function fmtTime(ms){
   return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
 }
 
-// ── LEADERBOARD (persistent) ──────────────────────────────
+// ── LEADERBOARD (Firestore) ───────────────────────────────
 async function saveScore(name){
-  const entry={name:name.trim().substring(0,20)||'Anonymous',
-    score:A.score,time:getElapsed(),date:Date.now()};
-  let board=[];
-  try{const r=await window.storage.get('leaderboard');if(r)board=JSON.parse(r.value);}catch(e){}
-  board.push(entry);
-  // Sort: highest score first, then fastest time as tiebreaker
-  board.sort((a,b)=>b.score!==a.score?b.score-a.score:a.time-b.time);
-  board=board.slice(0,20); // keep top 20
-  try{await window.storage.set('leaderboard',JSON.stringify(board));}catch(e){}
-  return board;
+  const entry = {
+    name: name.trim().substring(0, 20) || 'Anonymous',
+    score: A.score,
+    time: getElapsed(),
+    date: Date.now()
+  };
+  try {
+    await db.collection('scores').add(entry);
+  } catch(e) {
+    console.error('Failed to save score:', e);
+  }
+  return loadBoard();
 }
 
 async function loadBoard(){
-  try{const r=await window.storage.get('leaderboard');return r?JSON.parse(r.value):[];}
-  catch(e){return[];}
+  try {
+    const snap = await db.collection('scores')
+      .orderBy('score', 'desc')
+      .orderBy('time', 'asc')
+      .limit(20)
+      .get();
+    return snap.docs.map(d => d.data());
+  } catch(e) {
+    console.error('Failed to load scores:', e);
+    return [];
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
