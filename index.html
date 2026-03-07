@@ -5,10 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Solitaire Tower of Doom</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>
+<!-- Firebase (modular ESM) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
+  import {
+    getFirestore, collection, addDoc, getDocs, query, orderBy, limit
+  } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+
   const firebaseConfig = {
     apiKey: "AIzaSyD5WyhbaRz209eadnuIO_2piPr5WsLY0RE",
     authDomain: "solitaire-tower-9b415.firebaseapp.com",
@@ -18,8 +22,26 @@
     appId: "1:4713192132:web:f1e118e2eea19221988791",
     measurementId: "G-299T5Z904Y"
   };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+
+  const app = initializeApp(firebaseConfig);
+  getAnalytics(app);
+  const db = getFirestore(app);
+  const scoresCol = collection(db, 'scores');
+
+  // Expose to game script via window
+  window._fbSave = async (name, score, time) => {
+    await addDoc(scoresCol, { name, score, time, date: Date.now() });
+  };
+
+  window._fbLoad = async () => {
+    const q = query(scoresCol, orderBy('score','desc'), orderBy('time','asc'), limit(20));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data());
+  };
+
+  // Signal ready
+  window._fbReady = true;
+  window.dispatchEvent(new Event('fb-ready'));
 </script>
 <style>
 :root {
@@ -1052,19 +1074,22 @@ function renderMap(app){
   // Load leaderboard async
   loadBoard().then(board=>{
     const el=document.getElementById('map-lb-body');
-    if(!el)return;
-    if(!board.length){
-      el.innerHTML=`<div class="map-lb-empty">No scores yet.<br>Be the first to escape!</div>`;
-      return;
-    }
-    el.innerHTML=board.map((e,i)=>`
-      <div class="map-lb-row ${i===0?'map-lb-gold':i===1?'map-lb-silver':i===2?'map-lb-bronze':''}">
-        <span class="map-lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-        <span class="map-lb-name">${e.name}</span>
-        <span class="map-lb-score">${e.score.toLocaleString()}</span>
-        <span class="map-lb-time">${fmtTime(e.time)}</span>
-      </div>`).join('');
+    if(el) renderMapBoard(el,board);
   });
+}
+
+function renderMapBoard(el,board){
+  if(!board.length){
+    el.innerHTML=`<div class="map-lb-empty">No scores yet.<br>Be the first to escape!</div>`;
+    return;
+  }
+  el.innerHTML=board.map((e,i)=>`
+    <div class="map-lb-row ${i===0?'map-lb-gold':i===1?'map-lb-silver':i===2?'map-lb-bronze':''}">
+      <span class="map-lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+      <span class="map-lb-name">${e.name}</span>
+      <span class="map-lb-score">${e.score.toLocaleString()}</span>
+      <span class="map-lb-time">${fmtTime(e.time)}</span>
+    </div>`).join('');
 }
 
 function genWindows(x,y,w,h,cols,rows,cw,ch,color){
@@ -2053,7 +2078,7 @@ function fmtTime(ms){
   return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
 }
 
-// ── LEADERBOARD (Firestore) ───────────────────────────────
+// ── LEADERBOARD (Firestore via modular ESM) ───────────────
 async function saveScore(name){
   const entry = {
     name: name.trim().substring(0, 20) || 'Anonymous',
@@ -2062,7 +2087,8 @@ async function saveScore(name){
     date: Date.now()
   };
   try {
-    await db.collection('scores').add(entry);
+    if(window._fbSave) await window._fbSave(entry.name, entry.score, entry.time);
+    else console.warn('Firebase not ready — score not saved');
   } catch(e) {
     console.error('Failed to save score:', e);
   }
@@ -2071,12 +2097,8 @@ async function saveScore(name){
 
 async function loadBoard(){
   try {
-    const snap = await db.collection('scores')
-      .orderBy('score', 'desc')
-      .orderBy('time', 'asc')
-      .limit(20)
-      .get();
-    return snap.docs.map(d => d.data());
+    if(window._fbLoad) return await window._fbLoad();
+    return [];
   } catch(e) {
     console.error('Failed to load scores:', e);
     return [];
@@ -2169,6 +2191,14 @@ setInterval(()=>{
 
 window.addEventListener('DOMContentLoaded',init);
 window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS();applyS(s);}else render();});
+// Re-render map leaderboard once Firebase module finishes loading
+window.addEventListener('fb-ready',()=>{
+  const el=document.getElementById('map-lb-body');
+  if(el) loadBoard().then(board=>{
+    const tmp=document.getElementById('map-lb-body');
+    if(tmp) renderMapBoard(tmp,board);
+  });
+});
 window.startGame=startGame;
 window.undoMove=undoMove;
 window.newDeal=newDeal;
