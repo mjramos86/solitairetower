@@ -45,6 +45,48 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   padding: 52px 0 10px 0;
 }
 
+/* ── MAP LEADERBOARD PANEL ── */
+.map-lb-panel{
+  width:100%;max-width:700px;
+  background:rgba(10,6,22,.85);
+  border:1px solid var(--gold-dim);
+  border-radius:6px;
+  overflow:hidden;
+  margin-top:8px;
+}
+.map-lb-title{
+  font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold);
+  letter-spacing:.1em;padding:8px 14px;
+  background:rgba(212,168,75,.1);
+  border-bottom:1px solid var(--gold-dim);
+}
+.map-lb-body{padding:6px 4px;display:flex;flex-direction:column;gap:1px;}
+.map-lb-loading,.map-lb-empty{
+  font-family:'EB Garamond',serif;font-style:italic;
+  color:var(--text-dim);font-size:.85rem;padding:10px 14px;
+  text-align:center;
+}
+.map-lb-row{
+  display:grid;
+  grid-template-columns:34px 1fr auto auto;
+  align-items:center;gap:8px;
+  padding:5px 10px;
+  border-radius:3px;
+  font-family:'Cinzel',serif;
+  transition:background .12s;
+}
+.map-lb-row:hover{background:rgba(212,168,75,.07);}
+.map-lb-gold  {background:rgba(255,215,0,.07);}
+.map-lb-silver{background:rgba(192,192,192,.05);}
+.map-lb-bronze{background:rgba(205,127,50,.06);}
+.map-lb-rank{font-size:.85rem;text-align:center;color:var(--text-dim);}
+.map-lb-gold .map-lb-rank  {color:#d4a84b;}
+.map-lb-silver .map-lb-rank{color:#aaaaaa;}
+.map-lb-bronze .map-lb-rank{color:#b87333;}
+.map-lb-name{font-size:.78rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.map-lb-score{font-size:.78rem;color:var(--gold);white-space:nowrap;}
+.map-lb-time{font-size:.72rem;color:var(--text-dim);white-space:nowrap;font-family:'Share Tech Mono',monospace;}
+
 /* Floor nodes */
 .f-floor{
   flex:1;display:flex;align-items:center;
@@ -978,11 +1020,35 @@ function renderMap(app){
         ${floorNodes}
       </div>
     </div>
+
+    <div class="map-lb-panel" id="map-lb">
+      <div class="map-lb-title">🏆 HIGH SCORES</div>
+      <div class="map-lb-body" id="map-lb-body">
+        <div class="map-lb-loading">Loading...</div>
+      </div>
+    </div>
   </div>`;
 
   // Scroll to current floor
   const curEl=document.getElementById(`floor-${A.floor}`);
   if(curEl)setTimeout(()=>curEl.scrollIntoView({behavior:'smooth',block:'center'}),100);
+
+  // Load leaderboard async
+  loadBoard().then(board=>{
+    const el=document.getElementById('map-lb-body');
+    if(!el)return;
+    if(!board.length){
+      el.innerHTML=`<div class="map-lb-empty">No scores yet.<br>Be the first to escape!</div>`;
+      return;
+    }
+    el.innerHTML=board.map((e,i)=>`
+      <div class="map-lb-row ${i===0?'map-lb-gold':i===1?'map-lb-silver':i===2?'map-lb-bronze':''}">
+        <span class="map-lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+        <span class="map-lb-name">${e.name}</span>
+        <span class="map-lb-score">${e.score.toLocaleString()}</span>
+        <span class="map-lb-time">${fmtTime(e.time)}</span>
+      </div>`).join('');
+  });
 }
 
 function genWindows(x,y,w,h,cols,rows,cw,ch,color){
