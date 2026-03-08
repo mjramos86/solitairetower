@@ -356,7 +356,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 /* ── RESPONSIVE CARD SIZING (set by JS on each render) ── */
 :root{--cw:140px;--ch:192px;--cfs:26px;--cfc:60px;}
 
-/* ── CARDS ── */
+/* ── CARD ANIMATION ── */
 .card{
   width:var(--cw);height:var(--ch);
   border-radius:2px;
@@ -366,6 +366,12 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   transition:none;
   font-family:var(--pixel);
   box-shadow:2px 2px 0 rgba(0,0,0,0.4);
+}
+.card.animating{
+  transition:transform 0.18s ease, opacity 0.18s ease;
+  pointer-events:none;
+  position:fixed;
+  z-index:1000;
 }
 .card.red{color:var(--card-red);}
 .card.blk{color:var(--card-black);}
@@ -970,13 +976,49 @@ function fcWon(gs){return gs.foundations.every(f=>f.length===13);}
 // ═══════════════════════════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════════════════════════
+// ── FLIP CARD ANIMATION ─────────────────────────────────
+// Cards get a data-ckey attribute (suit+rank+unique position).
+// Before render: snapshot positions. After render: animate from old→new.
+let _snapshots={};
+
+function snapCards(){
+  _snapshots={};
+  document.querySelectorAll('[data-ckey]').forEach(el=>{
+    const r=el.getBoundingClientRect();
+    _snapshots[el.dataset.ckey]={x:r.left,y:r.top,w:r.width,h:r.height};
+  });
+}
+
+function animateCards(){
+  document.querySelectorAll('[data-ckey]').forEach(el=>{
+    const key=el.dataset.ckey;
+    const prev=_snapshots[key];
+    if(!prev)return;
+    const cur=el.getBoundingClientRect();
+    const dx=prev.x-cur.left, dy=prev.y-cur.top;
+    if(Math.abs(dx)<2&&Math.abs(dy)<2)return; // didn't move
+    el.style.transition='none';
+    el.style.transform=`translate(${dx}px,${dy}px)`;
+    requestAnimationFrame(()=>{
+      el.style.transition='transform 0.2s ease';
+      el.style.transform='translate(0,0)';
+    });
+  });
+  _snapshots={};
+}
+
 function render(){
   const app=document.getElementById('app');
-  if(A.screen==='map'){renderMap(app);return;}
+  if(A.screen==='map'){
+    if(A.timerRunning) stopTimer();
+    renderMap(app);return;
+  }
   if(A.screen==='gameover'){renderNameEntry(app,false);return;}
   if(A.screen==='victory'){renderNameEntry(app,true);return;}
   const s=getS();applyS(s);
+  snapCards();
   renderGame(app,s);
+  requestAnimationFrame(animateCards);
 }
 
 // ── MAP ────────────────────────────────────────────────────
@@ -1158,7 +1200,7 @@ function genWindows(x,y,w,h,cols,rows,cw,ch,color){
 const RULES={
   klondike:['Build 4 foundation piles A→K by suit','Tableau: place cards in descending rank, alternating colour','Draw from stock to waste; move waste top card to play','Flip hidden cards by clearing cards above them'],
   spider:['Build complete K→A sequences of the same suit','Completed sequences are removed to foundations','Deal 10 new cards from stock when stuck','All 8 sequences cleared = victory'],
-  tripeaks:['Play cards ±1 rank from the waste top (A↔K wrap)','Click pyramid cards to chain them onto the waste','Draw from stock when no move is available','Clear all 28 pyramid cards to win'],
+  tripeaks:['Play cards +1 or -1 rank from the waste top (A↔K wrap)','Click pyramid cards to chain them onto the waste','Draw from stock when no move is available','Clear all 28 pyramid cards to win'],
   pyramid:['Pair pyramid cards that sum to 13 (A=1, J=11, Q=12, K=13)','Kings are removed alone','Use the waste top to pair with pyramid cards','Clear all pyramid cards to win'],
   freecell:['All cards are dealt face-up — every deal is solvable','Build foundations A→K by suit','Use free cells as temporary card parking','Tableau: descending rank, alternating colour'],
 };
@@ -1268,7 +1310,7 @@ function renderKlondike(gs,s){
 
   const mkCard=(card,cls,attrs='')=>{
     const cc=isRed(card.suit)?'red':'blk';
-    return`<div class="card ${cc} ${cls}" ${attrs}>
+    return`<div class="card ${cc} ${cls}" data-ckey="${card.suit}-${card.rank}" ${attrs}>
       <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
       <div class="cc">${SYM[card.suit]}</div>
       <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1298,7 +1340,7 @@ function renderKlondike(gs,s){
       } else {
         const cc=isRed(card.suit)?'red':'blk';
         tabH+=`<div style="position:absolute;top:${idx*cover}px;left:0;z-index:${idx}">
-          <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
+          <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
             <div class="cc">${SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1338,7 +1380,7 @@ function renderSpider(gs,s){
       } else {
         const cc=isRed(card.suit)?'red':'blk';
         tabH+=`<div style="position:absolute;top:${idx*spOver}px;left:0;z-index:${idx}">
-          <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
+          <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
             <div class="cc">${SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1398,7 +1440,7 @@ function renderTripeaks(gs,s){
       pyH+=`<div class="card back" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)}"></div>`;
     } else {
       const cc=isRed(card.suit)?'red':'blk';
-      pyH+=`<div class="card ${cc} ${canPlay?'vdrop':''} ${selCls}" data-src="pycard" data-idx="${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
+      pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
         <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         <div class="cc">${SYM[card.suit]}</div>
         <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1447,7 +1489,7 @@ function renderPyramid(gs,s){
         const cc=isRed(card.suit)?'red':'blk';
         const wasteMatch=wasteTop&&free&&wasteTop.rank+card.rank===13;
         const selMatch=A.sel&&A.sel.type==='pycard'&&A.sel.idx!==idx&&pyramid[A.sel.idx]&&pyramid[A.sel.idx].rank+card.rank===13&&free;
-        pyH+=`<div class="card ${cc} ${(wasteMatch||selMatch)?'vdrop':''} ${selCls}" data-src="pycard" data-idx="${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
+        pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
           <div class="cc">${SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1484,7 +1526,7 @@ function renderFreecell(gs,s){
     if(!card)return`<div class="empty-slot" data-src="fc" data-col="${i}"></div>`;
     const cc=isRed(card.suit)?'red':'blk';
     const selCls=isSel('fc',i,-1)?'sel':'';
-    return`<div class="card ${cc} ${selCls}" draggable="true" data-src="fc" data-col="${i}">
+    return`<div class="card ${cc} ${selCls}" draggable="true" data-src="fc" data-col="${i}" data-ckey="${card.suit}-${card.rank}">
       <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
       <div class="cc">${SYM[card.suit]}</div>
       <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1493,7 +1535,7 @@ function renderFreecell(gs,s){
 
   const foundH=foundations.map((f,i)=>{
     const top=f.length?f[f.length-1]:null;
-    if(top)return`<div class="card ${isRed(top.suit)?'red':'blk'}" data-src="found" data-col="${i}">
+    if(top)return`<div class="card ${isRed(top.suit)?'red':'blk'}" data-src="found" data-col="${i}" data-ckey="${top.suit}-${top.rank}">
       <div class="ct"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div>
       <div class="cc">${SYM[top.suit]}</div>
       <div class="cb"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div>
@@ -1511,7 +1553,7 @@ function renderFreecell(gs,s){
       const selCls=isSel('tab',c,idx)?'sel':'';
       const cc=isRed(card.suit)?'red':'blk';
       tabH+=`<div style="position:absolute;top:${idx*fcOver}px;left:0;z-index:${idx}">
-        <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
+        <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
           <div class="cc">${SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -2045,6 +2087,11 @@ function startGame(type,floor){
   else if(type==='tripeaks')A.gs=initTripeaks(floor);
   else if(type==='pyramid')A.gs=initPyramid(floor);
   else if(type==='freecell')A.gs=initFreecell(floor);
+  // Resume timer if it was started before (paused on map screen)
+  if(A.timerElapsed>0&&!A.timerRunning){
+    A.timerStart=Date.now()-A.timerElapsed;
+    A.timerRunning=true;
+  }
   A.screen='game';render();
 }
 
