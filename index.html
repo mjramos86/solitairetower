@@ -249,7 +249,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 /* ── TOOLBAR / MENU BAR ── */
 .win95-toolbar{
-  display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+  display:flex;align-items:center;gap:3px;flex-wrap:nowrap;overflow-x:auto;
   padding:4px 6px;background:var(--w95-bg);flex-shrink:0;
   border-bottom:1px solid var(--w95-dark);
 }
@@ -1190,13 +1190,13 @@ function renderGame(app,s){
         <!-- Toolbar -->
         <div class="win95-toolbar">
           <button class="btn" onclick="undoMove()">↩ Undo</button>
-          <button class="btn btn-d" onclick="newShuffle()">⟳ New Shuffle</button>
-          <div class="win95-toolbar-sep"></div>
-          <button class="btn btn-insta" onclick="instaWin()">⚡ InstaWin</button>
+          <button class="btn btn-d" onclick="newShuffle()">⟳ Shuffle</button>
           <div class="win95-toolbar-sep"></div>
           <button class="btn" onclick="togglePause()">⏸ Pause</button>
           <div class="win95-toolbar-sep"></div>
           <button class="btn btn-d" onclick="abandonGame()">✕ Abandon</button>
+          <div class="win95-toolbar-sep"></div>
+          <button class="btn btn-insta" onclick="instaWin()">⚡</button>
           <div class="win95-toolbar-sep"></div>
           <span class="win95-info">${A.moves} moves</span>
           <div class="win95-hearts">${liv}</div>
