@@ -501,7 +501,20 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   .btn{font-size:13px;padding:2px 6px;}
 }
 
-/* ── NAME ENTRY & LEADERBOARD ── */
+/* ── PAUSE OVERLAY ── */
+.pause-overlay{background:rgba(0,0,0,.92);z-index:200;}
+.pause-panel{
+  background:var(--w95-bg);
+  border:3px solid;border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);
+  padding:48px 64px;display:flex;flex-direction:column;align-items:center;gap:28px;
+  box-shadow:4px 4px 0 var(--w95-darker);
+}
+.pause-title{
+  font-family:var(--pixel);font-size:clamp(48px,10vw,96px);
+  color:#000080;letter-spacing:.1em;
+  text-shadow:3px 3px 0 var(--w95-darker);
+  line-height:1;
+}
 .end-screen{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   gap:16px;padding:24px 16px;background:#008080;font-family:var(--pixel);overflow-y:auto;
@@ -631,7 +644,7 @@ function cardH(card,cls=''){
   const r=LBL[card.rank],s=SYM[card.suit];
   return`<div class="card ${c} ${cls}" draggable="true">
     <div class="ct"><span>${r}</span><span>${s}</span></div>
-    <div class="cc">${r==='10'?'<span style="font-size:36px">10</span>':s}</div>
+    <div class="cc">${s}</div>
     <div class="cb"><span>${r}</span><span>${s}</span></div>
   </div>`;
 }
@@ -760,7 +773,7 @@ function initSpider(floor){
   }
   const stockGroups=[];
   while(idx<sh.length){stockGroups.push(sh.slice(idx,idx+10).map(c=>({...c,faceUp:true})));idx+=10;}
-  return{type:'spider',tableau,stockGroups,foundations:0,suits,floor};
+  return{type:'spider',tableau,stockGroups,foundations:[],suits,floor};
 }
 
 function spSeqLen(pile){
@@ -787,7 +800,7 @@ function spCheckComplete(pile){
   const top=pile.slice(pile.length-13);
   const suit=top[0].suit;
   for(let i=0;i<13;i++)if(top[i].suit!==suit||top[i].rank!==13-i)return false;
-  return true;
+  return suit; // return suit index (0-3) instead of true
 }
 
 function spDeal(gs){
@@ -797,11 +810,11 @@ function spDeal(gs){
   const group=s.stockGroups.shift();
   group.forEach((card,i)=>{card.faceUp=true;s.tableau[i].push(card);});
   // Check completions
-  for(let c=0;c<10;c++){if(spCheckComplete(s.tableau[c])){s.tableau[c].splice(s.tableau[c].length-13);s.foundations++;}}
+  for(let c=0;c<10;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(suit);addScore(100);}}
   return s;
 }
 
-function spWon(gs){return gs.foundations>=8;}
+function spWon(gs){return gs.foundations.length>=8;}
 
 // ═══════════════════════════════════════════════════════════
 //  TRIPEAKS
@@ -1181,6 +1194,8 @@ function renderGame(app,s){
           <div class="win95-toolbar-sep"></div>
           <button class="btn btn-insta" onclick="instaWin()">⚡ InstaWin</button>
           <div class="win95-toolbar-sep"></div>
+          <button class="btn" onclick="togglePause()">⏸ Pause</button>
+          <div class="win95-toolbar-sep"></div>
           <button class="btn btn-d" onclick="abandonGame()">✕ Abandon</button>
           <div class="win95-toolbar-sep"></div>
           <span class="win95-info">${A.moves} moves</span>
@@ -1203,11 +1218,32 @@ function renderGame(app,s){
       </div>
     </div>
     ${A.winOverlay?winOverlayHTML():''}
+    ${A.paused?pauseOverlayHTML():''}
   `;
   attachEvents();
 }
 
-function winOverlayHTML(){
+function pauseOverlayHTML(){
+  return`<div class="overlay pause-overlay">
+    <div class="panel pause-panel">
+      <div class="pause-title">⏸ PAUSED</div>
+      <button class="btn btn-lg" onclick="togglePause()">▶ Continue</button>
+    </div>
+  </div>`;
+}
+
+function togglePause(){
+  if(!A.paused){
+    stopTimer();
+    A.paused=true;
+  } else {
+    A.paused=false;
+    // Resume timer
+    A.timerStart=Date.now()-A.timerElapsed;
+    A.timerRunning=true;
+  }
+  render();
+}
   const isLast=A.floor>=9;
   const title=isLast?'🚪 ESCAPED!':'✅ FLOOR CLEARED';
   const msg=isLast?'You smashed through the ground floor and burst into the streets! You are FREE!':'Staircase located. Descending to the next floor...';
@@ -1233,7 +1269,7 @@ function renderKlondike(gs,s){
     const cc=isRed(card.suit)?'red':'blk';
     return`<div class="card ${cc} ${cls}" ${attrs}>
       <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-      <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
+      <div class="cc">${SYM[card.suit]}</div>
       <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
     </div>`;
   };
@@ -1263,7 +1299,7 @@ function renderKlondike(gs,s){
         tabH+=`<div style="position:absolute;top:${idx*cover}px;left:0;z-index:${idx}">
           <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-            <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
+            <div class="cc">${SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
           </div></div>`;
       }
@@ -1303,7 +1339,7 @@ function renderSpider(gs,s){
         tabH+=`<div style="position:absolute;top:${idx*spOver}px;left:0;z-index:${idx}">
           <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
             <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-            <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
+            <div class="cc">${SYM[card.suit]}</div>
             <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
           </div></div>`;
       }
@@ -1317,8 +1353,17 @@ function renderSpider(gs,s){
 
   let foundH='';
   for(let i=0;i<8;i++){
-    const done=i<foundations;
-    foundH+=`<div class="sp-complete-slot ${done?'filled':''}">${done?'✓':`${i+1}`}</div>`;
+    const completedSuit=gs.foundations[i];
+    if(completedSuit!==undefined){
+      const cc=isRed(completedSuit)?'red':'blk';
+      foundH+=`<div class="card ${cc}" style="cursor:default">
+        <div class="ct"><span>K</span><span>${SYM[completedSuit]}</span></div>
+        <div class="cc">${SYM[completedSuit]}</div>
+        <div class="cb"><span>K</span><span>${SYM[completedSuit]}</span></div>
+      </div>`;
+    } else {
+      foundH+=`<div class="sp-complete-slot">${i+1}</div>`;
+    }
   }
 
   return`<div class="sp-wrap">
@@ -1354,7 +1399,7 @@ function renderTripeaks(gs,s){
       const cc=isRed(card.suit)?'red':'blk';
       pyH+=`<div class="card ${cc} ${canPlay?'vdrop':''} ${selCls}" data-src="pycard" data-idx="${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
         <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-        <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
+        <div class="cc">${SYM[card.suit]}</div>
         <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
       </div>`;
     }
@@ -1403,7 +1448,7 @@ function renderPyramid(gs,s){
         const selMatch=A.sel&&A.sel.type==='pycard'&&A.sel.idx!==idx&&pyramid[A.sel.idx]&&pyramid[A.sel.idx].rank+card.rank===13&&free;
         pyH+=`<div class="card ${cc} ${(wasteMatch||selMatch)?'vdrop':''} ${selCls}" data-src="pycard" data-idx="${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
+          <div class="cc">${SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         </div>`;
       }
@@ -1467,7 +1512,7 @@ function renderFreecell(gs,s){
       tabH+=`<div style="position:absolute;top:${idx*fcOver}px;left:0;z-index:${idx}">
         <div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
-          <div class="cc">${card.rank===10?`<span style="font-size:${tenFs}px">10</span>`:SYM[card.suit]}</div>
+          <div class="cc">${SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         </div>
       </div>`;
@@ -1844,7 +1889,7 @@ function spMove(sel,targetSrc,targetCol){
   // Reveal top
   if(s.tableau[sel.col].length)s.tableau[sel.col][s.tableau[sel.col].length-1].faceUp=true;
   // Check completions
-  for(let c=0;c<10;c++){if(spCheckComplete(s.tableau[c])){s.tableau[c].splice(s.tableau[c].length-13);s.foundations++;addScore(100);}}
+  for(let c=0;c<10;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(suit);addScore(100);}}
   A.gs=s;A.moves++;
   if(spWon(A.gs))handleWin();
   return true;
@@ -1992,7 +2037,7 @@ function handleDragEnd(e){
 // ═══════════════════════════════════════════════════════════
 function startGame(type,floor){
   A.gtype=type;A.floor=floor;
-  A.moves=0;A.undoStack=[];A.sel=null;A.winOverlay=false;
+  A.moves=0;A.undoStack=[];A.sel=null;A.winOverlay=false;A.paused=false;
   const d=diff(floor);
   if(type==='klondike')A.gs=initKlondike(floor);
   else if(type==='spider')A.gs=initSpider(floor);
@@ -2228,7 +2273,7 @@ async function submitScore(isVictory){
 function init(){
   A={lives:3,floor:0,choices:genChoices(),done:new Set(),
      screen:'map',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
-     score:0,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0};
+     score:0,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false};
   render();
 }
 
@@ -2259,6 +2304,7 @@ window.nextFloor=nextFloor;
 window.init=init;
 window.instaWin=instaWin;
 window.submitScore=submitScore;
+window.togglePause=togglePause;
 </script>
 </body>
 </html>
