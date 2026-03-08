@@ -1238,12 +1238,13 @@ function togglePause(){
     A.paused=true;
   } else {
     A.paused=false;
-    // Resume timer
     A.timerStart=Date.now()-A.timerElapsed;
     A.timerRunning=true;
   }
   render();
 }
+
+function winOverlayHTML(){
   const isLast=A.floor>=9;
   const title=isLast?'🚪 ESCAPED!':'✅ FLOOR CLEARED';
   const msg=isLast?'You smashed through the ground floor and burst into the streets! You are FREE!':'Staircase located. Descending to the next floor...';
