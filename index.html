@@ -329,6 +329,30 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   margin:3px 2px;line-height:1;
 }
 
+/* ── RULES STRIP ── */
+.rules-strip{
+  display:flex;flex-wrap:wrap;gap:0;
+  background:#d4d0c8;
+  border-top:1px solid var(--w95-darker);
+  border-bottom:1px solid var(--w95-white);
+  padding:3px 8px;flex-shrink:0;
+  font-family:var(--pixel);font-size:15px;color:#444;
+  row-gap:1px;
+}
+.rule-item{
+  padding:1px 10px 1px 0;
+  white-space:nowrap;
+  color:#333;
+}
+.rule-item::before{content:'';margin-right:2px;}
+@media(max-width:600px){
+  .rules-strip{font-size:13px;}
+  .rule-item{white-space:normal;}
+}
+
+/* ── MYSTERY LOCK (future floors) ── */
+.f-mystery{font-size:1.1rem;opacity:.35;letter-spacing:.1em;}
+
 /* ── RESPONSIVE CARD SIZING (set by JS on each render) ── */
 :root{--cw:140px;--ch:192px;--cfs:26px;--cfc:60px;}
 
@@ -958,12 +982,7 @@ function renderMap(app){
 
     let choicesHTML;
     if(isFuture){
-      // Hidden — show question marks
-      if(isLast){
-        choicesHTML=`<button class="cbtn mystery" disabled>? ? ?</button>`;
-      } else {
-        choicesHTML=`<button class="cbtn mystery" disabled>?</button><span class="f-or">or</span><button class="cbtn mystery" disabled>?</button>`;
-      }
+      choicesHTML=`<span class="f-mystery">🔒</span>`;
     } else if(isLast){
       const cls=isDone?'done':isCur?'boss cur':'boss';
       const lbl=isDone?'✓ FreeCell':'👑 FreeCell — Final Boss';
@@ -1123,6 +1142,14 @@ function genWindows(x,y,w,h,cols,rows,cw,ch,color){
   return out;
 }
 
+const RULES={
+  klondike:['Build 4 foundation piles A→K by suit','Tableau: place cards in descending rank, alternating colour','Draw from stock to waste; move waste top card to play','Flip hidden cards by clearing cards above them'],
+  spider:['Build complete K→A sequences of the same suit','Completed sequences are removed to foundations','Deal 10 new cards from stock when stuck','All 8 sequences cleared = victory'],
+  tripeaks:['Play cards ±1 rank from the waste top (A↔K wrap)','Click pyramid cards to chain them onto the waste','Draw from stock when no move is available','Clear all 28 pyramid cards to win'],
+  pyramid:['Pair pyramid cards that sum to 13 (A=1, J=11, Q=12, K=13)','Kings are removed alone','Use the waste top to pair with pyramid cards','Clear all pyramid cards to win'],
+  freecell:['All cards are dealt face-up — every deal is solvable','Build foundations A→K by suit','Use free cells as temporary card parking','Tableau: descending rank, alternating colour'],
+};
+
 // ── GAME FRAME ─────────────────────────────────────────────
 function renderGame(app,s){
   const t=A.gtype,gs=A.gs;
@@ -1150,7 +1177,7 @@ function renderGame(app,s){
         <!-- Toolbar -->
         <div class="win95-toolbar">
           <button class="btn" onclick="undoMove()">↩ Undo</button>
-          <button class="btn" onclick="newDeal()">⟳ New Game</button>
+          <button class="btn btn-d" onclick="newShuffle()">⟳ New Shuffle</button>
           <div class="win95-toolbar-sep"></div>
           <button class="btn btn-insta" onclick="instaWin()">⚡ InstaWin</button>
           <div class="win95-toolbar-sep"></div>
@@ -1160,6 +1187,9 @@ function renderGame(app,s){
           <div class="win95-hearts">${liv}</div>
         </div>
         <!-- Green felt game area -->
+        <div class="rules-strip">
+          ${(RULES[t]||[]).map(r=>`<span class="rule-item">▸ ${r}</span>`).join('')}
+        </div>
         <div class="garea" id="garea">${gameHTML}</div>
         <!-- Status bar -->
         <div class="win95-status">
@@ -1992,8 +2022,12 @@ function nextFloor(){
 }
 
 function abandonGame(){
-  if(!confirm('Abandon this game? You will lose a life.'))return;
-  animateLoseLife();
+  if(!confirm('Abandon this floor? You will lose a life and return to game selection.'))return;
+  A.lives--;
+  A.sel=null;A.winOverlay=false;A.tpStreak=0;
+  if(A.lives<=0){stopTimer();A.screen='gameover';render();return;}
+  // Return to map on the same floor (player can pick the other game)
+  A.screen='map';render();
 }
 
 function animateLoseLife(){
@@ -2014,9 +2048,12 @@ function loseLife(){
   startGame(A.gtype,A.floor);
 }
 
-function newDeal(){
-  if(!confirm('Start a new deal? (Same game type, same floor, no life lost)'))return;
-  A.undoStack=[];A.sel=null;A.moves=0;A.winOverlay=false;
+function newShuffle(){
+  if(!confirm('New Shuffle? Same game type, same floor — but costs 1 life.'))return;
+  A.lives--;
+  A.sel=null;A.winOverlay=false;A.tpStreak=0;
+  if(A.lives<=0){stopTimer();A.screen='gameover';render();return;}
+  A.undoStack=[];A.moves=0;
   const t=A.gtype,f=A.floor;
   if(t==='klondike')A.gs=initKlondike(f);
   else if(t==='spider')A.gs=initSpider(f);
@@ -2216,7 +2253,7 @@ window.addEventListener('fb-ready',()=>{
 });
 window.startGame=startGame;
 window.undoMove=undoMove;
-window.newDeal=newDeal;
+window.newShuffle=newShuffle;
 window.abandonGame=abandonGame;
 window.nextFloor=nextFloor;
 window.init=init;
