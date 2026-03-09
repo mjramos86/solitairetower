@@ -26,7 +26,7 @@
   const app = initializeApp(firebaseConfig);
   getAnalytics(app);
   const db = getFirestore(app);
-  const scoresCol = collection(db, 'scores');
+  const scoresCol = collection(db, 'scores_v2');
 
   // Expose to game script via window
   window._fbSave = async (name, score, time) => {
