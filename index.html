@@ -402,6 +402,20 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .card.vdrop{outline:3px solid #00ff00;outline-offset:1px;animation:vblink .5s step-end infinite;}
 @keyframes vblink{0%,100%{outline-color:#00ff00;}50%{outline-color:#008800;}}
 .card.dragging{opacity:.35;}
+
+/* ── CARD FLIP ANIMATION (face-down → face-up) ── */
+@keyframes card-flip {
+  0%   { transform: scaleX(0) perspective(400px); opacity:0.6; }
+  50%  { transform: scaleX(0.05) perspective(400px); }
+  100% { transform: scaleX(1) perspective(400px); opacity:1; }
+}
+.card.flipping { animation: card-flip 0.28s ease-out; }
+
+/* ── FLYING CARD OVERLAY ── */
+.fly-card {
+  position:fixed; z-index:9999; pointer-events:none;
+  transition: left 0.22s ease, top 0.22s ease, width 0.22s ease, height 0.22s ease, opacity 0.22s ease, transform 0.3s ease;
+}
 .empty-slot{
   width:var(--cw);height:var(--ch);border-radius:8px;
   border:2px dashed rgba(255,255,255,.2);
@@ -612,10 +626,10 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 // ── RESPONSIVE CARD SIZING ─────────────────────────────────
 function getS(){
   const vw=window.innerWidth;
-  if(vw>=1100) return{cw:140,ch:192,cgap:10,cover:52,spOver:44,fcOver:48,cfs:26,cfc:60,tenFs:36};
-  if(vw>=780)  return{cw:96, ch:132,cgap:7, cover:36,spOver:30,fcOver:33,cfs:18,cfc:42,tenFs:26};
-  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:26,spOver:22,fcOver:24,cfs:14,cfc:30,tenFs:18};
-               return{cw:54, ch:74, cgap:4, cover:20,spOver:17,fcOver:19,cfs:11,cfc:24,tenFs:14};
+  if(vw>=1100) return{cw:140,ch:192,cgap:10,cover:22,spOver:20,fcOver:22,cfs:26,cfc:60,tenFs:36};
+  if(vw>=780)  return{cw:96, ch:132,cgap:7, cover:16,spOver:14,fcOver:16,cfs:18,cfc:42,tenFs:26};
+  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:12,spOver:10,fcOver:12,cfs:14,cfc:30,tenFs:18};
+               return{cw:54, ch:74, cgap:4, cover:9, spOver:8, fcOver:9, cfs:11,cfc:24,tenFs:14};
 }
 function applyS(s){
   const r=document.documentElement.style;
@@ -1006,6 +1020,12 @@ function animateCards(){
   document.querySelectorAll('[data-ckey]').forEach(el=>{
     const key=el.dataset.ckey;
     const prev=_snapshots[key];
+    // Newly appeared face-up pyramid card → flip animation
+    if(!prev && el.dataset.src==='pycard'){
+      el.classList.add('flipping');
+      el.addEventListener('animationend',()=>el.classList.remove('flipping'),{once:true});
+      return;
+    }
     if(!prev)return;
     const cur=el.getBoundingClientRect();
     const dx=prev.x-cur.left, dy=prev.y-cur.top;
@@ -1018,6 +1038,37 @@ function animateCards(){
     });
   });
   _snapshots={};
+}
+
+// Animate a card flying from one screen rect to another
+function flyCard(fromRect, toRect, innerHTML){
+  const d=document.createElement('div');
+  d.className='card fly-card';
+  d.style.left=fromRect.left+'px';d.style.top=fromRect.top+'px';
+  d.style.width=fromRect.width+'px';d.style.height=fromRect.height+'px';
+  d.innerHTML=innerHTML;
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    d.style.left=toRect.left+'px';d.style.top=toRect.top+'px';
+    d.style.width=toRect.width+'px';d.style.height=toRect.height+'px';
+  }));
+  setTimeout(()=>d.remove(),350);
+}
+
+// Animate a card flying off-screen (removed)
+function flyCardOff(fromRect, innerHTML){
+  const d=document.createElement('div');
+  d.className='card fly-card';
+  d.style.left=fromRect.left+'px';d.style.top=fromRect.top+'px';
+  d.style.width=fromRect.width+'px';d.style.height=fromRect.height+'px';
+  d.innerHTML=innerHTML;
+  document.body.appendChild(d);
+  const dir=(Math.random()>0.5?1:-1);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    d.style.transform=`translateY(-250px) translateX(${dir*80}px) rotate(${dir*25}deg)`;
+    d.style.opacity='0';
+  }));
+  setTimeout(()=>d.remove(),500);
 }
 
 function render(){
@@ -1453,7 +1504,7 @@ function renderTripeaks(gs,s){
       pyH+=`<div class="card back" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)}"></div>`;
     } else {
       const cc=isRed(card.suit)?'red':'blk';
-      pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
+      pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${i}" data-ckey="${card.suit}-${card.rank}-tp${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}">
         <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
         <div class="cc">${SYM[card.suit]}</div>
         <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1473,7 +1524,7 @@ function renderTripeaks(gs,s){
     <div style="position:relative;width:${totalW}px;height:${totalH}px;flex-shrink:0">${pyH}</div>
     <div class="tp-stock-area">
       ${stockH}
-      <div style="text-align:center"><div class="tp-label">Waste</div>${wasteH}</div>
+      <div style="text-align:center"><div class="tp-label">Waste</div><div id="tp-waste-slot">${wasteH}</div></div>
       <div style="font-family:var(--pixel);font-size:16px;color:rgba(255,255,255,.7);align-self:center">${pyramid.filter(c=>!!c).length} left</div>
     </div>
   </div>`;
@@ -1502,7 +1553,7 @@ function renderPyramid(gs,s){
         const cc=isRed(card.suit)?'red':'blk';
         const wasteMatch=wasteTop&&free&&wasteTop.rank+card.rank===13;
         const selMatch=A.sel&&A.sel.type==='pycard'&&A.sel.idx!==idx&&pyramid[A.sel.idx]&&pyramid[A.sel.idx].rank+card.rank===13&&free;
-        pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
+        pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}-py${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}">
           <div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
           <div class="cc">${SYM[card.suit]}</div>
           <div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div>
@@ -1722,20 +1773,46 @@ function handleClick(e){
     const wasteTop=gs.waste.length?gs.waste[gs.waste.length-1]:null;
     const card=gs.pyramid[idx];
     if(tpFree(gs.pyramid,idx)&&tpCanPlay(card,wasteTop)){
+      // Capture source card position before render
+      const srcEl=document.querySelector(`[data-src="pycard"][data-idx="${idx}"]`);
+      const srcRect=srcEl?srcEl.getBoundingClientRect():null;
+      const cardInner=srcEl?srcEl.innerHTML:'';
+      const cardCls=isRed(card.suit)?'red':'blk';
+
       const s=cloneState(gs);
       s.waste.push({...s.pyramid[idx],faceUp:true});
       s.pyramid[idx]=null;
       tpUpdateFaceUp(s.pyramid);
       A.gs=s;A.moves++;
       A.tpStreak=(A.tpStreak||0)+1;
-      addScore(A.tpStreak); // 1, 2, 3... per consecutive card
-      // Bonus for clearing a peak (indices 0,1,2)
+      addScore(A.tpStreak);
       if(idx<3)addScore(15);
+      _skipNextAnim=true;
+      render();
+      // Fly card from pyramid to waste slot
+      if(srcRect){
+        const wasteSlot=document.getElementById('tp-waste-slot');
+        const destRect=wasteSlot?wasteSlot.getBoundingClientRect():null;
+        if(destRect){
+          const d=document.createElement('div');
+          d.className=`card ${cardCls} fly-card`;
+          d.innerHTML=cardInner;
+          d.style.left=srcRect.left+'px';d.style.top=srcRect.top+'px';
+          d.style.width=srcRect.width+'px';d.style.height=srcRect.height+'px';
+          document.body.appendChild(d);
+          requestAnimationFrame(()=>requestAnimationFrame(()=>{
+            d.style.left=destRect.left+'px';d.style.top=destRect.top+'px';
+            d.style.width=destRect.width+'px';d.style.height=destRect.height+'px';
+          }));
+          setTimeout(()=>d.remove(),320);
+        }
+      }
       if(tpWon(A.gs))handleWin();
     } else {
-      A.tpStreak=0; // broken streak on failed attempt
+      A.tpStreak=0;
+      render();
     }
-    render();return;
+    return;
   }
 
   // Click-based for Pyramid (matching pairs)
@@ -1826,24 +1903,52 @@ function handleDblClick(e){
 
 function handlePyramidClick(src,idx){
   const gs=A.gs;
+
+  // Helper: capture rect of a pyramid card el before render
+  const captureRect=(i)=>{
+    const el=document.querySelector(`[data-src="pycard"][data-idx="${i}"]`);
+    return el?{rect:el.getBoundingClientRect(),inner:el.innerHTML,cls:el.className}:null;
+  };
+  const launchOff=(captured)=>{
+    if(!captured)return;
+    const d=document.createElement('div');
+    d.className=captured.cls+' fly-card';
+    d.style.left=captured.rect.left+'px';d.style.top=captured.rect.top+'px';
+    d.style.width=captured.rect.width+'px';d.style.height=captured.rect.height+'px';
+    d.innerHTML=captured.inner;
+    document.body.appendChild(d);
+    const dir=(Math.random()>0.5?1:-1);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      d.style.transform=`translateY(-220px) translateX(${dir*90}px) rotate(${dir*30}deg)`;
+      d.style.opacity='0';
+    }));
+    setTimeout(()=>d.remove(),500);
+  };
+
   if(src==='py-waste'){
-    // Select/deselect waste top
     if(A.sel&&A.sel.type==='waste-py'){A.sel=null;}
     else if(A.sel&&A.sel.type==='pycard'){
-      // Try to match
       const wasteTop=gs.waste[gs.waste.length-1];
       const pyrCard=gs.pyramid[A.sel.idx];
       if(wasteTop&&pyrCard&&wasteTop.rank+pyrCard.rank===13&&!pyBlocked(gs.pyramid,getRowCol(A.sel.idx).r,getRowCol(A.sel.idx).c)){
+        const cap=captureRect(A.sel.idx);
+        const wasteEl=document.querySelector('[data-src="py-waste"]');
+        const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
         pushUndo();
         const s=cloneState(gs);
         s.waste.pop();s.pyramid[A.sel.idx]=null;
         A.gs=s;A.moves++;A.sel=null;
+        addScore(10);
+        updatePyFaceUp(A.gs);
         if(pyWon(A.gs))handleWin();
-      } else A.sel=null;
+        _skipNextAnim=true;render();
+        launchOff(cap);launchOff(wasteR);
+      } else {A.sel=null;render();}
     } else {
       A.sel=gs.waste.length?{type:'waste-py'}:null;
+      render();
     }
-    render();return;
+    return;
   }
   if(src==='pycard'){
     const card=gs.pyramid[idx];
@@ -1852,13 +1957,16 @@ function handlePyramidClick(src,idx){
     const free=!pyBlocked(gs.pyramid,r,c);
     if(!free)return;
     if(card.rank===13){
+      const cap=captureRect(idx);
       pushUndo();
       const s=cloneState(gs);s.pyramid[idx]=null;
       A.gs=s;A.moves++;A.sel=null;
       addScore(5);
       updatePyFaceUp(A.gs);
       if(pyWon(A.gs))handleWin();
-      render();return;
+      _skipNextAnim=true;render();
+      launchOff(cap);
+      return;
     }
     if(A.sel){
       if(A.sel.type==='pycard'&&A.sel.idx===idx){A.sel=null;render();return;}
@@ -1867,25 +1975,34 @@ function handlePyramidClick(src,idx){
         const {r:or,c:oc}=getRowCol(A.sel.idx);
         const otherFree=!pyBlocked(gs.pyramid,or,oc);
         if(other&&otherFree&&other.rank+card.rank===13){
+          const cap1=captureRect(idx);
+          const cap2=captureRect(A.sel.idx);
           pushUndo();
           const s=cloneState(gs);s.pyramid[idx]=null;s.pyramid[A.sel.idx]=null;
           A.gs=s;A.moves++;A.sel=null;
           addScore(10);
           updatePyFaceUp(A.gs);
           if(pyWon(A.gs))handleWin();
-          render();return;
+          _skipNextAnim=true;render();
+          launchOff(cap1);launchOff(cap2);
+          return;
         }
       }
       if(A.sel.type==='waste-py'){
         const wasteTop=gs.waste[gs.waste.length-1];
         if(wasteTop&&wasteTop.rank+card.rank===13){
+          const cap=captureRect(idx);
+          const wasteEl=document.querySelector('[data-src="py-waste"]');
+          const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
           pushUndo();
           const s=cloneState(gs);s.waste.pop();s.pyramid[idx]=null;
           A.gs=s;A.moves++;A.sel=null;
           addScore(10);
           updatePyFaceUp(A.gs);
           if(pyWon(A.gs))handleWin();
-          render();return;
+          _skipNextAnim=true;render();
+          launchOff(cap);launchOff(wasteR);
+          return;
         }
       }
       A.sel={type:'pycard',idx};
@@ -1918,7 +2035,7 @@ function trySelect(src,col,idx){
       const pile=gs.tableau[col];
       if(pile[idx]&&pile[idx].faceUp){A.sel={type:'tab',col,idx};return;}
     }
-    if(src==='found'){const f=gs.foundations[col];if(f.length){A.sel={type:'found',col,idx:-1};return;}}
+    if(src==='found'){/* foundation cards cannot be moved back */return;}
   }
   if(t==='spider'){
     if(src==='tab'){
@@ -1953,7 +2070,6 @@ function klMove(sel,targetSrc,targetCol){
 
   if(sel.type==='waste'){cards=[{...gs.waste[gs.waste.length-1]}];}
   else if(sel.type==='tab'){cards=gs.tableau[sel.col].slice(sel.idx).map(c=>({...c}));}
-  else if(sel.type==='found'){const f=gs.foundations[sel.col];if(f.length)cards=[{...f[f.length-1]}];}
 
   if(!cards.length)return false;
 
@@ -1964,12 +2080,10 @@ function klMove(sel,targetSrc,targetCol){
     const s=cloneState(gs);
     if(sel.type==='waste'){s.waste.pop();}
     else if(sel.type==='tab'){s.tableau[sel.col].splice(sel.idx);}
-    else if(sel.type==='found'){s.foundations[sel.col].pop();}
     s.tableau[targetCol].push(...cards);
     klAutoReveal(s);
     A.gs=s;A.moves++;
-    if(sel.type==='waste')addScore(10);
-    else if(sel.type==='found')addScore(-15);
+    addScore(10);
     if(klWon(A.gs))handleWin();
     return true;
   }
@@ -1981,7 +2095,6 @@ function klMove(sel,targetSrc,targetCol){
     const s=cloneState(gs);
     if(sel.type==='waste')s.waste.pop();
     else if(sel.type==='tab')s.tableau[sel.col].pop();
-    else if(sel.type==='found')s.foundations[sel.col].pop();
     s.foundations[card.suit].push(card);
     klAutoReveal(s);
     A.gs=s;A.moves++;
@@ -2104,7 +2217,7 @@ function handleDragStart(e){
   if(t==='klondike'){
     if(src==='waste'&&gs.waste.length){cards=[{...gs.waste[gs.waste.length-1]}];selInfo={type:'waste',col:-1,idx:-1};}
     else if(src==='tab'){cards=gs.tableau[col].slice(idx).map(c=>({...c}));selInfo={type:'tab',col,idx};}
-    else if(src==='found'){const f=gs.foundations[col];if(f.length){cards=[{...f[f.length-1]}];selInfo={type:'found',col,idx:-1};}}
+    else if(src==='found'){/* no drag from foundation */}
   }
   if(t==='spider'&&src==='tab'){
     const seqLen=spSeqLen(gs.tableau[col]);
