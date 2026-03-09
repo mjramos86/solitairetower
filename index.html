@@ -628,8 +628,8 @@ function getS(){
   const vw=window.innerWidth;
   if(vw>=1100) return{cw:140,ch:192,cgap:10,cover:22,spOver:20,fcOver:22,cfs:26,cfc:60,tenFs:36};
   if(vw>=780)  return{cw:96, ch:132,cgap:7, cover:16,spOver:14,fcOver:16,cfs:18,cfc:42,tenFs:26};
-  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:12,spOver:10,fcOver:12,cfs:14,cfc:30,tenFs:18};
-               return{cw:54, ch:74, cgap:4, cover:9, spOver:8, fcOver:9, cfs:11,cfc:24,tenFs:14};
+  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:30,spOver:26,fcOver:30,cfs:14,cfc:30,tenFs:18};
+               return{cw:54, ch:74, cgap:4, cover:24,spOver:20,fcOver:24,cfs:11,cfc:24,tenFs:14};
 }
 function applyS(s){
   const r=document.documentElement.style;
@@ -956,8 +956,14 @@ function pyWon(gs){return gs.pyramid.every(c=>!c);}
 
 function pyDrawStock(gs){
   const s=cloneState(gs);
-  if(s.stock.length){s.waste.push({...s.stock.pop(),faceUp:true});}
-  else if(s.cycles<s.maxCycles-1){s.stock=s.waste.reverse().map(c=>({...c,faceUp:false}));s.waste=[];s.cycles++;}
+  if(s.stock.length){
+    s.waste.push({...s.stock.pop(),faceUp:true});
+  } else if(s.waste.length&&s.cycles<s.maxCycles-1){
+    // Reshuffle waste back into stock
+    s.stock=[...s.waste].reverse().map(c=>({...c,faceUp:false}));
+    s.waste=[];
+    s.cycles++;
+  }
   return s;
 }
 
@@ -1562,7 +1568,13 @@ function renderPyramid(gs,s){
     }
   }
 
-  const stockH=stock.length?`<div class="card back" data-src="py-stock" style="cursor:pointer"></div>`:emptyH();
+  const cyclesLeft=gs.maxCycles-gs.cycles-1; // how many reshuffles remain after current
+  const canReshuffle=!stock.length&&waste.length&&cyclesLeft>0;
+  const stockH=stock.length
+    ?`<div class="card back" data-src="py-stock" style="cursor:pointer"></div>`
+    :canReshuffle
+      ?`<div class="empty-slot" data-src="py-stock" style="cursor:pointer;color:rgba(255,255,255,.7);font-size:2rem" title="Reshuffle waste (${cyclesLeft} left)">↺</div>`
+      :emptyH();
   const wasteSelCls=A.sel&&A.sel.type==='waste-py'?'sel':'';
   const wasteH=wasteTop
     ?`<div class="card ${isRed(wasteTop.suit)?'red':'blk'} ${wasteSelCls}" data-src="py-waste">
@@ -1577,7 +1589,7 @@ function renderPyramid(gs,s){
       ${stockH}
       <div style="text-align:center"><div class="tp-label">Waste</div>${wasteH}</div>
     </div>
-    <div class="py-info">${pyramid.filter(c=>!!c).length} remaining · ${gs.maxCycles-gs.cycles} cycle${gs.maxCycles-gs.cycles!==1?'s':''} left</div>
+    <div class="py-info">${pyramid.filter(c=>!!c).length} remaining · ${cyclesLeft} reshuffle${cyclesLeft!==1?'s':''} left</div>
   </div>`;
 }
 
