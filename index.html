@@ -362,10 +362,10 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 // ── RESPONSIVE CARD SIZING ─────────────────────────────────
 function getS(){
   const vw=window.innerWidth;
-  if(vw>=1100) return{cw:140,ch:192,cgap:10,cover:22,spOver:20,fcOver:22,cfs:26,cfc:60,tenFs:36};
-  if(vw>=780)  return{cw:96, ch:132,cgap:7, cover:16,spOver:14,fcOver:16,cfs:18,cfc:42,tenFs:26};
-  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:30,spOver:26,fcOver:30,cfs:14,cfc:30,tenFs:18};
-               return{cw:54, ch:74, cgap:4, cover:24,spOver:20,fcOver:24,cfs:11,cfc:24,tenFs:14};
+  if(vw>=1100) return{cw:140,ch:192,cgap:10,cover:44,spOver:38,fcOver:44,cfs:26,cfc:60,tenFs:36};
+  if(vw>=780)  return{cw:96, ch:132,cgap:7, cover:30,spOver:26,fcOver:30,cfs:18,cfc:42,tenFs:26};
+  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:38,spOver:32,fcOver:38,cfs:14,cfc:30,tenFs:18};
+               return{cw:54, ch:74, cgap:4, cover:30,spOver:26,fcOver:30,cfs:11,cfc:24,tenFs:14};
 }
 function applyS(s){
   const r=document.documentElement.style;
