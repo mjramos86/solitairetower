@@ -350,6 +350,48 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 @media(max-width:900px){.map-title{font-size:1.6rem;}.tower-container{width:100%;max-width:600px;}.win95-title{font-size:16px;}.win95-info{font-size:15px;}}
 @media(max-width:600px){.map-title{font-size:1.2rem;}.map-sub{font-size:.85rem;}.tower-container{width:100%;}.floors-overlay{padding:40px 0 8px 0;}.f-level-label{font-size:.6rem;min-width:20px;}.cbtn{font-size:.55rem;min-width:72px;padding:4px 6px;}.cbtn.boss{min-width:120px;}.win95-title{font-size:14px;padding:2px 4px;}.win95-toolbar{padding:3px 4px;gap:3px;}.btn{font-size:14px;padding:3px 8px;}.win95-status-pane{font-size:13px;padding:2px 6px;}.win95-status-pane:nth-child(3),.win95-status-pane:last-child{display:none;}.win95-heart{font-size:16px;}}
 @media(max-width:400px){.cbtn{font-size:.5rem;min-width:60px;padding:3px 5px;}.btn{font-size:13px;padding:2px 6px;}}
+
+/* ── INTRO SCREEN ── */
+.intro-screen{
+  position:fixed;inset:0;background:#000;
+  display:flex;align-items:center;justify-content:center;
+  z-index:9999;cursor:default;
+  font-family:'Courier New',Courier,monospace;
+}
+.intro-inner{
+  max-width:520px;width:90%;
+  display:flex;flex-direction:column;align-items:center;
+  gap:0;
+}
+.intro-line{
+  color:#fff;font-size:1rem;line-height:1.8;
+  text-align:center;width:100%;
+  opacity:0;
+  transition:opacity 0.6s ease;
+}
+.intro-line.vis{opacity:1;}
+.intro-line.dim{color:#888;font-size:.88rem;}
+.intro-line.click{color:#aaa;font-size:.88rem;letter-spacing:.25em;}
+.intro-line.flicker{animation:txt-flicker 0.15s step-end 3;}
+@keyframes txt-flicker{0%,100%{opacity:1;}50%{opacity:0;}}
+.intro-line.wrong{color:#ccc;font-style:italic;font-size:.95rem;}
+.intro-line.msg{
+  color:#fff;font-size:1.05rem;letter-spacing:.04em;
+  border:1px solid #444;padding:10px 24px;margin-top:8px;
+}
+.intro-play-btn{
+  margin-top:32px;
+  font-family:'Courier New',Courier,monospace;
+  font-size:1.4rem;letter-spacing:.3em;
+  color:#000;background:#fff;
+  border:none;padding:10px 40px;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity 0.6s ease, background 0.2s, color 0.2s;
+}
+.intro-play-btn.vis{opacity:1;}
+.intro-play-btn:hover{background:#000;color:#fff;outline:1px solid #fff;}
+
 </style>
 </head>
 <body>
@@ -760,8 +802,97 @@ function flyCardOff(fromRect,innerHTML,cc=''){
   setTimeout(()=>d.remove(),500);
 }
 
+
+// ── INTRO SCREEN ─────────────────────────────────────────
+function renderIntro(app){
+  app.innerHTML=`<div class="intro-screen" id="intro-screen">
+    <div class="intro-inner" id="intro-inner"></div>
+  </div>`;
+  const lines=[
+    {text:"It's 1995.",                       cls:'',     delay:400},
+    {text:"20th floor.",                       cls:'',     delay:900},
+    {text:"Grey cubicle.",                     cls:'',     delay:1400},
+    {text:"You're playing Solitaire.",         cls:'',     delay:2000},
+    {text:"Click.",                            cls:'click',delay:3200},
+    {text:"The floor goes dark.",              cls:'dim',  delay:4200},
+    {text:"Section by section —",             cls:'dim',  delay:5000},
+    {text:"a strangely opaque darkness,",     cls:'dim',  delay:5700},
+    {text:"closing in.",                       cls:'dim',  delay:6300},
+    {text:"Click. Click. Click.",             cls:'click',delay:7400},
+    {text:"You spin around.",                  cls:'',     delay:8600},
+    {text:"You're alone up here.",             cls:'',     delay:9400},
+    {text:"Click.",                            cls:'click',delay:10600},
+    {text:"One metre of light.",              cls:'',     delay:11800},
+    {text:"A perfect circle around your desk.",cls:'',    delay:12500},
+    {text:"Nothing else exists.",             cls:'dim',  delay:13400},
+    {text:"Your screen flickers.",            cls:'flicker',delay:14600},
+    {text:"The Solitaire game remains —",     cls:'wrong',delay:15600},
+    {text:"but wrong. Different.",            cls:'wrong',delay:16300},
+    {text:"A message appears:",              cls:'dim',  delay:17200},
+    {text:"&ldquo;Play Solitaire, or never leave.&rdquo;", cls:'msg', delay:18200},
+  ];
+  const container=document.getElementById('intro-inner');
+  const timers=[];
+  lines.forEach(({text,cls,delay})=>{
+    const t=setTimeout(()=>{
+      const el=document.createElement('div');
+      el.className='intro-line '+cls;
+      el.innerHTML=text;
+      container.appendChild(el);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('vis')));
+    },delay);
+    timers.push(t);
+  });
+  // Show play button after last line
+  const btnTimer=setTimeout(()=>{
+    const btn=document.createElement('button');
+    btn.className='intro-play-btn';
+    btn.textContent='PLAY';
+    btn.onclick=startFromIntro;
+    container.appendChild(btn);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>btn.classList.add('vis')));
+  },19800);
+  timers.push(btnTimer);
+  // Also allow clicking anywhere on screen to skip to play button immediately
+  const screen=document.getElementById('intro-screen');
+  screen.addEventListener('click',function onSkip(e){
+    if(e.target.classList.contains('intro-play-btn'))return;
+    timers.forEach(clearTimeout);
+    // Render all remaining lines instantly
+    container.innerHTML='';
+    lines.forEach(({text,cls})=>{
+      const el=document.createElement('div');
+      el.className='intro-line vis '+cls;
+      el.innerHTML=text;
+      container.appendChild(el);
+    });
+    const btn=document.createElement('button');
+    btn.className='intro-play-btn vis';
+    btn.textContent='PLAY';
+    btn.onclick=startFromIntro;
+    container.appendChild(btn);
+    screen.removeEventListener('click',onSkip);
+  });
+}
+
+function startFromIntro(){
+  const screen=document.getElementById('intro-screen');
+  if(screen){
+    screen.style.transition='opacity 0.8s ease';
+    screen.style.opacity='0';
+    setTimeout(()=>{
+      A.screen='map';
+      render();
+    },820);
+  } else {
+    A.screen='map';
+    render();
+  }
+}
+
 function render(){
   const app=document.getElementById('app');
+  if(A.screen==='intro'){renderIntro(app);return;}
   if(A.screen==='map'){if(A.timerRunning)stopTimer();renderMap(app);return;}
   if(A.screen==='shop'){renderShop(app);return;}
   if(A.screen==='gameover'){renderNameEntry(app,false);return;}
@@ -1991,7 +2122,7 @@ async function submitScore(isVictory){
 }
 
 function init(){
-  A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'map',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
+  A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'intro',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
      score:0,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
      gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
      floorStartLives:3,floorUndosUsed:0,floorStartTime:0,floorStartScore:0,
@@ -2011,6 +2142,7 @@ setInterval(()=>{
   if(A.revealAllUntil&&Date.now()>A.revealAllUntil){A.revealAllUntil=0;document.querySelectorAll('.x-revealed').forEach(el=>el.classList.remove('x-revealed'));}
 },1000);
 
+window.startFromIntro=startFromIntro;
 window.addEventListener('DOMContentLoaded',init);
 window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS();applyS(s);}else render();});
 window.addEventListener('fb-ready',()=>{const el=document.getElementById('map-lb-body');if(el)loadBoard().then(board=>{const tmp=document.getElementById('map-lb-body');if(tmp)renderMapBoard(tmp,board);});});
