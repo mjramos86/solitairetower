@@ -32,8 +32,8 @@
   --valid:rgba(80,220,80,0.35);--valid-border:rgba(80,220,80,0.7);
   --sel-glow:0 0 0 3px #d4a84b,0 0 12px rgba(212,168,75,0.5);
   --w95-bg:#c0c0c0;--w95-dark:#808080;--w95-darker:#404040;--w95-white:#ffffff;
-  --w95-titlebar1:#000080;--w95-titlebar2:#1084d0;--w95-text:#000000;
-  --felt:#007700;--felt2:#006600;--felt-shadow:#005500;
+  --w95-titlebar1:#1a1208;--w95-titlebar2:#2e2010;--w95-text:#000000;
+  --felt:#1a0d2e;--felt2:#160a26;--felt-shadow:#110820;
   --pixel:'VT323',monospace;--card-red:#cc0000;--card-black:#000000;
   --cw:140px;--ch:192px;--cfs:28px;--cfc:72px;
 }
@@ -43,9 +43,9 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 /* ── MAP ── */
 .map-wrap{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;
-  background:radial-gradient(ellipse at 50% 0%,#1e1030 0%,transparent 55%),var(--bg);padding:16px 16px 32px;}
+  background:radial-gradient(ellipse at 50% 30%,#0d1a2a 0%,#060c14 70%),#060c14;padding:16px 16px 32px;}
 .map-wrap::-webkit-scrollbar{width:4px;}
-.map-wrap::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px;}
+.map-wrap::-webkit-scrollbar-thumb{background:#1a2a3a;border-radius:2px;}
 .map-head{text-align:center;margin-bottom:20px;width:100%;max-width:1100px;}
 .map-title{font-family:'Cinzel',serif;font-size:2.2rem;font-weight:700;color:var(--gold);
   text-shadow:0 0 24px var(--gold-glow);letter-spacing:.08em;line-height:1;}
@@ -81,7 +81,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .f-floor-cur{background:rgba(212,168,75,0.04);}
 .f-level-label{font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold-dim);writing-mode:horizontal-tb;min-width:28px;text-align:right;flex-shrink:0;}
 .f-content{display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;}
-.cur-marker{font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold);letter-spacing:.1em;animation:blink 1.2s step-end infinite;}
+.cur-marker{font-family:'Cinzel',serif;font-size:.6rem;color:#7a5010;letter-spacing:.1em;animation:blink 1.2s step-end infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
 .f-choices{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;}
 .f-or{color:var(--text-dim);font-size:.7rem;font-style:italic;flex-shrink:0;}
@@ -94,7 +94,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .cbtn.boss.cur{animation:pred 1.8s infinite;}
 .cbtn.boss:hover:not(:disabled){border-color:#c03030;box-shadow:0 0 10px rgba(160,40,40,.4);}
 .cbtn.mystery{border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.2);font-size:.8rem;letter-spacing:.2em;}
-@keyframes pgold{0%,100%{box-shadow:0 0 6px var(--gold-glow);}50%{box-shadow:0 0 14px rgba(212,168,75,.6);}}
+@keyframes pgold{0%,100%{box-shadow:0 0 6px rgba(180,120,40,.3);}50%{box-shadow:0 0 14px rgba(180,120,40,.5);}}
 @keyframes pred{0%,100%{box-shadow:0 0 6px rgba(160,40,40,.3);}50%{box-shadow:0 0 14px rgba(200,50,50,.6);}}
 .f-mystery{font-size:1.1rem;opacity:.35;letter-spacing:.1em;}
 
@@ -124,8 +124,9 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .btn-d{color:#800000;}
 .btn-insta{color:#006400;}
 .garea{flex:1;overflow:auto;background:var(--felt);
-  background-image:radial-gradient(ellipse at 50% 0%,#008800 0%,transparent 70%),
-  repeating-linear-gradient(45deg,transparent,transparent 12px,rgba(0,0,0,0.04) 12px,rgba(0,0,0,0.04) 24px);
+  background-image:
+    radial-gradient(ellipse at 50% 20%, rgba(40,32,10,0.18) 0%, transparent 65%),
+    repeating-linear-gradient(45deg,transparent,transparent 14px,rgba(255,255,220,0.012) 14px,rgba(255,255,220,0.012) 28px);
   padding:16px 12px;display:flex;justify-content:center;
   border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);image-rendering:pixelated;}
 .garea::-webkit-scrollbar{width:16px;height:16px;}
@@ -138,13 +139,20 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 @media(max-width:600px){.rules-strip{font-size:13px;}.rule-item{white-space:normal;}}
 
 /* ── CARDS ── */
-.card{width:var(--cw);height:var(--ch);border-radius:8px;border:1px solid #bbb;background:#fff;position:relative;cursor:pointer;flex-shrink:0;font-family:'Georgia','Times New Roman',serif;box-shadow:1px 2px 4px rgba(0,0,0,0.25);}
+.card{width:var(--cw);height:var(--ch);border-radius:4px;border:1px solid #7a6a44;background:#e8ddb8;position:relative;cursor:pointer;flex-shrink:0;font-family:'Georgia','Times New Roman',serif;box-shadow:1px 2px 6px rgba(0,0,0,0.55),inset 0 0 18px rgba(0,0,0,0.06);}
 .card.animating{transition:transform 0.18s ease;pointer-events:none;}
-.card.red{color:#cc0000;}
-.card.blk{color:#111;}
-.card.back{background-color:#9b1c1c;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0,rgba(255,255,255,.06) 3px,transparent 3px,transparent 9px),repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0,rgba(255,255,255,.06) 3px,transparent 3px,transparent 9px);border-color:#7a1515;cursor:default;}
-.card.back::after{content:'';position:absolute;inset:4px;border:2px solid rgba(255,255,255,.18);border-radius:5px;}
-.card.back.x-revealed{background-color:#5a0c60 !important;background-image:repeating-linear-gradient(0deg,rgba(255,200,255,.08) 0,rgba(255,200,255,.08) 3px,transparent 3px,transparent 9px) !important;}
+.card.red{color:#8b1a0a;}
+.card.blk{color:#1a1408;}
+.card.back{
+  background-color:#0d1a2a;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2030%2042%22%20shape-rendering%3D%22crispEdges%22%3E%0A%20%20%3C%21--%20Night%20sky%20--%3E%0A%20%20%3Crect%20width%3D%2230%22%20height%3D%2242%22%20fill%3D%22%230d1a2a%22%2F%3E%0A%20%20%3C%21--%20Horizon%20glow%20--%3E%0A%20%20%3Crect%20x%3D%220%22%20y%3D%2228%22%20width%3D%2230%22%20height%3D%2214%22%20fill%3D%22%230a1520%22%2F%3E%0A%0A%20%20%3C%21--%20Crescent%20moon%20--%3E%0A%20%20%3Crect%20x%3D%2221%22%20y%3D%224%22%20%20width%3D%226%22%20height%3D%227%22%20fill%3D%22%23d4a820%22%2F%3E%0A%20%20%3Crect%20x%3D%2222%22%20y%3D%223%22%20%20width%3D%224%22%20height%3D%221%22%20fill%3D%22%23d4a820%22%2F%3E%0A%20%20%3Crect%20x%3D%2222%22%20y%3D%2211%22%20width%3D%224%22%20height%3D%221%22%20fill%3D%22%23d4a820%22%2F%3E%0A%20%20%3Crect%20x%3D%2220%22%20y%3D%225%22%20%20width%3D%221%22%20height%3D%225%22%20fill%3D%22%23d4a820%22%2F%3E%0A%20%20%3Crect%20x%3D%2227%22%20y%3D%225%22%20%20width%3D%221%22%20height%3D%225%22%20fill%3D%22%23d4a820%22%2F%3E%0A%20%20%3C%21--%20Moon%20bite%20%28dark%20circle%20cutout%29%20--%3E%0A%20%20%3Crect%20x%3D%2223%22%20y%3D%224%22%20%20width%3D%225%22%20height%3D%227%22%20fill%3D%22%230d1a2a%22%2F%3E%0A%20%20%3Crect%20x%3D%2224%22%20y%3D%223%22%20%20width%3D%224%22%20height%3D%221%22%20fill%3D%22%230d1a2a%22%2F%3E%0A%20%20%3Crect%20x%3D%2224%22%20y%3D%2211%22%20width%3D%224%22%20height%3D%221%22%20fill%3D%22%230d1a2a%22%2F%3E%0A%20%20%3Crect%20x%3D%2223%22%20y%3D%225%22%20%20width%3D%221%22%20height%3D%225%22%20fill%3D%22%230d1a2a%22%2F%3E%0A%0A%20%20%3C%21--%20Stars%20--%3E%0A%20%20%3Crect%20x%3D%223%22%20%20y%3D%223%22%20%20width%3D%221%22%20height%3D%221%22%20fill%3D%22%23aabbcc%22%20opacity%3D%220.7%22%2F%3E%0A%20%20%3Crect%20x%3D%229%22%20%20y%3D%226%22%20%20width%3D%221%22%20height%3D%221%22%20fill%3D%22%23aabbcc%22%20opacity%3D%220.5%22%2F%3E%0A%20%20%3Crect%20x%3D%2216%22%20y%3D%222%22%20%20width%3D%221%22%20height%3D%221%22%20fill%3D%22%23aabbcc%22%20opacity%3D%220.6%22%2F%3E%0A%20%20%3Crect%20x%3D%226%22%20%20y%3D%2211%22%20width%3D%221%22%20height%3D%221%22%20fill%3D%22%23aabbcc%22%20opacity%3D%220.4%22%2F%3E%0A%0A%20%20%3C%21--%20Castle%3A%20far%20left%20thin%20spire%20--%3E%0A%20%20%3Crect%20x%3D%222%22%20%20y%3D%2216%22%20width%3D%222%22%20height%3D%2216%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%222%22%20%20y%3D%2214%22%20width%3D%222%22%20height%3D%223%22%20%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%223%22%20%20y%3D%2212%22%20width%3D%221%22%20height%3D%223%22%20%20fill%3D%22%230a0f18%22%2F%3E%0A%0A%20%20%3C%21--%20Castle%3A%20left%20main%20tower%20%28tallest%29%20--%3E%0A%20%20%3Crect%20x%3D%225%22%20%20y%3D%2210%22%20width%3D%226%22%20height%3D%2222%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3C%21--%20Left%20tower%20battlements%20--%3E%0A%20%20%3Crect%20x%3D%225%22%20%20y%3D%228%22%20%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%227%22%20%20y%3D%228%22%20%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%229%22%20%20y%3D%228%22%20%20width%3D%222%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3C%21--%20Left%20tower%20spire%20tip%20--%3E%0A%20%20%3Crect%20x%3D%227%22%20%20y%3D%225%22%20%20width%3D%222%22%20height%3D%225%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%227%22%20%20y%3D%223%22%20%20width%3D%222%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%228%22%20%20y%3D%222%22%20%20width%3D%221%22%20height%3D%222%22%20fill%3D%22%230a0f18%22%2F%3E%0A%0A%20%20%3C%21--%20Castle%3A%20centre%20block%20--%3E%0A%20%20%3Crect%20x%3D%227%22%20%20y%3D%2222%22%20width%3D%2214%22%20height%3D%2210%22%20fill%3D%22%230a0f18%22%2F%3E%0A%0A%20%20%3C%21--%20Castle%3A%20right%20mid%20tower%20--%3E%0A%20%20%3Crect%20x%3D%2214%22%20y%3D%2215%22%20width%3D%225%22%20height%3D%2217%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3C%21--%20Right%20mid%20battlements%20--%3E%0A%20%20%3Crect%20x%3D%2214%22%20y%3D%2213%22%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%2216%22%20y%3D%2213%22%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%2218%22%20y%3D%2213%22%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%0A%20%20%3C%21--%20Castle%3A%20right%20squat%20tower%20--%3E%0A%20%20%3Crect%20x%3D%2219%22%20y%3D%2220%22%20width%3D%225%22%20height%3D%2212%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%2219%22%20y%3D%2218%22%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%2221%22%20y%3D%2218%22%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%20%20%3Crect%20x%3D%2223%22%20y%3D%2218%22%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%230a0f18%22%2F%3E%0A%0A%20%20%3C%21--%20Glowing%20windows%20%28dim%20amber%29%20--%3E%0A%20%20%3Crect%20x%3D%226%22%20%20y%3D%2216%22%20width%3D%222%22%20height%3D%223%22%20fill%3D%22%237a5010%22%20opacity%3D%220.9%22%2F%3E%0A%20%20%3Crect%20x%3D%229%22%20%20y%3D%2216%22%20width%3D%221%22%20height%3D%222%22%20fill%3D%22%237a5010%22%20opacity%3D%220.7%22%2F%3E%0A%20%20%3Crect%20x%3D%2215%22%20y%3D%2219%22%20width%3D%221%22%20height%3D%222%22%20fill%3D%22%237a5010%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%3Crect%20x%3D%2217%22%20y%3D%2219%22%20width%3D%221%22%20height%3D%222%22%20fill%3D%22%237a5010%22%20opacity%3D%220.7%22%2F%3E%0A%20%20%3Crect%20x%3D%2220%22%20y%3D%2222%22%20width%3D%221%22%20height%3D%222%22%20fill%3D%22%237a5010%22%20opacity%3D%220.8%22%2F%3E%0A%20%20%3Crect%20x%3D%2222%22%20y%3D%2222%22%20width%3D%221%22%20height%3D%222%22%20fill%3D%22%237a5010%22%20opacity%3D%220.6%22%2F%3E%0A%0A%20%20%3C%21--%20Gate%20--%3E%0A%20%20%3Crect%20x%3D%2211%22%20y%3D%2227%22%20width%3D%224%22%20height%3D%225%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%2212%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23060c14%22%2F%3E%0A%0A%20%20%3C%21--%20Ground%20--%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2236%22%20width%3D%2230%22%20height%3D%226%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2234%22%20width%3D%2230%22%20height%3D%224%22%20fill%3D%22%2308111e%22%2F%3E%0A%0A%20%20%3C%21--%20Left%20dead%20tree%20--%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2228%22%20width%3D%222%22%20height%3D%228%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2226%22%20width%3D%221%22%20height%3D%224%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%221%22%20%20y%3D%2224%22%20width%3D%221%22%20height%3D%225%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2230%22%20width%3D%223%22%20height%3D%221%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2227%22%20width%3D%221%22%20height%3D%223%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3C%21--%20Left%20tree%20branches%20--%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2229%22%20width%3D%224%22%20height%3D%221%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%220%22%20%20y%3D%2226%22%20width%3D%223%22%20height%3D%221%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%221%22%20%20y%3D%2224%22%20width%3D%222%22%20height%3D%221%22%20fill%3D%22%23060c14%22%2F%3E%0A%0A%20%20%3C%21--%20Right%20dead%20tree%20--%3E%0A%20%20%3Crect%20x%3D%2227%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%2210%22%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%2228%22%20y%3D%2224%22%20width%3D%221%22%20height%3D%225%22%20%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%2226%22%20y%3D%2229%22%20width%3D%224%22%20height%3D%221%22%20%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%223%22%20height%3D%221%22%20%20fill%3D%22%23060c14%22%2F%3E%0A%20%20%3Crect%20x%3D%2227%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%221%22%20%20fill%3D%22%23060c14%22%2F%3E%0A%3C%2Fsvg%3E");
+  background-repeat:no-repeat;
+  background-position:center center;
+  e% auto;
+  border-color:#0a1520;cursor:default;
+  box-shadow:1px 2px 6px rgba(0,0,0,0.7),inset 0 0 14px rgba(0,0,0,0.5);}
+.card.back::after{content:'';position:absolute;inset:5px;border:1px solid rgba(80,120,160,.2);border-radius:2px;}
+.card.back.x-revealed{background-color:#1a0820 !important;background-image:repeating-linear-gradient(0deg,rgba(220,180,255,.07) 0,rgba(220,180,255,.07) 2px,transparent 2px,transparent 10px) !important;}
 .card.back.x-revealed::after{border-color:rgba(255,180,255,.3);}
 .card .ct{position:absolute;top:4px;left:6px;line-height:1.1;font-size:var(--cfs);font-weight:700;display:flex;flex-direction:column;align-items:flex-start;font-family:'Georgia','Times New Roman',serif;}
 .card .cb{position:absolute;bottom:4px;right:6px;line-height:1.1;font-size:var(--cfs);font-weight:700;display:flex;flex-direction:column;align-items:flex-end;transform:rotate(180deg);font-family:'Georgia','Times New Roman',serif;}
@@ -162,7 +170,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 @keyframes card-flip{0%{transform:scaleX(0) perspective(400px);opacity:0.6;}50%{transform:scaleX(0.05) perspective(400px);}100%{transform:scaleX(1) perspective(400px);opacity:1;}}
 .card.flipping{animation:card-flip 0.28s ease-out;}
 .fly-card{position:fixed;z-index:9999;pointer-events:none;transition:left 0.22s ease,top 0.22s ease,width 0.22s ease,height 0.22s ease,opacity 0.22s ease,transform 0.3s ease;}
-.empty-slot{width:var(--cw);height:var(--ch);border-radius:8px;border:2px dashed rgba(255,255,255,.2);background:rgba(0,0,0,.1);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.25);font-size:1.8rem;}
+.empty-slot{width:var(--cw);height:var(--ch);border-radius:4px;border:1px dashed rgba(255,240,180,.15);background:rgba(0,0,0,.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:rgba(255,240,180,.18);font-size:1.8rem;}
 .sp-complete-slot{width:var(--cw);height:var(--ch);border-radius:2px;border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);background:rgba(0,0,0,.18);box-shadow:inset 1px 1px 0 rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:rgba(255,255,255,.3);font-family:var(--pixel);text-align:center;}
 .sp-complete-slot.filled{background:rgba(0,80,0,.5);border-color:#006600;color:#00ff00;}
 
@@ -930,31 +938,131 @@ function renderMap(app){
     </div>
     <div class="map-body">
       <div class="tower-container">
-      <svg class="tower-svg" viewBox="0 0 700 1100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="bldGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1230"/><stop offset="60%" stop-color="#130f22"/><stop offset="100%" stop-color="#0c0a14"/></linearGradient>
-        </defs>
-        <rect x="175" y="40" width="350" height="1060" fill="url(#bldGrad)" rx="2"/>
-        <rect x="80" y="180" width="110" height="920" fill="#14102a" rx="1"/>
-        <rect x="510" y="180" width="110" height="920" fill="#14102a" rx="1"/>
-        <rect x="0" y="420" width="95" height="680" fill="#0f0d1e"/>
-        <rect x="605" y="380" width="95" height="720" fill="#0f0d1e"/>
-        <polygon points="350,0 290,42 410,42" fill="#1e1535"/>
-        <rect x="335" y="10" width="30" height="35" fill="#241b40"/>
-        <rect x="80" y="165" width="110" height="20" fill="#1e1535" rx="1"/>
-        <rect x="510" y="165" width="110" height="20" fill="#1e1535" rx="1"/>
-        <rect x="0" y="408" width="95" height="15" fill="#161030"/>
-        <rect x="605" y="368" width="95" height="15" fill="#161030"/>
-        ${genWindows(200,60,270,1030,5,26,28,16,'#d4a84b')}
-        ${genWindows(88,200,92,880,2,22,14,12,'#b8943a')}
-        ${genWindows(518,200,92,880,2,22,14,12,'#b8943a')}
-        ${genWindows(8,440,79,630,2,16,14,10,'#7a6030')}
-        ${genWindows(613,400,79,680,2,17,14,10,'#7a6030')}
-        ${[...Array(9)].map((_,i)=>{const y=60+(i+1)*((1040)/10);return`<line x1="175" y1="${y}" x2="525" y2="${y}" stroke="rgba(212,168,75,0.15)" stroke-width="1"/>`;}).join('')}
-        <rect x="0" y="1090" width="700" height="10" fill="#d4a84b" opacity="0.3"/>
-        <rect x="220" y="80" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.9"/>
-        <rect x="320" y="140" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.8"/>
-        <rect x="440" y="100" width="12" height="10" fill="#ffe08a" rx="1" opacity="0.9"/>
+      <svg class="tower-svg" viewBox="0 0 700 1100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated">
+        <!-- ── SKY ── -->
+        <rect width="700" height="1100" fill="#0d1a2a" shape-rendering="crispEdges"/>
+        <!-- Horizon darkness -->
+        <rect y="820" width="700" height="280" fill="#060c14" shape-rendering="crispEdges"/>
+        <rect y="750" width="700" height="120" fill="#08111e" opacity="0.7" shape-rendering="crispEdges"/>
+
+        <!-- ── CRESCENT MOON ── -->
+        <rect x="580" y="40"  width="70" height="80" fill="#d4a820" shape-rendering="crispEdges"/>
+        <rect x="594" y="28"  width="48" height="16" fill="#d4a820" shape-rendering="crispEdges"/>
+        <rect x="594" y="120" width="48" height="16" fill="#d4a820" shape-rendering="crispEdges"/>
+        <rect x="568" y="56"  width="16" height="48" fill="#d4a820" shape-rendering="crispEdges"/>
+        <rect x="648" y="56"  width="16" height="48" fill="#d4a820" shape-rendering="crispEdges"/>
+        <!-- Moon bite -->
+        <rect x="608" y="40"  width="60" height="80" fill="#0d1a2a" shape-rendering="crispEdges"/>
+        <rect x="608" y="28"  width="50" height="16" fill="#0d1a2a" shape-rendering="crispEdges"/>
+        <rect x="608" y="120" width="50" height="14" fill="#0d1a2a" shape-rendering="crispEdges"/>
+        <rect x="648" y="54"  width="16" height="54" fill="#0d1a2a" shape-rendering="crispEdges"/>
+
+        <!-- ── STARS ── -->
+        <rect x="40"  y="50"  width="6" height="6" fill="#aabbcc" opacity="0.55" shape-rendering="crispEdges"/>
+        <rect x="120" y="30"  width="4" height="4" fill="#aabbcc" opacity="0.40" shape-rendering="crispEdges"/>
+        <rect x="220" y="60"  width="4" height="4" fill="#aabbcc" opacity="0.35" shape-rendering="crispEdges"/>
+        <rect x="480" y="35"  width="6" height="6" fill="#aabbcc" opacity="0.50" shape-rendering="crispEdges"/>
+        <rect x="70"  y="130" width="4" height="4" fill="#aabbcc" opacity="0.30" shape-rendering="crispEdges"/>
+        <rect x="530" y="90"  width="4" height="4" fill="#aabbcc" opacity="0.35" shape-rendering="crispEdges"/>
+
+        <!-- ── DISTANT CITY SILHOUETTE (very dark, far back) ── -->
+        <rect x="0"   y="840" width="40"  height="260" fill="#070d18" shape-rendering="crispEdges"/>
+        <rect x="36"  y="800" width="30"  height="300" fill="#070d18" shape-rendering="crispEdges"/>
+        <rect x="62"  y="860" width="22"  height="240" fill="#060c16" shape-rendering="crispEdges"/>
+        <rect x="620" y="820" width="40"  height="280" fill="#070d18" shape-rendering="crispEdges"/>
+        <rect x="654" y="790" width="30"  height="310" fill="#070d18" shape-rendering="crispEdges"/>
+        <rect x="678" y="850" width="22"  height="250" fill="#060c16" shape-rendering="crispEdges"/>
+
+        <!-- ── DEAD TREES (foreground corners) ── -->
+        <!-- Left tree trunk -->
+        <rect x="0"   y="700" width="18" height="400" fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="14"  y="660" width="12" height="440" fill="#060c14" shape-rendering="crispEdges"/>
+        <!-- Left branches -->
+        <rect x="0"   y="720" width="60"  height="10" fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="0"   y="680" width="44"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="20"  y="648" width="30"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="0"   y="752" width="50"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="0"   y="790" width="36"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="26"  y="700" width="8"   height="60" fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="26"  y="650" width="8"   height="50" fill="#060c14" shape-rendering="crispEdges"/>
+        <!-- Right tree trunk -->
+        <rect x="682" y="700" width="18" height="400" fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="674" y="660" width="12" height="440" fill="#060c14" shape-rendering="crispEdges"/>
+        <!-- Right branches -->
+        <rect x="640" y="720" width="60"  height="10" fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="656" y="680" width="44"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="650" y="648" width="30"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="650" y="752" width="50"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="664" y="790" width="36"  height="8"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="666" y="700" width="8"   height="60" fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="666" y="650" width="8"   height="50" fill="#060c14" shape-rendering="crispEdges"/>
+
+        <!-- ── FAR SIDE BUILDINGS ── -->
+        <rect x="0"   y="450" width="88"  height="650" fill="#0a0f18" shape-rendering="crispEdges"/>
+        <rect x="612" y="410" width="88"  height="690" fill="#0a0f18" shape-rendering="crispEdges"/>
+        <!-- Flat pixelated rooftops -->
+        <rect x="0"   y="438" width="88"  height="14"  fill="#0e1420" shape-rendering="crispEdges"/>
+        <rect x="612" y="398" width="88"  height="14"  fill="#0e1420" shape-rendering="crispEdges"/>
+        <!-- Gothic rooftop teeth (far buildings) -->
+        <rect x="4"   y="420" width="16"  height="22"  fill="#0a0f18" shape-rendering="crispEdges"/>
+        <rect x="30"  y="424" width="16"  height="18"  fill="#0a0f18" shape-rendering="crispEdges"/>
+        <rect x="56"  y="418" width="16"  height="24"  fill="#0a0f18" shape-rendering="crispEdges"/>
+        <rect x="616" y="380" width="16"  height="30"  fill="#0a0f18" shape-rendering="crispEdges"/>
+        <rect x="642" y="386" width="16"  height="24"  fill="#0a0f18" shape-rendering="crispEdges"/>
+        <rect x="668" y="378" width="16"  height="32"  fill="#0a0f18" shape-rendering="crispEdges"/>
+        <!-- Far building windows -->
+        ${genWindows(8,460,72,560,2,18,12,8,3)}
+        ${genWindows(620,418,72,580,2,18,12,8,7)}
+
+        <!-- ── WING BUILDINGS ── -->
+        <rect x="78"  y="200" width="108" height="900" fill="#0b1020" shape-rendering="crispEdges"/>
+        <rect x="514" y="200" width="108" height="900" fill="#0b1020" shape-rendering="crispEdges"/>
+        <!-- Wing rooftop battlements -->
+        <rect x="78"  y="186" width="108" height="16" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="514" y="186" width="108" height="16" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="82"  y="166" width="20"  height="24" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="114" y="166" width="20"  height="24" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="146" y="166" width="20"  height="24" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="518" y="166" width="20"  height="24" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="550" y="166" width="20"  height="24" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="582" y="166" width="20"  height="24" fill="#0f1428" shape-rendering="crispEdges"/>
+        <!-- Wing windows -->
+        ${genWindows(88,210,90,878,2,26,14,10,11)}
+        ${genWindows(524,210,90,878,2,26,14,10,19)}
+
+        <!-- ── MAIN TOWER BODY ── -->
+        <rect x="174" y="38"  width="352" height="1062" fill="#0a0f18" shape-rendering="crispEdges"/>
+        <!-- Subtle depth edges -->
+        <rect x="174" y="38"  width="8"   height="1062" fill="#0e1424" shape-rendering="crispEdges"/>
+        <rect x="518" y="38"  width="8"   height="1062" fill="#0e1424" shape-rendering="crispEdges"/>
+
+        <!-- ── GOTHIC ROOFTOP ── -->
+        <!-- Central pointed spire -->
+        <rect x="342" y="0"   width="16"  height="40" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="338" y="8"   width="24"  height="36" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="334" y="18"  width="32"  height="28" fill="#0f1428" shape-rendering="crispEdges"/>
+        <!-- Spire tip -->
+        <rect x="348" y="0"   width="4"   height="6"  fill="#d4a820" opacity="0.6" shape-rendering="crispEdges"/>
+        <!-- Battlements row -->
+        <rect x="174" y="36"  width="352" height="14" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="180" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="218" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="256" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="294" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="404" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="442" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="480" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+        <rect x="518" y="18"  width="22"  height="22" fill="#0f1428" shape-rendering="crispEdges"/>
+
+        <!-- ── MAIN TOWER WINDOWS ── -->
+        ${genWindows(188,58,324,1030,5,26,28,14,23)}
+
+        <!-- ── FLOOR DIVIDERS (faint purple) ── -->
+        ${[...Array(9)].map((_,i)=>{const y=58+Math.round((i+1)*(1030/10));return`<rect x="174" y="${y}" width="352" height="2" fill="#2a1840" opacity="0.5" shape-rendering="crispEdges"/>`;}).join('')}
+
+        <!-- ── GROUND ── -->
+        <rect x="0"   y="1086" width="700" height="14"  fill="#060c14" shape-rendering="crispEdges"/>
+        <rect x="174" y="1082" width="352" height="6"   fill="#200a30" opacity="0.4" shape-rendering="crispEdges"/>
       </svg>
       <div class="floors-overlay">${floorNodes}</div>
     </div>
@@ -977,12 +1085,19 @@ function renderMapBoard(el,board){
   </div>`).join('');
 }
 
-function genWindows(x,y,w,h,cols,rows,cw,ch,color){
-  const colGap=(w-cols*cw)/(cols+1);const rowGap=(h-rows*ch)/(rows+1);let out='';
+function genWindows(x,y,w,h,cols,rows,cw,ch,seed){
+  const colGap=(w-cols*cw)/(cols+1);const rowGap=(h-rows*ch)/(rows+1);
+  let out='',s=(seed||42)|0;
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     const wx=x+colGap+(cw+colGap)*c;const wy=y+rowGap+(ch+rowGap)*r;
-    const lit=Math.random()>0.45;const opacity=lit?0.55:0.12;
-    out+=`<rect x="${wx.toFixed(1)}" y="${wy.toFixed(1)}" width="${cw}" height="${ch}" fill="${color}" rx="1" opacity="${opacity}"/>`;
+    s=((s*1664525+1013904223)&0x7fffffff);
+    const v=s%100;
+    let fill,op;
+    if(v>80){fill='#7a5010';op=0.95;}       // amber lit
+    else if(v>70){fill='#4a3008';op=0.80;}  // dim amber
+    else if(v>65){fill='#200a30';op=0.70;}  // faint purple glow
+    else{fill='#0a0f18';op=0.50;}           // dark off
+    out+=`<rect x="${wx.toFixed(1)}" y="${wy.toFixed(1)}" width="${cw}" height="${ch}" fill="${fill}" opacity="${op}" shape-rendering="crispEdges"/>`;
   }
   return out;
 }
