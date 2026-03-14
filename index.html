@@ -950,7 +950,7 @@ function renderMap(app){
   app.innerHTML=`<div class="map-wrap">
     <div class="map-head">
       <div class="map-title">The Solitaire Tower of Doom</div>
-      <div class="map-sub">Trapped on the top floor. Descend to escape.</div>
+      <div class="map-sub">A roguelike Solitaire game by Emjayhar.</div>
       <div class="lives-row"><span class="lives-label">Lives</span>${liv}
         <span style="margin-left:12px;font-family:'Cinzel',serif;font-size:.9rem;color:#d4a84b">🪙 ${A.gold}</span>
         ${A.inventory.length?`<span style="font-family:'Cinzel',serif;font-size:.8rem;color:var(--text-dim)">&nbsp;·&nbsp;🎒 ${A.inventory.map(i=>i.icon).join(' ')}</span>`:''}
