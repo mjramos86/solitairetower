@@ -2188,13 +2188,13 @@ function updatePyFaceUp(gs){for(let r=6;r>=0;r--)for(let c=0;c<=r;c++){const idx
 
 function trySelect(src,col,idx){
   const t=A.gtype,gs=A.gs;
-  if(t==='klondike'){if(src==='waste'&&gs.waste.length){A.sel={type:'waste',col:-1,idx:-1};return;}if(src==='tab'){const pile=gs.tableau[col];if(pile[idx]&&pile[idx].faceUp){A.sel={type:'tab',col,idx};return;}}}
-  if(t==='spider'){if(src==='tab'){const pile=gs.tableau[col];if(pile[idx]&&pile[idx].faceUp){
+if(t==='klondike'){if(src==='waste'&&gs.waste.length){A.sel={type:'waste',col:-1,idx:-1};return;}if(src==='tab'){const pile=gs.tableau[col];if(pile[idx]&&pile[idx].faceUp){A.sel={type:'tab',col,idx};return;}}if(src==='found'){const f=gs.foundations[col];if(f&&f.length){A.sel={type:'found',col,idx:-1};return;}}}  if(t==='spider'){if(src==='tab'){const pile=gs.tableau[col];if(pile[idx]&&pile[idx].faceUp){
     // Only allow selection from the start of a valid same-suit sequence
     const seqLen=spSeqLen(pile);const seqStart=pile.length-seqLen;
     if(idx>=seqStart){A.sel={type:'tab',col,idx};return;}
   }}}
   if(t==='freecell'){if(src==='tab'){const pile=gs.tableau[col];if(pile.length&&pile[idx]&&pile[idx].faceUp){A.sel={type:'tab',col,idx};return;}}if(src==='fc'){if(gs.freecells[col]){A.sel={type:'fc',col,idx:-1};return;}}}
+  if(src==='found'){const f=gs.foundations[col];if(f&&f.length){A.sel={type:'found',col,idx:-1};return;}}
 }
 
 function tryMoveFromSel(targetSrc,targetCol,targetIdx){
@@ -2207,9 +2207,10 @@ function tryMoveFromSel(targetSrc,targetCol,targetIdx){
 
 function klMove(sel,targetSrc,targetCol){
   const gs=A.gs;let cards=[];
-  if(sel.type==='waste')cards=[{...gs.waste[gs.waste.length-1]}];
-  else if(sel.type==='tab')cards=gs.tableau[sel.col].slice(sel.idx).map(c=>({...c}));
-  if(!cards.length)return false;
+if(sel.type==='waste')cards=[{...gs.waste[gs.waste.length-1]}];
+else if(sel.type==='tab')cards=gs.tableau[sel.col].slice(sel.idx).map(c=>({...c}));
+else if(sel.type==='found'){const f=gs.foundations[sel.col];if(f&&f.length)cards=[{...f[f.length-1]}];}
+if(!cards.length)return false;
   // Toolbox as destination
   if(targetSrc==='toolbox'&&!A.toolboxCard&&A.toolboxUses>0&&cards.length===1){
     pushUndo();const s=cloneState(gs);
@@ -2222,7 +2223,7 @@ function klMove(sel,targetSrc,targetCol){
     if(!klCanTableau([tc],gs.tableau[targetCol]))return false;
     pushUndo();const s=cloneState(gs);s.tableau[targetCol].push({...tc});A.toolboxCard=null;A.moves++;A.gs=s;return true;
   }
-  if(targetSrc==='tab'){if(!klCanTableau(cards,gs.tableau[targetCol]))return false;pushUndo();const s=cloneState(gs);if(sel.type==='waste')s.waste.pop();else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);klAutoReveal(s);A.gs=s;A.moves++;addScore(10);if(klWon(A.gs))handleWin();return true;}
+  if(targetSrc==='tab'){if(!klCanTableau(cards,gs.tableau[targetCol]))return false;pushUndo();const s=cloneState(gs);if(sel.type==='waste')s.waste.pop();else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);klAutoReveal(s);A.gs=s;A.moves++;addScore(10);if(klWon(A.gs))handleWin();return true;}
   if(targetSrc==='found'){if(cards.length>1)return false;const card=cards[0];if(!klCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='waste')s.waste.pop();else s.tableau[sel.col].pop();s.foundations[card.suit].push(card);klAutoReveal(s);A.gs=s;A.moves++;addScore(sel.type==='waste'?15:10);if(klWon(A.gs))handleWin();return true;}
   return false;
 }
@@ -2247,12 +2248,13 @@ function fcMove(sel,targetSrc,targetCol){
   const gs=A.gs;let card=null;let cards=[];
   if(sel.type==='fc'){card=gs.freecells[sel.col];if(!card)return false;cards=[card];}
   else if(sel.type==='tab'){const pile=gs.tableau[sel.col];if(!pile.length)return false;cards=pile.slice(sel.idx);for(let i=0;i<cards.length-1;i++){const u=cards[i],l=cards[i+1];if(u.rank!==l.rank+1||isRed(u.suit)===isRed(l.suit))return false;}if(cards.length>fcMaxMovable(gs))return false;card=cards[0];}
+  else if(sel.type==='found'){const f=gs.foundations[sel.col];if(f&&f.length){card=f[f.length-1];cards=[card];}}
   if(!cards.length)return false;
   if(targetSrc==='toolbox'&&!A.toolboxCard&&A.toolboxUses>0&&cards.length===1){
     pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else s.tableau[sel.col].splice(sel.idx);A.gs=s;A.toolboxCard={...card};A.toolboxUses--;A.moves++;return true;
   }
-  if(targetSrc==='fc'){if(cards.length>1)return false;if(gs.freecells[targetCol]!==null)return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else s.tableau[sel.col].splice(sel.idx);s.freecells[targetCol]=card;A.gs=s;A.moves++;return true;}
-  if(targetSrc==='found'){if(cards.length>1)return false;if(!fcCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else s.tableau[sel.col].splice(sel.idx);s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5);if(fcWon(A.gs))handleWin();return true;}
+  if(targetSrc==='fc'){if(cards.length>1)return false;if(gs.freecells[targetCol]!==null)return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.freecells[targetCol]=card;A.gs=s;A.moves++;return true;}
+  if(targetSrc==='found'){if(cards.length>1)return false;if(!fcCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5);if(fcWon(A.gs))handleWin();return true;}
   if(targetSrc==='tab'){const tp=gs.tableau[targetCol];if(!fcCanTableau(card,tp))return false;if(targetCol===sel.col&&sel.type==='tab')return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);A.gs=s;A.moves++;if(fcWon(A.gs))handleWin();return true;}
   return false;
 }
