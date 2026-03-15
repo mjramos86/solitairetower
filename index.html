@@ -564,7 +564,13 @@ function genChoices(){
   for(let i=0;i<9;i++){
     const t=[...TYPES];
     for(let j=t.length-1;j>0;j--){const k=Math.floor(rng()*(j+1));[t[j],t[k]]=[t[k],t[j]];}
-    cs.push({left:t[0],right:t[1]});
+    if(i===0){
+      // Floor 10: always offer Klondike as one of the two choices
+      const other=t.find(x=>x!=='klondike');
+      cs.push({left:'klondike',right:other});
+    } else {
+      cs.push({left:t[0],right:t[1]});
+    }
   }
   cs.push({left:'freecell',right:'freecell'});return cs;
 }
@@ -1411,7 +1417,7 @@ function renderKlondike(gs,s){
   const stockH=stock.length?`<div class="card back" data-src="stock" style="cursor:pointer"></div>`:emptyH('','↺');
   const wasteTop=waste.length?waste[waste.length-1]:null;
   const wasteDom=wasteTop?mkCard(wasteTop,isSel('waste',-1,-1)?'sel':'',`data-src="waste" data-col="-1" data-idx="-1" draggable="true"`):emptyH();
-  const foundH=foundations.map((f,i)=>{const top=f.length?f[f.length-1]:null;if(top)return mkCard(top,'',`data-src="found" data-col="${i}"`);return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;}).join('');
+  const foundH=foundations.map((f,i)=>{const top=f.length?f[f.length-1]:null;if(top){const selCls=(A.sel&&A.sel.type==='found'&&A.sel.col===i)?'sel':'';return mkCard(top,selCls,`data-src="found" data-col="${i}" draggable="true"`);}return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;}).join('');
   let tabH='';
   for(let c=0;c<7;c++){
     const pile=tableau[c];
@@ -1515,7 +1521,7 @@ function renderFreecell(gs,s){
     const cc=isRed(card.suit)?'red':'blk';const selCls=isSel('fc',i,-1)?'sel':'';
     return`<div class="card ${cc} ${selCls}" draggable="true" data-src="fc" data-col="${i}" data-idx="-1" data-ckey="${card.suit}-${card.rank}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div>`;
   }).join('');
-  const foundH=foundations.map((f,i)=>{const top=f.length?f[f.length-1]:null;if(top)return`<div class="card ${isRed(top.suit)?'red':'blk'}" data-src="found" data-col="${i}"><div class="ct"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div><div class="cc">${SYM[top.suit]}</div><div class="cb"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div></div>`;return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;}).join('');
+  const foundH=foundations.map((f,i)=>{const top=f.length?f[f.length-1]:null;if(top){const selCls=(A.sel&&A.sel.type==='found'&&A.sel.col===i)?'sel':'';return`<div class="card ${isRed(top.suit)?'red':'blk'} ${selCls}" data-src="found" data-col="${i}" draggable="true"><div class="ct"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div><div class="cc">${SYM[top.suit]}</div><div class="cb"><span>${LBL[top.rank]}</span><span>${SYM[top.suit]}</span></div></div>`;}return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;}).join('');
   let tabH='';
   for(let c=0;c<8;c++){
     const pile=tableau[c];
@@ -2267,7 +2273,7 @@ function fcMove(sel,targetSrc,targetCol){
   }
   if(targetSrc==='fc'){if(cards.length>1)return false;if(gs.freecells[targetCol]!==null)return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.freecells[targetCol]=card;A.gs=s;A.moves++;return true;}
   if(targetSrc==='found'){if(cards.length>1)return false;if(!fcCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5);if(fcWon(A.gs))handleWin();return true;}
-  if(targetSrc==='tab'){const tp=gs.tableau[targetCol];if(!fcCanTableau(card,tp))return false;if(targetCol===sel.col&&sel.type==='tab')return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);A.gs=s;A.moves++;if(fcWon(A.gs))handleWin();return true;}
+  if(targetSrc==='tab'){const tp=gs.tableau[targetCol];if(!fcCanTableau(card,tp))return false;if(targetCol===sel.col&&sel.type==='tab')return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);A.gs=s;A.moves++;if(fcWon(A.gs))handleWin();return true;}
   return false;
 }
 
@@ -2276,9 +2282,9 @@ function handleDragStart(e){
   const src=el.dataset.src;const col=parseInt(el.dataset.col)||0;const idx=parseInt(el.dataset.idx)||0;
   const t=A.gtype,gs=A.gs;let cards=[];let selInfo=null;
   if(src==='toolbox'&&A.toolboxCard){cards=[{...A.toolboxCard}];selInfo={type:'toolbox',col:0,idx:0};}
-  else if(t==='klondike'){if(src==='waste'&&gs.waste.length){cards=[{...gs.waste[gs.waste.length-1]}];selInfo={type:'waste',col:-1,idx:-1};}else if(src==='tab'){cards=gs.tableau[col].slice(idx).map(c=>({...c}));selInfo={type:'tab',col,idx};}}
+  else if(t==='klondike'){if(src==='waste'&&gs.waste.length){cards=[{...gs.waste[gs.waste.length-1]}];selInfo={type:'waste',col:-1,idx:-1};}else if(src==='found'&&gs.foundations[col]&&gs.foundations[col].length){cards=[{...gs.foundations[col][gs.foundations[col].length-1]}];selInfo={type:'found',col,idx:-1};}else if(src==='tab'){cards=gs.tableau[col].slice(idx).map(c=>({...c}));selInfo={type:'tab',col,idx};}}
   else if(t==='spider'&&src==='tab'){const seqLen=spSeqLen(gs.tableau[col]);const topIdx=gs.tableau[col].length-seqLen;if(idx>=topIdx){cards=gs.tableau[col].slice(idx).map(c=>({...c}));selInfo={type:'tab',col,idx};}}
-  else if(t==='freecell'){if(src==='fc'&&gs.freecells[col]){cards=[{...gs.freecells[col]}];selInfo={type:'fc',col,idx:-1};}else if(src==='tab'){const pile=gs.tableau[col];if(pile.length&&idx<pile.length){const c2=pile.slice(idx);let valid=true;for(let i=0;i<c2.length-1;i++){if(c2[i].rank!==c2[i+1].rank+1||isRed(c2[i].suit)===isRed(c2[i+1].suit)){valid=false;break;}}if(valid&&c2.length<=fcMaxMovable(gs)){cards=c2.map(c=>({...c}));selInfo={type:'tab',col,idx};}}}}
+  else if(t==='freecell'){if(src==='fc'&&gs.freecells[col]){cards=[{...gs.freecells[col]}];selInfo={type:'fc',col,idx:-1};}else if(src==='found'&&gs.foundations[col]&&gs.foundations[col].length){cards=[{...gs.foundations[col][gs.foundations[col].length-1]}];selInfo={type:'found',col,idx:-1};}else if(src==='tab'){const pile=gs.tableau[col];if(pile.length&&idx<pile.length){const c2=pile.slice(idx);let valid=true;for(let i=0;i<c2.length-1;i++){if(c2[i].rank!==c2[i+1].rank+1||isRed(c2[i].suit)===isRed(c2[i+1].suit)){valid=false;break;}}if(valid&&c2.length<=fcMaxMovable(gs)){cards=c2.map(c=>({...c}));selInfo={type:'tab',col,idx};}}}}
   if(!cards.length){e.preventDefault();return;}
   DR={active:true,cards,src:selInfo};A.sel=selInfo;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','card');
   setTimeout(()=>el.classList.add('dragging'),0);
