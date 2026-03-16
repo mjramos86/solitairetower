@@ -2082,10 +2082,13 @@ function startGame(type,floor){
 }
 
 function handleWin(){A.winOverlay=true;}
-function instaWin(){A.winOverlay=true;render();}
+function instaWin(){A.instaWin=true;A.instaWinScore=A.score;A.winOverlay=true;render();}
 
 function nextFloor(){
-  A.done.add(A.floor);addScore(100*(10-A.floor));A.tpStreak=0;
+  A.done.add(A.floor);
+  if(A.instaWin){A.score=A.instaWinScore;}else{addScore(100*(10-A.floor));}
+  A.instaWin=false;A.instaWinScore=0;
+  A.tpStreak=0;
   if(A.floor>=9){stopTimer();A.screen='victory';render();return;}
   // Calculate gold and go to shop
   A.shopGoldBreakdown=calcFloorGoldBreakdown();
@@ -2101,18 +2104,18 @@ function abandonGame(){
     if(confirm('Use Fire Extinguisher? Abandon safely with no life penalty!')){
       const idx=A.inventory.findIndex(i=>i.effect==='no-life-abandon');
       A.inventory.splice(idx,1);
-      A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.screen='map';render();return;
+      A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;A.screen='map';render();return;
     }
   }
   if(!confirm('Abandon this floor? You will lose a life.'))return;
-  A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;
+  A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;
   if(A.lives<=0){stopTimer();A.screen='gameover';render();return;}
   A.screen='map';render();
 }
 
 function newShuffle(){
   if(!confirm('New Shuffle? Costs 1 life.'))return;
-  A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;
+  A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;
   if(A.lives<=0){stopTimer();A.screen='gameover';render();return;}
   A.undoStack=[];A.moves=0;A.floorUndosUsed=0;A.floorStartTime=Date.now();A.floorStartScore=A.score;
   const t=A.gtype,f=A.floor;
