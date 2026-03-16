@@ -969,7 +969,7 @@ function render(){
   if(A.screen==='shop'){renderShop(app);return;}
   if(A.screen==='gameover'){renderNameEntry(app,false);return;}
   if(A.screen==='victory'){renderNameEntry(app,true);return;}
-  const s=getS(A.type);applyS(s);
+  const s=getS(A.gtype);applyS(s);
   snapCards();renderGame(app,s);
   requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
   if(A.pickerOverlay)renderPickerOverlay();
@@ -1644,13 +1644,13 @@ function handleTouchMove(e){
   if(!TOUCH.active)return;const t=e.touches[0];const dx=t.clientX-TOUCH.startX,dy=t.clientY-TOUCH.startY;
   if(!TOUCH.moved&&Math.sqrt(dx*dx+dy*dy)<8)return;TOUCH.moved=true;e.preventDefault();
   if(!TOUCH.ghost){
-    const s=getS(A.type);trySelect(TOUCH.src,TOUCH.col,TOUCH.idx);
+    const s=getS(A.gtype);trySelect(TOUCH.src,TOUCH.col,TOUCH.idx);
     if(!A.sel){TOUCH.active=false;return;}
     const ghost=document.createElement('div');ghost.style.cssText=`position:fixed;pointer-events:none;z-index:2000;opacity:.75;`;
     const cardEl=TOUCH.startEl.closest('.card')||TOUCH.startEl.querySelector('.card')||TOUCH.startEl;
     ghost.innerHTML=cardEl.outerHTML;document.body.appendChild(ghost);TOUCH.ghost=ghost;TOUCH.startEl.style.opacity='0.3';
   }
-  const s=getS(A.type);TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';TOUCH.ghost.style.width=s.cw+'px';TOUCH.ghost.style.height=s.ch+'px';
+  const s=getS(A.gtype);TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';TOUCH.ghost.style.width=s.cw+'px';TOUCH.ghost.style.height=s.ch+'px';
 }
 function handleTouchEnd(e){
   if(!TOUCH.active)return;if(TOUCH.ghost){TOUCH.ghost.remove();TOUCH.ghost=null;}if(TOUCH.startEl)TOUCH.startEl.style.opacity='';
@@ -2200,7 +2200,7 @@ setInterval(()=>{
 
 window.startFromIntro=startFromIntro;
 window.addEventListener('DOMContentLoaded',init);
-window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS(A.type);applyS(s);}else render();});
+window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS(A.gtype);applyS(s);}else render();});
 window.addEventListener('fb-ready',()=>{const el=document.getElementById('map-lb-body');if(el)loadBoard().then(board=>{const tmp=document.getElementById('map-lb-body');if(tmp)renderMapBoard(tmp,board);});});
 window.startGame=startGame;window.undoMove=undoMove;window.newShuffle=newShuffle;window.abandonGame=abandonGame;
 window.nextFloor=nextFloor;window.init=init;window.instaWin=instaWin;window.submitScore=submitScore;
