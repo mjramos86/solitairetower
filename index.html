@@ -52,10 +52,14 @@
 *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;}
 body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden;}
 #app{width:100vw;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+#app.screen-map{overflow:visible;height:auto;min-height:100vh;}
 
 /* ── MAP ── */
-.map-wrap{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;
-  background:#050508;padding:16px 16px 32px;}
+.map-wrap{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;
+  background:#050508;padding:16px 16px 32px;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+  overscroll-behavior:contain;}
 .map-wrap::-webkit-scrollbar{width:4px;}
 .map-wrap::-webkit-scrollbar-thumb{background:#1a2a3a;border-radius:2px;}
 .map-head{text-align:center;margin-bottom:20px;width:100%;max-width:1100px;}
@@ -984,11 +988,12 @@ function startFromIntro(){
 
 function render(){
   const app=document.getElementById('app');
-  if(A.screen==='intro'){renderIntro(app);return;}
+  if(A.screen==='intro'){app.classList.remove('screen-map');renderIntro(app);return;}
   if(A.screen==='map'){if(A.timerRunning)stopTimer();renderMap(app);return;}
-  if(A.screen==='shop'){renderShop(app);return;}
-  if(A.screen==='gameover'){renderNameEntry(app,false);return;}
-  if(A.screen==='victory'){renderNameEntry(app,true);return;}
+  if(A.screen==='shop'){app.classList.remove('screen-map');renderShop(app);return;}
+  if(A.screen==='gameover'){app.classList.remove('screen-map');renderNameEntry(app,false);return;}
+  if(A.screen==='victory'){app.classList.remove('screen-map');renderNameEntry(app,true);return;}
+  app.classList.remove('screen-map');
   const s=getS(A.gtype);applyS(s);
   snapCards();renderGame(app,s);
   requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
@@ -997,6 +1002,7 @@ function render(){
 
 // ── MAP ────────────────────────────────────────────────────
 function renderMap(app){
+  app.classList.add('screen-map');
   const liv=Array.from({length:A.lives},()=>`<span class="lheart">♥</span>`).join('');
   let floorNodes='';
   for(let f=0;f<10;f++){
