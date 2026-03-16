@@ -376,35 +376,38 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 /* ── INTRO SCREEN ── */
 .intro-screen{
   position:fixed;inset:0;background:#000;
-  display:flex;align-items:center;justify-content:center;
+  display:flex;align-items:flex-start;justify-content:center;
+  overflow-y:auto;overflow-x:hidden;
   z-index:9999;cursor:default;
   font-family:'Courier New',Courier,monospace;
+  -webkit-overflow-scrolling:touch;
 }
 .intro-inner{
   max-width:520px;width:90%;
   display:flex;flex-direction:column;align-items:center;
   gap:0;
+  padding:max(5vh,24px) 0 max(8vh,40px);
 }
 .intro-line{
-  color:#fff;font-size:1rem;line-height:1.8;
+  color:#fff;font-size:clamp(.75rem,2.5vw,1rem);line-height:1.8;
   text-align:center;width:100%;
   opacity:0;
   transition:opacity 0.6s ease;
 }
 .intro-line.vis{opacity:1;}
-.intro-line.dim{color:#888;font-size:.88rem;}
-.intro-line.click{color:#aaa;font-size:.88rem;letter-spacing:.25em;}
+.intro-line.dim{color:#888;font-size:clamp(.7rem,2.2vw,.88rem);}
+.intro-line.click{color:#aaa;font-size:clamp(.7rem,2.2vw,.88rem);letter-spacing:.25em;}
 .intro-line.flicker{animation:txt-flicker 0.15s step-end 3;}
 @keyframes txt-flicker{0%,100%{opacity:1;}50%{opacity:0;}}
-.intro-line.wrong{color:#ccc;font-style:italic;font-size:.95rem;}
+.intro-line.wrong{color:#ccc;font-style:italic;font-size:clamp(.72rem,2.3vw,.95rem);}
 .intro-line.msg{
-  color:#fff;font-size:1.05rem;letter-spacing:.04em;
+  color:#fff;font-size:clamp(.78rem,2.4vw,1.05rem);letter-spacing:.04em;
   border:1px solid #444;padding:10px 24px;margin-top:8px;
 }
 .intro-play-btn{
-  margin-top:32px;
+  margin-top:clamp(16px,4vh,32px);
   font-family:'Courier New',Courier,monospace;
-  font-size:1.4rem;letter-spacing:.3em;
+  font-size:clamp(1rem,4vw,1.4rem);letter-spacing:.3em;
   color:#000;background:#fff;
   border:none;padding:10px 40px;
   cursor:pointer;
@@ -938,7 +941,7 @@ function renderIntro(app){
     btn.textContent='PLAY';
     btn.onclick=startFromIntro;
     container.appendChild(btn);
-    requestAnimationFrame(()=>requestAnimationFrame(()=>btn.classList.add('vis')));
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{btn.classList.add('vis');btn.scrollIntoView({behavior:'smooth',block:'nearest'});}));
   },19800);
   timers.push(btnTimer);
   // Also allow clicking anywhere on screen to skip to play button immediately
@@ -959,6 +962,7 @@ function renderIntro(app){
     btn.textContent='PLAY';
     btn.onclick=startFromIntro;
     container.appendChild(btn);
+    btn.scrollIntoView({behavior:'instant',block:'nearest'});
     screen.removeEventListener('click',onSkip);
   });
 }
