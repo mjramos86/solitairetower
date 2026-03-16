@@ -47,7 +47,7 @@
   --w95-titlebar1:#1a1208;--w95-titlebar2:#2e2010;--w95-text:#000000;
   --felt:#1a0d2e;--felt2:#160a26;--felt-shadow:#110820;
   --pixel:'VT323',monospace;--card-red:#cc0000;--card-black:#000000;
-  --cw:140px;--ch:192px;--cfs:28px;--cfc:72px;
+  --cw:140px;--ch:192px;--cfs:48px;--cfss:26px;--cfc:118px;
 }
 *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;}
 body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden;}
@@ -166,9 +166,11 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .card.back::after{content:'';position:absolute;inset:5px;border:1px solid rgba(80,120,160,.2);border-radius:2px;}
 .card.back.x-revealed{background-color:#1a0820 !important;background-image:repeating-linear-gradient(0deg,rgba(220,180,255,.07) 0,rgba(220,180,255,.07) 2px,transparent 2px,transparent 10px) !important;}
 .card.back.x-revealed::after{border-color:rgba(255,180,255,.3);}
-.card .ct{position:absolute;top:4px;left:6px;line-height:1.1;font-size:var(--cfs);font-weight:700;display:flex;flex-direction:column;align-items:flex-start;font-family:'Georgia','Times New Roman',serif;}
-.card .cb{position:absolute;bottom:4px;right:6px;line-height:1.1;font-size:var(--cfs);font-weight:700;display:flex;flex-direction:column;align-items:flex-end;transform:rotate(180deg);font-family:'Georgia','Times New Roman',serif;}
-.card .cc{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:var(--cfc);line-height:1;}
+.card .ct{position:absolute;top:3px;left:5px;line-height:1;display:flex;flex-direction:column;align-items:flex-start;font-family:'Georgia','Times New Roman',serif;}
+.card .ct span:first-child{font-size:var(--cfs);font-weight:700;line-height:1;}
+.card .ct span:last-child{font-size:var(--cfss);font-weight:600;line-height:1.1;opacity:.85;}
+.card .cb{display:none;}
+.card .cc{position:absolute;top:58%;left:50%;transform:translate(-50%,-50%);font-size:var(--cfc);line-height:1;}
 .card.sel{outline:3px solid #0066ff;outline-offset:2px;box-shadow:0 4px 12px rgba(0,102,255,.35);}
 .card.sel-top{transform:translateY(-8px);}
 .card.vdrop{outline:3px solid #00ff00;outline-offset:1px;animation:vblink .5s step-end infinite;}
@@ -429,10 +431,10 @@ function getS(gameType){
   const vw=window.innerWidth;
   // Base tier by viewport width
   let t;
-  if(vw>=1100) t={cw:140,ch:192,cgap:10,cover:30,spOver:26,fcOver:30,cfs:26,cfc:60,tenFs:36};
-  else if(vw>=780) t={cw:96,ch:132,cgap:7,cover:22,spOver:18,fcOver:22,cfs:18,cfc:42,tenFs:26};
-  else if(vw>=520) t={cw:68,ch:94,cgap:5,cover:22,spOver:18,fcOver:22,cfs:14,cfc:30,tenFs:18};
-  else             t={cw:54,ch:74,cgap:4,cover:18,spOver:16,fcOver:18,cfs:11,cfc:24,tenFs:14};
+  if(vw>=1100) t={cw:140,ch:192,cgap:10,cover:30,spOver:26,fcOver:30,cfs:48,cfss:26,cfc:118,tenFs:36};
+  else if(vw>=780) t={cw:96,ch:132,cgap:7,cover:22,spOver:18,fcOver:22,cfs:34,cfss:18,cfc:82,tenFs:26};
+  else if(vw>=520) t={cw:68,ch:94,cgap:5,cover:22,spOver:18,fcOver:22,cfs:24,cfss:13,cfc:58,tenFs:18};
+  else             t={cw:54,ch:74,cgap:4,cover:18,spOver:16,fcOver:18,cfs:19,cfss:10,cfc:44,tenFs:14};
   // Horizontal space consumed by chrome outside the card area:
   // game-screen padding (8px×2) + win95-window border (2px×2) + garea padding (12px×2) = 44px
   const overhead=44;
@@ -452,6 +454,7 @@ function getS(gameType){
     spOver: Math.round(t.spOver*r),
     fcOver: Math.round(t.fcOver*r),
     cfs:    Math.max(8, Math.round(t.cfs*r)),
+    cfss:   Math.max(6, Math.round(t.cfss*r)),
     cfc:    Math.max(14,Math.round(t.cfc*r)),
     tenFs:  Math.max(10,Math.round(t.tenFs*r)),
   };
@@ -459,7 +462,7 @@ function getS(gameType){
 function applyS(s){
   const r=document.documentElement.style;
   r.setProperty('--cw',s.cw+'px');r.setProperty('--ch',s.ch+'px');
-  r.setProperty('--cfs',s.cfs+'px');r.setProperty('--cfc',s.cfc+'px');
+  r.setProperty('--cfs',s.cfs+'px');r.setProperty('--cfss',s.cfss+'px');r.setProperty('--cfc',s.cfc+'px');
   r.setProperty('--cgap',s.cgap+'px');
 }
 function mkRng(seed){let s=seed|0;return()=>{s^=s<<13;s^=s>>17;s^=s<<5;return(s>>>0)/0xFFFFFFFF;};}
