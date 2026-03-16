@@ -423,12 +423,38 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
    ═══════════════════════════════════════════════════════════ */
 
 // ── RESPONSIVE CARD SIZING ─────────────────────────────────
-function getS(){
+// Column counts per game (widest row that must fit horizontally)
+const GAME_COLS={klondike:7,spider:10,tripeaks:10,pyramid:7,freecell:8};
+function getS(gameType){
   const vw=window.innerWidth;
-  if(vw>=1100) return{cw:140,ch:192,cgap:10,cover:30,spOver:26,fcOver:30,cfs:26,cfc:60,tenFs:36};
-  if(vw>=780)  return{cw:96, ch:132,cgap:7, cover:22,spOver:18,fcOver:22,cfs:18,cfc:42,tenFs:26};
-  if(vw>=520)  return{cw:68, ch:94, cgap:5, cover:22,spOver:18,fcOver:22,cfs:14,cfc:30,tenFs:18};
-               return{cw:54, ch:74, cgap:4, cover:18,spOver:16,fcOver:18,cfs:11,cfc:24,tenFs:14};
+  // Base tier by viewport width
+  let t;
+  if(vw>=1100) t={cw:140,ch:192,cgap:10,cover:30,spOver:26,fcOver:30,cfs:26,cfc:60,tenFs:36};
+  else if(vw>=780) t={cw:96,ch:132,cgap:7,cover:22,spOver:18,fcOver:22,cfs:18,cfc:42,tenFs:26};
+  else if(vw>=520) t={cw:68,ch:94,cgap:5,cover:22,spOver:18,fcOver:22,cfs:14,cfc:30,tenFs:18};
+  else             t={cw:54,ch:74,cgap:4,cover:18,spOver:16,fcOver:18,cfs:11,cfc:24,tenFs:14};
+  // Horizontal space consumed by chrome outside the card area:
+  // game-screen padding (8px×2) + win95-window border (2px×2) + garea padding (12px×2) = 44px
+  const overhead=44;
+  const avail=Math.max(160,vw-overhead);
+  const numCols=GAME_COLS[gameType]||7;
+  // Maximum card width that makes all columns fit without overflowing
+  const maxCw=Math.floor((avail-(numCols-1)*t.cgap)/numCols);
+  if(maxCw>=t.cw) return t; // plenty of room — use the tier as-is
+  // Scale everything proportionally to fit
+  const r=maxCw/t.cw;
+  const cw=Math.max(28,maxCw);
+  const ch=Math.round(t.ch*r);
+  const cgap=Math.max(2,Math.round(t.cgap*r));
+  return{
+    cw,ch,cgap,
+    cover:  Math.round(t.cover*r),
+    spOver: Math.round(t.spOver*r),
+    fcOver: Math.round(t.fcOver*r),
+    cfs:    Math.max(8, Math.round(t.cfs*r)),
+    cfc:    Math.max(14,Math.round(t.cfc*r)),
+    tenFs:  Math.max(10,Math.round(t.tenFs*r)),
+  };
 }
 function applyS(s){
   const r=document.documentElement.style;
@@ -943,7 +969,7 @@ function render(){
   if(A.screen==='shop'){renderShop(app);return;}
   if(A.screen==='gameover'){renderNameEntry(app,false);return;}
   if(A.screen==='victory'){renderNameEntry(app,true);return;}
-  const s=getS();applyS(s);
+  const s=getS(A.type);applyS(s);
   snapCards();renderGame(app,s);
   requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
   if(A.pickerOverlay)renderPickerOverlay();
@@ -1618,13 +1644,13 @@ function handleTouchMove(e){
   if(!TOUCH.active)return;const t=e.touches[0];const dx=t.clientX-TOUCH.startX,dy=t.clientY-TOUCH.startY;
   if(!TOUCH.moved&&Math.sqrt(dx*dx+dy*dy)<8)return;TOUCH.moved=true;e.preventDefault();
   if(!TOUCH.ghost){
-    const s=getS();trySelect(TOUCH.src,TOUCH.col,TOUCH.idx);
+    const s=getS(A.type);trySelect(TOUCH.src,TOUCH.col,TOUCH.idx);
     if(!A.sel){TOUCH.active=false;return;}
     const ghost=document.createElement('div');ghost.style.cssText=`position:fixed;pointer-events:none;z-index:2000;opacity:.75;`;
     const cardEl=TOUCH.startEl.closest('.card')||TOUCH.startEl.querySelector('.card')||TOUCH.startEl;
     ghost.innerHTML=cardEl.outerHTML;document.body.appendChild(ghost);TOUCH.ghost=ghost;TOUCH.startEl.style.opacity='0.3';
   }
-  const s=getS();TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';TOUCH.ghost.style.width=s.cw+'px';TOUCH.ghost.style.height=s.ch+'px';
+  const s=getS(A.type);TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';TOUCH.ghost.style.width=s.cw+'px';TOUCH.ghost.style.height=s.ch+'px';
 }
 function handleTouchEnd(e){
   if(!TOUCH.active)return;if(TOUCH.ghost){TOUCH.ghost.remove();TOUCH.ghost=null;}if(TOUCH.startEl)TOUCH.startEl.style.opacity='';
@@ -2174,7 +2200,7 @@ setInterval(()=>{
 
 window.startFromIntro=startFromIntro;
 window.addEventListener('DOMContentLoaded',init);
-window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS();applyS(s);}else render();});
+window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS(A.type);applyS(s);}else render();});
 window.addEventListener('fb-ready',()=>{const el=document.getElementById('map-lb-body');if(el)loadBoard().then(board=>{const tmp=document.getElementById('map-lb-body');if(tmp)renderMapBoard(tmp,board);});});
 window.startGame=startGame;window.undoMove=undoMove;window.newShuffle=newShuffle;window.abandonGame=abandonGame;
 window.nextFloor=nextFloor;window.init=init;window.instaWin=instaWin;window.submitScore=submitScore;
