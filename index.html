@@ -422,15 +422,27 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 
 /* ── MAP SIDE PANEL (narrative) ── */
-.map-narrative-panel{display:flex;flex-direction:column;align-items:center;gap:14px;min-width:200px;max-width:260px;flex-shrink:0;}
-.map-keyart{width:100%;border-radius:6px;border:1px solid var(--gold-dim);box-shadow:0 0 20px rgba(212,168,75,.15);}
-.map-narrative-text{font-family:'EB Garamond',serif;font-style:italic;font-size:.95rem;color:var(--text-dim);text-align:center;line-height:1.7;}
+.map-keyart-wrap{width:100%;max-width:1100px;display:flex;justify-content:center;margin-bottom:16px;}
+.map-keyart{max-width:560px;width:100%;border-radius:6px;border:1px solid var(--gold-dim);box-shadow:0 0 20px rgba(212,168,75,.15);}
+.map-side-panel{display:flex;flex-direction:column;gap:14px;min-width:160px;max-width:200px;flex-shrink:0;}
+.map-side-section{background:rgba(10,6,22,.7);border:1px solid var(--gold-dim);border-radius:5px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
+.map-side-label{font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold-dim);letter-spacing:.1em;text-transform:uppercase;}
+.map-side-hearts{display:flex;gap:4px;flex-wrap:wrap;}
+.map-side-gold{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);}
+.map-side-inv-slot{display:flex;align-items:center;gap:6px;font-family:var(--pixel);font-size:15px;color:var(--text);padding:3px 0;border-bottom:1px solid rgba(212,168,75,.1);}
+.map-side-inv-slot:last-child{border-bottom:none;}
+.map-side-inv-empty{font-family:var(--pixel);font-size:13px;color:var(--text-dim);font-style:italic;}
 .map-narrative-call{font-family:'Cinzel',serif;font-size:1rem;color:#cc3333;font-weight:700;letter-spacing:.08em;text-align:center;text-shadow:0 0 10px rgba(200,50,50,.4);margin-top:4px;}
 .map-beta-notice{margin-top:12px;padding:10px 14px;border:1px solid rgba(212,168,75,.25);border-radius:4px;background:rgba(10,6,22,.6);font-family:'EB Garamond',serif;font-size:.78rem;color:var(--text-dim);text-align:center;line-height:1.6;width:100%;}
 .map-beta-notice strong{color:var(--gold);font-style:normal;font-family:'Cinzel',serif;letter-spacing:.06em;display:block;margin-bottom:4px;}
 .map-beta-notice a{color:#88aadd;text-decoration:none;}
 .map-beta-notice a:hover{text-decoration:underline;}
-@media(max-width:820px){.map-narrative-panel{max-width:100%;flex-direction:row;flex-wrap:wrap;justify-content:center;}.map-keyart{max-width:260px;}.map-beta-notice{max-width:520px;}}
+@media(max-width:820px){
+  .map-keyart{max-width:100%;}
+  .map-side-panel{min-width:0;max-width:100%;width:100%;flex-direction:row;flex-wrap:wrap;gap:10px;}
+  .map-side-section{flex:1;min-width:120px;}
+  .map-beta-notice{max-width:100%;}
+}
 </style>
 </head>
 <body>
@@ -1047,17 +1059,35 @@ function renderMap(app){
       <div class="f-content">${curMark}<div class="f-choices">${choicesHTML}</div></div>
     </div>`;
   }
+  const invSlots=Array.from({length:3},(_,i)=>{
+    const it=A.inventory[i];
+    return it
+      ?`<div class="map-side-inv-slot">${it.icon} <span>${it.name}</span></div>`
+      :`<div class="map-side-inv-empty">[ empty ]</div>`;
+  }).join('');
   app.innerHTML=`<div class="map-wrap">
     <div class="map-head">
       <div class="map-title">The Solitaire Tower of Doom</div>
       <div class="map-sub">A roguelike Solitaire game by Emjayhar.</div>
-      <div class="lives-row"><span class="lives-label">Lives</span>${liv}
-        <span style="margin-left:12px;font-family:'Cinzel',serif;font-size:.9rem;color:#d4a84b">🪙 ${A.gold}</span>
-        ${A.inventory.length?`<span style="font-family:'Cinzel',serif;font-size:.8rem;color:var(--text-dim)">&nbsp;·&nbsp;🎒 ${A.inventory.map(i=>i.icon).join(' ')}</span>`:''}
-      </div>
+    </div>
+    <div class="map-keyart-wrap">
+      <img class="map-keyart" src="keyart.jpg" alt="Solitaire Tower of Doom key art"/>
     </div>
     <div class="map-body">
-      <div class="map-narrative-panel"><img class="map-keyart" src="keyart.jpg" alt="Solitaire Tower of Doom key art"/><div class="map-narrative-text">The Cult of Solitaire has invaded the building!<br><br>Face their challenge to escape.</div><div class="map-narrative-call">PLAY SOLITAIRE OR DIE!</div></div>
+      <div class="map-side-panel">
+        <div class="map-side-section">
+          <div class="map-side-label">Lives</div>
+          <div class="map-side-hearts">${liv}</div>
+        </div>
+        <div class="map-side-section">
+          <div class="map-side-label">Gold</div>
+          <div class="map-side-gold">🪙 ${A.gold}</div>
+        </div>
+        <div class="map-side-section">
+          <div class="map-side-label">🎒 Inventory</div>
+          ${invSlots}
+        </div>
+      </div>
       <div class="tower-container">
       <img class="tower-svg" src="tower.jpg" alt="The Solitaire Tower of Doom" style="display:block;width:100%;image-rendering:pixelated;"/>
       <div class="floors-overlay">${floorNodes}</div>
@@ -1066,8 +1096,9 @@ function renderMap(app){
       <div class="map-lb-title">🏆 HIGH SCORES</div>
       <div class="map-lb-body" id="map-lb-body"><div class="map-lb-loading">Loading...</div></div>
     </div>
-      <div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a></div>
-  </div></div>`;
+    </div>
+    <div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a></div>
+  </div>`;
   const curEl=document.getElementById(`floor-${A.floor}`);
   if(curEl)setTimeout(()=>curEl.scrollIntoView({behavior:'smooth',block:'center'}),100);
   loadBoard().then(board=>{const el=document.getElementById('map-lb-body');if(el)renderMapBoard(el,board);});
