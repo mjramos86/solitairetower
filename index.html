@@ -373,7 +373,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .fc-tableau{display:flex;gap:var(--cgap,10px);align-items:flex-start;}
 
 @media(max-width:900px){.map-title{font-size:1.6rem;}.tower-container{width:100%;max-width:600px;}.win95-title{font-size:16px;}.win95-info{font-size:15px;}}
-@media(max-width:600px){.map-title{font-size:1.2rem;}.map-sub{font-size:.85rem;}.tower-container{width:100%;}.floors-overlay{padding:40px 0 8px 0;}.f-level-label{font-size:.6rem;min-width:20px;}.cbtn{font-size:.55rem;min-width:72px;padding:4px 6px;}.cbtn.boss{min-width:120px;}.win95-title{font-size:14px;padding:2px 4px;}.win95-toolbar{padding:3px 4px;gap:3px;}.btn{font-size:14px;padding:3px 8px;}.win95-status-pane{font-size:13px;padding:2px 6px;}.win95-status-pane:nth-child(3),.win95-status-pane:last-child{display:none;}.win95-heart{font-size:16px;}}
+@media(max-width:600px){.map-title{font-size:1.2rem;}.map-sub{font-size:.85rem;}.tower-container{width:100%;}.f-level-label{font-size:.6rem;min-width:20px;}.cbtn{font-size:.55rem;min-width:72px;padding:4px 6px;}.cbtn.boss{min-width:120px;}.win95-title{font-size:14px;padding:2px 4px;}.win95-toolbar{padding:3px 4px;gap:3px;}.btn{font-size:14px;padding:3px 8px;}.win95-status-pane{font-size:13px;padding:2px 6px;}.win95-status-pane:nth-child(3),.win95-status-pane:last-child{display:none;}.win95-heart{font-size:16px;}}
 @media(max-width:400px){.cbtn{font-size:.5rem;min-width:60px;padding:3px 5px;}.btn{font-size:13px;padding:2px 6px;}}
 
 /* ── INTRO SCREEN ── */
@@ -663,19 +663,18 @@ function spDeal(gs){
 function spWon(gs){return gs.foundations.length>=8;}
 
 // Skull-face layout — 28 cards arranged as a horned demon skull.
-// Free (no entry as key): 6,13 (brow edges), 18,23 (cheek edges), 24-27 (jaw) = 8 free cards.
-// Peeling order: jaw → inner cheeks → eye orbitals → inner brow → horn shafts → horn tips.
+// Free from start (not a key in TP_BLK): jaw 24-27, outer cheeks 18+23, outer brow 6+13 = 8 free.
 const TP_BLK={
-  // Horn tips blocked by horn shafts
+  // Horn tips blocked by their two horn shaft cards
   0:[2,3], 1:[4,5],
-  // Horn shafts blocked by brow edge + adjacent brow
+  // Horn shafts blocked by brow cards directly below
   2:[6,7], 3:[7,8], 4:[11,12], 5:[12,13],
-  // Inner brow blocked by eye orbital cards
-  7:[14,15], 8:[14,15], 9:[15,16], 10:[15,16], 11:[16,17], 12:[16,17],
-  // Eye orbitals blocked by cheek cards
+  // Inner brow (6,13 are outer brow = free); nose-bridge 9,10 get single nearest orbital blocker
+  7:[14,15], 8:[14,15], 9:[15], 10:[16], 11:[16,17], 12:[16,17],
+  // Eye orbitals blocked by the cheek cards below them (18,23 outer cheeks = free)
   14:[18,19], 15:[19,20], 16:[21,22], 17:[22,23],
-  // Inner cheeks blocked by jaw
-  19:[24,25], 20:[25,26], 21:[25,26], 22:[26,27]
+  // Inner cheeks blocked by jaw pairs
+  19:[24,25], 20:[25,26], 21:[26,27], 22:[27]
 };
 function tpPos(idx,cw,cgap){
   // Skull-face layout (8 cards wide):
@@ -744,8 +743,15 @@ function initPyramid(floor){
 function pyWon(gs){return gs.pyramid.every(c=>!c);}
 function pyDrawStock(gs){
   const s=cloneState(gs);
-  if(s.stock.length){s.waste.push({...s.stock.pop(),faceUp:true});}
-  else if(s.waste.length&&s.cycles<s.maxCycles-1){s.stock=[...s.waste].reverse().map(c=>({...c,faceUp:false}));s.waste=[];s.cycles++;}
+  if(s.stock.length){
+    s.waste.push({...s.stock.pop(),faceUp:true});
+  } else if(s.waste.length&&s.cycles<s.maxCycles){
+    // Reshuffle: flip waste (except top card which stays as waste1) back into stock
+    const top=s.waste.pop();
+    s.stock=[...s.waste].reverse().map(c=>({...c,faceUp:false}));
+    s.waste=[top];
+    s.cycles++;
+  }
   return s;
 }
 
@@ -876,7 +882,19 @@ function applyReveal(){
 //  RENDER
 // ═══════════════════════════════════════════════════════════
 let _snapshots={};let _skipNextAnim=false;
-function snapCards(){if(_skipNextAnim){_snapshots={};return;}_snapshots={};document.querySelectorAll('[data-ckey]').forEach(el=>{const r=el.getBoundingClientRect();_snapshots[el.dataset.ckey]={x:r.left,y:r.top};});}
+function snapCards(){
+  if(_skipNextAnim){_snapshots={};return;}
+  _snapshots={};
+  // First pass: find any duplicate keys (happens in Spider with repeated suits)
+  const count={};
+  document.querySelectorAll('[data-ckey]').forEach(el=>{const k=el.dataset.ckey;count[k]=(count[k]||0)+1;});
+  // Second pass: only snapshot unique keys — duplicates can't be reliably animated
+  document.querySelectorAll('[data-ckey]').forEach(el=>{
+    const k=el.dataset.ckey;
+    if(count[k]>1)return;
+    const r=el.getBoundingClientRect();_snapshots[k]={x:r.left,y:r.top};
+  });
+}
 function animateCards(){
   if(_skipNextAnim){_skipNextAnim=false;_snapshots={};return;}
   document.querySelectorAll('[data-ckey]').forEach(el=>{
@@ -1263,7 +1281,9 @@ function renderTripeaks(gs,s){
 }
 
 function renderPyramid(gs,s){
-  const {pyramid,stock,waste}=gs;const {cw,ch,cgap}=s;const wasteTop=waste.length?waste[waste.length-1]:null;
+  const {pyramid,stock,waste}=gs;const {cw,ch,cgap}=s;
+  const waste1=waste.length?waste[waste.length-1]:null;
+  const waste2=waste.length>1?waste[waste.length-2]:null;
   const rowStep=Math.round(cw*0.52);const totalH=6*rowStep+ch+10;const gridW=7*(cw+cgap)-cgap;
   let pyH='';
   for(let r=0;r<7;r++)for(let c=0;c<=r;c++){
@@ -1272,12 +1292,18 @@ function renderPyramid(gs,s){
     if(!card.faceUp){pyH+=`<div class="card back" style="position:absolute;left:${p.x}px;top:${p.y}px"></div>`;}
     else{const cc=isRed(card.suit)?'red':'blk';pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${idx}" data-col="0" data-ckey="${card.suit}-${card.rank}-py${idx}" style="position:absolute;left:${p.x}px;top:${p.y}px;cursor:${free?'pointer':'not-allowed'}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div>`;}
   }
-  const cyclesLeft=gs.maxCycles-gs.cycles-1;const canReshuffle=!stock.length&&waste.length&&cyclesLeft>0;
+  const cyclesLeft=gs.maxCycles===Infinity?'∞':Math.max(0,gs.maxCycles-gs.cycles);
+  const canReshuffle=!stock.length&&waste.length>1&&(gs.maxCycles===Infinity||gs.cycles<gs.maxCycles);
   const stockH=stock.length?`<div class="card back" data-src="py-stock" style="cursor:pointer"></div>`:canReshuffle?`<div class="empty-slot" data-src="py-stock" style="cursor:pointer;color:rgba(255,255,255,.7);font-size:2rem">↺</div>`:emptyH();
-  const wasteSelCls=A.sel&&A.sel.type==='waste-py'?'sel':'';
-  const wasteH=wasteTop?`<div class="card ${isRed(wasteTop.suit)?'red':'blk'} ${wasteSelCls}" data-src="py-waste"><div class="ct"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div><div class="cc">${SYM[wasteTop.suit]}</div><div class="cb"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div></div>`:emptyH();
+  const w1Sel=A.sel&&A.sel.type==='waste-py'?'sel':'';
+  const w2Sel=A.sel&&A.sel.type==='waste-py2'?'sel':'';
+  const waste1H=waste1?`<div class="card ${isRed(waste1.suit)?'red':'blk'} ${w1Sel}" data-src="py-waste"><div class="ct"><span>${LBL[waste1.rank]}</span><span>${SYM[waste1.suit]}</span></div><div class="cc">${SYM[waste1.suit]}</div><div class="cb"><span>${LBL[waste1.rank]}</span><span>${SYM[waste1.suit]}</span></div></div>`:emptyH();
+  const waste2H=waste2?`<div class="card ${isRed(waste2.suit)?'red':'blk'} ${w2Sel}" data-src="py-waste2"><div class="ct"><span>${LBL[waste2.rank]}</span><span>${SYM[waste2.suit]}</span></div><div class="cc">${SYM[waste2.suit]}</div><div class="cb"><span>${LBL[waste2.rank]}</span><span>${SYM[waste2.suit]}</span></div></div>`:emptyH();
   return`<div class="py-wrap"><div style="position:relative;width:${gridW}px;height:${totalH}px;overflow:visible">${pyH}</div>
-    <div class="py-stock-area">${stockH}<div style="text-align:center"><div class="tp-label">Waste</div>${wasteH}</div></div>
+    <div class="py-stock-area">${stockH}
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div class="tp-label" style="font-size:14px">Waste 2</div>${waste2H}</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div class="tp-label" style="font-size:14px">Waste 1</div>${waste1H}</div>
+    </div>
     <div class="py-info">${pyramid.filter(c=>!!c).length} remaining · ${cyclesLeft} reshuffle${cyclesLeft!==1?'s':''} left</div></div>`;
 }
 
@@ -1945,24 +1971,38 @@ function handlePyramidClick(src,idx){
     if(!captured)return;const d=document.createElement('div');d.className=captured.cls+' fly-card';d.style.left=captured.rect.left+'px';d.style.top=captured.rect.top+'px';d.style.width=captured.rect.width+'px';d.style.height=captured.rect.height+'px';d.innerHTML=captured.inner;document.body.appendChild(d);
     const dir=(Math.random()>0.5?1:-1);requestAnimationFrame(()=>requestAnimationFrame(()=>{d.style.transform=`translateY(-220px) translateX(${dir*90}px) rotate(${dir*30}deg)`;d.style.opacity='0';}));setTimeout(()=>d.remove(),500);
   };
-  if(src==='py-waste'){
-    if(A.sel&&A.sel.type==='waste-py'){A.sel=null;}
-    else if(A.sel&&A.sel.type==='pycard'){
-      const wasteTop=gs.waste[gs.waste.length-1];const pyrCard=gs.pyramid[A.sel.idx];
-      if(wasteTop&&pyrCard&&wasteTop.rank+pyrCard.rank===13&&!pyBlocked(gs.pyramid,getRowCol(A.sel.idx).r,getRowCol(A.sel.idx).c)){
-        const cap=captureRect(A.sel.idx);const wasteEl=document.querySelector('[data-src="py-waste"]');const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
-        pushUndo();const s=cloneState(gs);s.waste.pop();s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);
-      }else{A.sel=null;render();}
-    }else{A.sel=gs.waste.length?{type:'waste-py'}:null;render();}
+
+  // Helper: try to pair a waste card at wasteArrayIdx with a pycard
+  const tryPairWaste=(wasteArrayIdx,wasteSelType,wasteSrcStr)=>{
+    const wasteCard=gs.waste[wasteArrayIdx];if(!wasteCard)return false;
+    if(A.sel&&A.sel.type==='pycard'){
+      const pyrCard=gs.pyramid[A.sel.idx];
+      if(pyrCard&&wasteCard.rank+pyrCard.rank===13&&!pyBlocked(gs.pyramid,getRowCol(A.sel.idx).r,getRowCol(A.sel.idx).c)){
+        const cap=captureRect(A.sel.idx);const wasteEl=document.querySelector(`[data-src="${wasteSrcStr}"]`);const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
+        pushUndo();const s=cloneState(gs);s.waste.splice(wasteArrayIdx,1);s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return true;
+      }
+    }
+    return false;
+  };
+
+  if(src==='py-waste'||src==='py-waste2'){
+    const isW1=src==='py-waste';const wasteIdx=isW1?gs.waste.length-1:gs.waste.length-2;
+    const selType=isW1?'waste-py':'waste-py2';
+    if(wasteIdx<0){A.sel=null;render();return;}
+    if(A.sel&&A.sel.type===selType){A.sel=null;render();return;}
+    if(tryPairWaste(wasteIdx,selType,src))return;
+    A.sel={type:selType};render();
     return;
   }
+
   if(src==='pycard'){
     const card=gs.pyramid[idx];if(!card)return;const{r,c}=getRowCol(idx);const free=!pyBlocked(gs.pyramid,r,c);if(!free)return;
     if(card.rank===13){const cap=captureRect(idx);pushUndo();const s=cloneState(gs);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(5);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);return;}
     if(A.sel){
       if(A.sel.type==='pycard'&&A.sel.idx===idx){A.sel=null;render();return;}
       if(A.sel.type==='pycard'){const other=gs.pyramid[A.sel.idx];const{r:or,c:oc}=getRowCol(A.sel.idx);const otherFree=!pyBlocked(gs.pyramid,or,oc);if(other&&otherFree&&other.rank+card.rank===13){const cap1=captureRect(idx);const cap2=captureRect(A.sel.idx);pushUndo();const s=cloneState(gs);s.pyramid[idx]=null;s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap1);launchOff(cap2);return;}}
-      if(A.sel.type==='waste-py'){const wasteTop=gs.waste[gs.waste.length-1];if(wasteTop&&wasteTop.rank+card.rank===13){const cap=captureRect(idx);const wasteEl=document.querySelector('[data-src="py-waste"]');const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;pushUndo();const s=cloneState(gs);s.waste.pop();s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return;}}
+      if(A.sel.type==='waste-py'&&tryPairWaste(gs.waste.length-1,'waste-py','py-waste'))return;
+      if(A.sel.type==='waste-py2'&&tryPairWaste(gs.waste.length-2,'waste-py2','py-waste2'))return;
       A.sel={type:'pycard',idx};
     }else{A.sel={type:'pycard',idx};}
     render();
