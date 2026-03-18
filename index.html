@@ -503,7 +503,10 @@ const isRed=s=>s===1||s===2;
 const mkCard=(suit,rank,faceUp=false)=>({suit,rank,faceUp});
 function makeDeck(){const d=[];for(let s=0;s<4;s++)for(let r=1;r<=13;r++)d.push(mkCard(s,r));return d;}
 function shuffle(deck,rng){const d=deck.map(c=>({...c}));for(let i=d.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[d[i],d[j]]=[d[j],d[i]];}return d;}
-function cloneState(s){return JSON.parse(JSON.stringify(s));}
+function cloneState(s){
+  return JSON.parse(JSON.stringify(s,(k,v)=>v===Infinity?'__INF__':v),
+    (k,v)=>v==='__INF__'?Infinity:v);
+}
 function emptyH(cls='',label=''){return`<div class="empty-slot ${cls}">${label}</div>`;}
 
 // ═══════════════════════════════════════════════════════════
