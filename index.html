@@ -460,10 +460,10 @@ function getS(gameType){
   const vw=window.innerWidth;
   // Base tier by viewport width
   let t;
-  if(vw>=1100) t={cw:116,ch:160,cgap:8,cover:25,spOver:22,fcOver:25,cfs:32,cfss:18,cfc:84,tenFs:30};
-  else if(vw>=780) t={cw:96,ch:132,cgap:7,cover:22,spOver:18,fcOver:22,cfs:34,cfss:18,cfc:82,tenFs:26};
-  else if(vw>=520) t={cw:68,ch:94,cgap:5,cover:22,spOver:18,fcOver:22,cfs:24,cfss:13,cfc:58,tenFs:18};
-  else             t={cw:54,ch:74,cgap:4,cover:18,spOver:16,fcOver:18,cfs:19,cfss:10,cfc:44,tenFs:14};
+  if(vw>=1100) t={cw:116,ch:160,cgap:8,coverDown:14,coverUp:36,spDown:12,spUp:30,fcOver:32,cfs:32,cfss:18,cfc:84,tenFs:30};
+  else if(vw>=780) t={cw:96,ch:132,cgap:7,coverDown:12,coverUp:30,spDown:10,spUp:25,fcOver:28,cfs:34,cfss:18,cfc:82,tenFs:26};
+  else if(vw>=520) t={cw:68,ch:94,cgap:5,coverDown:10,coverUp:24,spDown:9,spUp:20,fcOver:22,cfs:24,cfss:13,cfc:58,tenFs:18};
+  else             t={cw:54,ch:74,cgap:4,coverDown:8,coverUp:19,spDown:7,spUp:16,fcOver:18,cfs:19,cfss:10,cfc:44,tenFs:14};
   // Horizontal space consumed by chrome outside the card area:
   // game-screen padding (8px×2) + win95-window border (2px×2) + garea padding (12px×2) = 44px
   const overhead=44;
@@ -479,9 +479,11 @@ function getS(gameType){
   const cgap=Math.max(2,Math.round(t.cgap*r));
   return{
     cw,ch,cgap,
-    cover:  Math.round(t.cover*r),
-    spOver: Math.round(t.spOver*r),
-    fcOver: Math.round(t.fcOver*r),
+    coverDown: Math.max(4, Math.round(t.coverDown*r)),
+    coverUp:   Math.round(t.coverUp*r),
+    spDown:    Math.max(4, Math.round(t.spDown*r)),
+    spUp:      Math.round(t.spUp*r),
+    fcOver:    Math.round(t.fcOver*r),
     cfs:    Math.max(8, Math.round(t.cfs*r)),
     cfss:   Math.max(6, Math.round(t.cfss*r)),
     cfc:    Math.max(14,Math.round(t.cfc*r)),
@@ -1249,7 +1251,7 @@ function winOverlayHTML(){
 
 // ── RENDER GAMES ───────────────────────────────────────────
 function renderKlondike(gs,s){
-  const {tableau,stock,waste,foundations}=gs;const {cw,ch,cgap,cover}=s;
+  const {tableau,stock,waste,foundations}=gs;const {cw,ch,cgap,coverDown,coverUp}=s;
   const isSel=(type,col,idx)=>A.sel&&A.sel.type===type&&A.sel.col===col&&(type==='tab'?idx>=A.sel.idx:A.sel.idx===idx);
   const mkCard=(card,cls,attrs='')=>{const cc=isRed(card.suit)?'red':'blk';return`<div class="card ${cc} ${cls}" data-ckey="${card.suit}-${card.rank}" ${attrs}><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div>`;};
   const stockH=stock.length?`<div class="card back" data-src="stock" style="cursor:pointer"></div>`:emptyH('','↺');
@@ -1260,13 +1262,13 @@ function renderKlondike(gs,s){
   for(let c=0;c<7;c++){
     const pile=tableau[c];
     if(!pile.length){tabH+=`<div class="empty-slot" data-src="tab" data-col="${c}" style="min-height:${ch}px"></div>`;continue;}
-    const h=(pile.length-1)*cover+ch;
+    const tops_kl=[];let y_kl=0;pile.forEach((c,i)=>{tops_kl.push(y_kl);if(i<pile.length-1)y_kl+=c.faceUp?coverUp:coverDown;});const h=y_kl+ch;
     tabH+=`<div data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:${cw}px">`;
     pile.forEach((card,idx)=>{
       const inSel=isSel('tab',c,idx);
       const selCls=inSel?(idx===A.sel.idx?'sel sel-top':'sel'):'';
-      if(!card.faceUp){tabH+=`<div style="position:absolute;top:${idx*cover}px;left:0;z-index:${idx}"><div class="card back" data-src="tab" data-col="${c}" data-idx="${idx}"></div></div>`;}
-      else{const cc=isRed(card.suit)?'red':'blk';tabH+=`<div style="position:absolute;top:${idx*cover}px;left:0;z-index:${idx}"><div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div></div>`;}
+      if(!card.faceUp){tabH+=`<div style="position:absolute;top:${tops_kl[idx]}px;left:0;z-index:${idx}"><div class="card back" data-src="tab" data-col="${c}" data-idx="${idx}"></div></div>`;}
+      else{const cc=isRed(card.suit)?'red':'blk';tabH+=`<div style="position:absolute;top:${tops_kl[idx]}px;left:0;z-index:${idx}"><div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div></div>`;}
     });
     tabH+=`</div>`;
   }
@@ -1293,19 +1295,19 @@ function renderKlondike(gs,s){
 }
 
 function renderSpider(gs,s){
-  const {tableau,stockGroups,foundations,suits}=gs;const {cw,ch,cgap,spOver}=s;
+  const {tableau,stockGroups,foundations,suits}=gs;const {cw,ch,cgap,spDown,spUp}=s;
   const isSel=(c,i)=>A.sel&&A.sel.type==='tab'&&A.sel.col===c&&i>=A.sel.idx;
   let tabH='';
   for(let c=0;c<tableau.length;c++){
     const pile=tableau[c];
     if(!pile.length){tabH+=`<div class="empty-slot" data-src="tab" data-col="${c}" style="min-height:${ch}px;width:${cw}px;flex-shrink:0"></div>`;continue;}
-    const h=(pile.length-1)*spOver+ch;
+    const tops_sp=[];let y_sp=0;pile.forEach((c,i)=>{tops_sp.push(y_sp);if(i<pile.length-1)y_sp+=c.faceUp?spUp:spDown;});const h=y_sp+ch;
     tabH+=`<div data-src="tab" data-col="${c}" style="height:${h}px;position:relative;flex-shrink:0;width:${cw}px">`;
     pile.forEach((card,idx)=>{
       const inSel=isSel(c,idx);
       const selCls=inSel?(idx===A.sel.idx?'sel sel-top':'sel'):'';
-      if(!card.faceUp){tabH+=`<div style="position:absolute;top:${idx*spOver}px;left:0;z-index:${idx}"><div class="card back"></div></div>`;}
-      else{const cc=isRed(card.suit)?'red':'blk';tabH+=`<div style="position:absolute;top:${idx*spOver}px;left:0;z-index:${idx}"><div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div></div>`;}
+      if(!card.faceUp){tabH+=`<div style="position:absolute;top:${tops_sp[idx]}px;left:0;z-index:${idx}"><div class="card back"></div></div>`;}
+      else{const cc=isRed(card.suit)?'red':'blk';tabH+=`<div style="position:absolute;top:${tops_sp[idx]}px;left:0;z-index:${idx}"><div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div></div>`;}
     });tabH+=`</div>`;
   }
   // Toolbox
