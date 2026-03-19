@@ -16,7 +16,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Solitaire Tower of Doom</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=VT323&family=Share+Tech+Mono&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
@@ -62,9 +62,9 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .map-wrap::-webkit-scrollbar{width:4px;}
 .map-wrap::-webkit-scrollbar-thumb{background:#1a2a3a;border-radius:2px;}
 .map-head{text-align:center;margin-bottom:20px;width:100%;max-width:1100px;}
-.map-title{font-family:'Cinzel',serif;font-size:2.2rem;font-weight:700;color:var(--gold);
+.map-title{font-family:'Playfair Display',serif;font-size:2.6rem;font-weight:900;letter-spacing:.02em;color:var(--gold);
   text-shadow:0 0 24px var(--gold-glow);letter-spacing:.08em;line-height:1;}
-.map-sub{font-size:1rem;color:var(--text-dim);font-style:italic;margin-top:4px;}
+.map-sub{font-size:1.15rem;color:var(--text-dim);font-style:italic;margin-top:6px;}
 .lives-row{display:flex;align-items:center;gap:10px;justify-content:center;margin:10px 0;}
 .lives-label{font-family:'Cinzel',serif;font-size:.8rem;color:var(--text-dim);}
 .lheart{font-size:2rem;transition:transform .3s,opacity .3s;color:var(--life);}
@@ -402,10 +402,11 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .intro-line.click{color:#aaa;font-size:clamp(.7rem,2.2vw,.88rem);letter-spacing:.25em;}
 .intro-line.flicker{animation:txt-flicker 0.15s step-end 3;}
 @keyframes txt-flicker{0%,100%{opacity:1;}50%{opacity:0;}}
-.intro-line.wrong{color:#ccc;font-style:italic;font-size:clamp(.72rem,2.3vw,.95rem);}
+.intro-line.wrong{color:#cc2222;font-style:italic;font-weight:700;font-size:clamp(.72rem,2.3vw,.95rem);}
 .intro-line.msg{
-  color:#fff;font-size:clamp(.78rem,2.4vw,1.05rem);letter-spacing:.04em;
-  border:1px solid #444;padding:10px 24px;margin-top:8px;
+  color:#dd1111;font-weight:700;font-size:clamp(.78rem,2.4vw,1.05rem);letter-spacing:.04em;
+  border:1px solid #661111;padding:10px 24px;margin-top:8px;
+  text-shadow:0 0 12px rgba(200,30,30,.4);
 }
 .intro-play-btn{
   margin-top:clamp(16px,4vh,32px);
@@ -422,7 +423,9 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 
 /* ── MAP SIDE PANEL (narrative) ── */
-.map-keyart-wrap{width:100%;max-width:1100px;display:flex;justify-content:center;margin-bottom:16px;}
+.map-keyart-wrap{width:100%;max-width:1100px;display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:16px;}
+.map-lore{font-family:'EB Garamond',serif;font-style:italic;font-size:1.05rem;color:var(--text-dim);text-align:center;line-height:1.8;max-width:560px;letter-spacing:.02em;}
+.map-lore strong{color:#bb3333;font-style:normal;font-family:'Cinzel',serif;font-size:.95rem;letter-spacing:.08em;display:block;margin-bottom:2px;}
 .map-keyart{max-width:560px;width:100%;border-radius:6px;border:1px solid var(--gold-dim);box-shadow:0 0 20px rgba(212,168,75,.15);}
 .map-side-panel{display:flex;flex-direction:column;gap:14px;min-width:160px;max-width:200px;flex-shrink:0;}
 .map-side-section{background:rgba(10,6,22,.7);border:1px solid var(--gold-dim);border-radius:5px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
@@ -953,27 +956,29 @@ function renderIntro(app){
     <div class="intro-inner" id="intro-inner"></div>
   </div>`;
   const lines=[
-    {text:"It's 1995.",                       cls:'',     delay:400},
-    {text:"20th floor.",                       cls:'',     delay:900},
-    {text:"Grey cubicle.",                     cls:'',     delay:1400},
-    {text:"You're playing Solitaire.",         cls:'',     delay:2000},
-    {text:"Click.",                            cls:'click',delay:3200},
-    {text:"The floor goes dark.",              cls:'dim',  delay:4200},
-    {text:"Section by section —",             cls:'dim',  delay:5000},
-    {text:"a strangely opaque darkness,",     cls:'dim',  delay:5700},
-    {text:"closing in.",                       cls:'dim',  delay:6300},
-    {text:"Click. Click. Click.",             cls:'click',delay:7400},
-    {text:"You spin around.",                  cls:'',     delay:8600},
-    {text:"You're alone up here.",             cls:'',     delay:9400},
-    {text:"Click.",                            cls:'click',delay:10600},
-    {text:"One metre of light.",              cls:'',     delay:11800},
-    {text:"A perfect circle around your desk.",cls:'',    delay:12500},
-    {text:"Nothing else exists.",             cls:'dim',  delay:13400},
-    {text:"Your screen flickers.",            cls:'flicker',delay:14600},
-    {text:"The Solitaire game remains —",     cls:'wrong',delay:15600},
-    {text:"but wrong. Different.",            cls:'wrong',delay:16300},
-    {text:"A message appears:",              cls:'dim',  delay:17200},
-    {text:"&ldquo;Play Solitaire, or never leave.&rdquo;", cls:'msg', delay:18200},
+    {text:"It's 1995.",                                          cls:'',       delay:400},
+    {text:"20th floor.",                                          cls:'',       delay:900},
+    {text:"Grey cubicle.",                                        cls:'',       delay:1400},
+    {text:"You're playing Solitaire.",                            cls:'',       delay:2000},
+    {text:"Click.",                                               cls:'click',  delay:3200},
+    {text:"The floor goes dark.",                                 cls:'dim',    delay:4200},
+    {text:"Section by section &mdash;",                          cls:'dim',    delay:5000},
+    {text:"a strangely opaque darkness,",                        cls:'dim',    delay:5700},
+    {text:"closing in.",                                          cls:'dim',    delay:6300},
+    {text:"Click. Click. Click.",                                 cls:'click',  delay:7400},
+    {text:"You spin around.",                                     cls:'',       delay:8600},
+    {text:"Everyone is playing Solitaire.",                       cls:'',       delay:9400},
+    {text:"Click. Click. Click. Click.",                          cls:'click',  delay:10600},
+    {text:"Where did this fog come from?",                        cls:'dim',    delay:12000},
+    {text:"Your screen flickers.",                                cls:'flicker',delay:13400},
+    {text:"The Solitaire game remains &mdash;",                  cls:'',  delay:14400},
+    {text:"but wrong. Different.",                                cls:'',  delay:15100},
+    {text:"Ding!",                                                cls:'click',  delay:16400},
+    {text:"The elevator doors open into hell.",                   cls:'wrong',  delay:17200},
+    {text:"Animal men, bloody royal garments.",                   cls:'wrong',  delay:18100},
+    {text:"A beating human heart at the tip of a scepter.",      cls:'wrong',  delay:19100},
+    {text:"The Cult of Solitaire has come for the 9 to 5.",      cls:'wrong',  delay:20200},
+    {text:"&ldquo;PLAY SOLITAIRE OR DIE.&rdquo;",               cls:'msg',    delay:21600},
   ];
   const container=document.getElementById('intro-inner');
   const timers=[];
@@ -995,7 +1000,7 @@ function renderIntro(app){
     btn.onclick=startFromIntro;
     container.appendChild(btn);
     requestAnimationFrame(()=>requestAnimationFrame(()=>{btn.classList.add('vis');btn.scrollIntoView({behavior:'smooth',block:'nearest'});}));
-  },19800);
+  },23200);
   timers.push(btnTimer);
   // Also allow clicking anywhere on screen to skip to play button immediately
   const screen=document.getElementById('intro-screen');
@@ -1077,6 +1082,7 @@ function renderMap(app){
     </div>
     <div class="map-keyart-wrap">
       <img class="map-keyart" src="keyart.jpg" alt="Solitaire Tower of Doom key art"/>
+      <div class="map-lore"><strong>The Cult of Solitaire has arrived.</strong>The only means of escape is to face their challenge on every floor.</div>
     </div>
     <div class="map-body">
       <div class="map-side-panel">
