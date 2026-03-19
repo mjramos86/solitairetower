@@ -699,40 +699,52 @@ function spWon(gs){return gs.foundations.length>=8;}
 // Eye sockets are visual GAPS at x=2TW and x=5TW in the orbital row.
 // Orbitals 15+16 form the nose bridge at x=3TW,4TW, directly under brow 9+10.
 const TP_BLK={
-  // Horn tips blocked by horn shafts
+  // Horn tips straddle two columns → blocked by both shafts below
   0:[2,3], 1:[4,5],
-  // Horn shafts: 8 and 11 are free so 3 only needs 7, 4 only needs 12
-  2:[6,7], 3:[7], 4:[12], 5:[12,13],
-  // Brow: 8 and 11 are free (above eye socket gaps); 7 blocked by outer orbital 14,
-  //       9+10 blocked by nose-bridge orbitals 15+16, 12 blocked by outer orbital 17
+  // Horn shafts: each blocked only by the brow card in the same column
+  2:[6], 3:[7], 4:[12], 5:[13],
+  // Brow: 6,8,11,13 have no card below them (gaps/edges) → start face-up
+  //       7,9,10,12 each blocked by the orbital directly below in same column
   7:[14], 9:[15], 10:[16], 12:[17],
-  // Eye orbitals blocked by cheeks below (18,23 = outer cheeks = free)
-  14:[18,19], 15:[19,20], 16:[21,22], 17:[22,23],
-  // Inner cheeks blocked by jaw
-  19:[24,25], 20:[25,26], 21:[26,27], 22:[27]
+  // Orbitals: each blocked only by the cheek in the same column
+  14:[18], 15:[20], 16:[21], 17:[23],
+  // Inner cheeks: each blocked only by the jaw card in the same column
+  19:[24], 20:[25], 21:[26], 22:[27]
 };
-function tpPos(idx,cw,cgap){
-  // Skull-face layout (8 cards wide):
-  //  Row 0 (y=0):    Horn tips: 0 at 0.5TW, 1 at 6.5TW
-  //  Row 1 (y=VG):   Horn shafts: 2+3 left (0,TW), 4+5 right (6TW,7TW)
-  //  Row 2 (y=2VG):  Brow: 6-13 full width
-  //  Row 3 (y=3VG):  Orbitals: 14(1TW) GAP(2TW) 15(3TW) 16(4TW) GAP(5TW) 17(6TW)
-  //  Row 4 (y=4VG):  Cheeks: 18-23 at 1TW…6TW
-  //  Row 5 (y=5VG):  Jaw: 24-27 at 2TW…5TW
-  const TW=cw+cgap; const VG=Math.round(cw*0.77);
-  if(idx===0) return{x:Math.round(TW*.5), y:0};
-  if(idx===1) return{x:TW*6+Math.round(TW*.5), y:0};
-  if(idx===2) return{x:0,    y:VG};
-  if(idx===3) return{x:TW,   y:VG};
-  if(idx===4) return{x:TW*6, y:VG};
-  if(idx===5) return{x:TW*7, y:VG};
-  if(idx<=13)  return{x:(idx-6)*TW, y:VG*2};         // brow 6-13
-  if(idx===14) return{x:TW,   y:VG*3};               // left outer orbital
-  if(idx===15) return{x:TW*3, y:VG*3};               // nose-bridge left (covers brow 9)
-  if(idx===16) return{x:TW*4, y:VG*3};               // nose-bridge right (covers brow 10)
-  if(idx===17) return{x:TW*6, y:VG*3};               // right outer orbital
-  if(idx<=23)  return{x:(idx-18+1)*TW, y:VG*4};      // cheeks 18-23
-  return{x:(idx-24+2)*TW, y:VG*5};                   // jaw 24-27
+// Cards per row in the skull layout
+const TP_ROWS=[[0,1],[2,3,4,5],[6,7,8,9,10,11,12,13],[14,15,16,17],[18,19,20,21,22,23],[24,25,26,27]];
+// Compute dynamic row y positions: tighter between face-down rows, more space for face-up rows
+function tpRowYs(pyramid,cw){
+  const VG_DOWN=Math.round(cw*0.44); // tight — hidden cards need no reading room
+  const VG_UP  =Math.round(cw*0.90); // spacious — visible cards need to be read
+  const ys=[0];
+  for(let r=0;r<5;r++){
+    const present=TP_ROWS[r+1].filter(i=>pyramid[i]);
+    // If any card in the next row is still face-down, use tight spacing
+    const anyDown=present.some(i=>!pyramid[i].faceUp);
+    ys.push(ys[r]+(anyDown?VG_DOWN:VG_UP));
+  }
+  return ys;
+}
+function tpPos(idx,cw,cgap,ys){
+  // ys = array of 6 row y-positions (computed by tpRowYs or default)
+  const TW=cw+cgap;
+  const y0=ys?ys[0]:0, y1=ys?ys[1]:Math.round(cw*0.77),
+        y2=ys?ys[2]:Math.round(cw*0.77)*2, y3=ys?ys[3]:Math.round(cw*0.77)*3,
+        y4=ys?ys[4]:Math.round(cw*0.77)*4, y5=ys?ys[5]:Math.round(cw*0.77)*5;
+  if(idx===0) return{x:Math.round(TW*.5), y:y0};
+  if(idx===1) return{x:TW*6+Math.round(TW*.5), y:y0};
+  if(idx===2) return{x:0,    y:y1};
+  if(idx===3) return{x:TW,   y:y1};
+  if(idx===4) return{x:TW*6, y:y1};
+  if(idx===5) return{x:TW*7, y:y1};
+  if(idx<=13)  return{x:(idx-6)*TW, y:y2};           // brow 6-13
+  if(idx===14) return{x:TW,   y:y3};
+  if(idx===15) return{x:TW*3, y:y3};
+  if(idx===16) return{x:TW*4, y:y3};
+  if(idx===17) return{x:TW*6, y:y3};
+  if(idx<=23)  return{x:(idx-18+1)*TW, y:y4};        // cheeks 18-23
+  return{x:(idx-24+2)*TW, y:y5};                     // jaw 24-27
 }
 function initTripeaks(floor){
   const rng=mkRng(Date.now()^(Math.random()*0xFFFFF|0));const deck=shuffle(makeDeck(),rng);
@@ -1326,10 +1338,11 @@ function renderSpider(gs,s){
 
 function renderTripeaks(gs,s){
   const {pyramid,stock,waste}=gs;const {cw,ch,cgap}=s;
-  const wasteTop=waste.length?waste[waste.length-1]:null;const VG=Math.round(cw*0.77);const totalH=VG*5+ch+10;const totalW=8*(cw+cgap)-cgap;
+  const wasteTop=waste.length?waste[waste.length-1]:null;
+  const ys=tpRowYs(pyramid,cw);const totalH=ys[5]+ch+10;const totalW=8*(cw+cgap)-cgap;
   let pyH='';
   for(let i=0;i<28;i++){
-    const card=pyramid[i];if(!card)continue;const p=tpPos(i,cw,cgap);const free=tpFree(pyramid,i);
+    const card=pyramid[i];if(!card)continue;const p=tpPos(i,cw,cgap,ys);const free=tpFree(pyramid,i);
     const selCls=(A.sel&&A.sel.type==='pycard'&&A.sel.idx===i)?'sel':'';
     if(!card.faceUp){pyH+=`<div class="card back" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)}"></div>`;}
     else{const cc=isRed(card.suit)?'red':'blk';pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${i}" data-col="0" data-ckey="${card.suit}-${card.rank}-tp${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div>`;}
