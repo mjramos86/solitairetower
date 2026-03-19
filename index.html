@@ -187,6 +187,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 @keyframes card-flip{0%{transform:scaleX(0) perspective(400px);opacity:0.6;}50%{transform:scaleX(0.05) perspective(400px);}100%{transform:scaleX(1) perspective(400px);opacity:1;}}
 .card.flipping{animation:card-flip 0.28s ease-out;}
 .fly-card{position:fixed;z-index:9999;pointer-events:none;transition:left 0.22s ease,top 0.22s ease,width 0.22s ease,height 0.22s ease,opacity 0.22s ease,transform 0.3s ease;}
+.fly-card.sp-found{transition:left 0.38s cubic-bezier(.15,1.4,.5,1),top 0.38s cubic-bezier(.15,1.4,.5,1),width 0.38s ease,height 0.38s ease,opacity 0.38s ease;}
 .empty-slot{width:var(--cw);height:var(--ch);border-radius:4px;border:1px dashed rgba(255,240,180,.15);background:rgba(0,0,0,.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:rgba(255,240,180,.18);font-size:1.8rem;}
 .sp-complete-slot{width:var(--cw);height:var(--ch);border-radius:2px;border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);background:rgba(0,0,0,.18);box-shadow:inset 1px 1px 0 rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:rgba(255,255,255,.3);font-family:var(--pixel);text-align:center;}
 .sp-complete-slot.filled{background:rgba(0,80,0,.5);border-color:#006600;color:#00ff00;}
@@ -458,7 +459,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 // ── RESPONSIVE CARD SIZING ─────────────────────────────────
 // Column counts per game (widest row that must fit horizontally)
-const GAME_COLS={klondike:7,spider:10,tripeaks:8,pyramid:7,freecell:8};
+const GAME_COLS={klondike:7,spider:10,tripeaks:10,pyramid:7,freecell:8};
 function getS(gameType){
   const vw=window.innerWidth;
   // Base tier by viewport width
@@ -652,14 +653,48 @@ let DR={active:false,cards:null,src:null,startX:0,startY:0,ghost:null};
 // ═══════════════════════════════════════════════════════════
 //  GAME INIT FUNCTIONS
 // ═══════════════════════════════════════════════════════════
-function initKlondike(floor){
-  const rng=mkRng(Date.now()^(Math.random()*0xFFFFF|0));
-  const deck=shuffle(makeDeck(),rng);
+function buildKlondikeDeal(deck,floor){
   const drawCount=diff(floor)==='easy'?1:3;
   const tableau=[];let idx=0;
   for(let c=0;c<7;c++){const pile=[];for(let r=0;r<=c;r++){pile.push({...deck[idx++],faceUp:r===c});}tableau.push(pile);}
   const stock=deck.slice(idx).map(c=>({...c,faceUp:false}));
   return{type:'klondike',tableau,stock,waste:[],foundations:[[],[],[],[]],drawCount,drawsLeft:diff(floor)==='hard'?3:999,floor};
+}
+function klGreedySolvable(gs){
+  let s=cloneState(gs);
+  for(let iter=0;iter<600;iter++){
+    if(klWon(s))return true;
+    let moved=false;
+    let again=true;
+    while(again){again=false;
+      for(let c=0;c<7;c++){const p=s.tableau[c];if(!p.length)continue;const t=p[p.length-1];if(t.faceUp&&klCanFoundation(t,s.foundations)){p.pop();s.foundations[t.suit].push(t);klAutoReveal(s);again=moved=true;}}
+      if(s.waste.length){const t=s.waste[s.waste.length-1];if(klCanFoundation(t,s.foundations)){s.waste.pop();s.foundations[t.suit].push(t);again=moved=true;}}
+    }
+    if(moved)continue;
+    for(let sc=0;sc<7&&!moved;sc++){
+      const sp=s.tableau[sc];if(!sp.length)continue;
+      let si=sp.length-1;while(si>0&&sp[si].faceUp)si--;if(!sp[si].faceUp)si++;
+      const cards=sp.slice(si);if(!cards.length||!cards[0].faceUp)continue;
+      for(let dc=0;dc<7&&!moved;dc++){
+        if(dc===sc)continue;
+        if(klCanTableau(cards,s.tableau[dc])&&s.tableau[dc].length>0){s.tableau[dc].push(...s.tableau[sc].splice(si));klAutoReveal(s);moved=true;}
+      }
+    }
+    if(moved)continue;
+    const snap=s.stock.length+','+s.waste.length;s=klDraw(s);
+    if(s.stock.length+','+s.waste.length===snap)break;
+  }
+  return klWon(s);
+}
+function initKlondike(floor){
+  const isEasy=diff(floor)==='easy';
+  let gs;
+  for(let attempt=0;attempt<25;attempt++){
+    const rng=mkRng(Date.now()^(Math.random()*0xFFFFF|0));
+    gs=buildKlondikeDeal(shuffle(makeDeck(),rng),floor);
+    if(!isEasy||klGreedySolvable(gs))return gs;
+  }
+  return gs;
 }
 function klDraw(gs){
   const s=cloneState(gs);
@@ -699,52 +734,43 @@ function spWon(gs){return gs.foundations.length>=8;}
 // Eye sockets are visual GAPS at x=2TW and x=5TW in the orbital row.
 // Orbitals 15+16 form the nose bridge at x=3TW,4TW, directly under brow 9+10.
 const TP_BLK={
-  // Horn tips straddle two columns → blocked by both shafts below
-  0:[2,3], 1:[4,5],
-  // Horn shafts: each blocked only by the brow card in the same column
-  2:[6], 3:[7], 4:[12], 5:[13],
-  // Brow: 6,8,11,13 have no card below them (gaps/edges) → start face-up
-  //       7,9,10,12 each blocked by the orbital directly below in same column
-  7:[14], 9:[15], 10:[16], 12:[17],
-  // Orbitals: each blocked only by the cheek in the same column
-  14:[18], 15:[20], 16:[21], 17:[23],
-  // Inner cheeks: each blocked only by the jaw card in the same column
-  19:[24], 20:[25], 21:[26], 22:[27]
+  // Tips blocked by their 2 shoulders
+  0:[3,4], 1:[5,6], 2:[7,8],
+  // Shoulders each blocked by 2 base cards
+  3:[9,10], 4:[10,11], 5:[12,13], 6:[13,14], 7:[15,16], 8:[16,17],
+  // Bases each blocked by 2 ground cards
+  9:[18,19], 10:[19,20], 11:[20,21], 12:[21,22], 13:[22,23],
+  14:[23,24], 15:[24,25], 16:[25,26], 17:[26,27]
 };
-// Cards per row in the skull layout
-const TP_ROWS=[[0,1],[2,3,4,5],[6,7,8,9,10,11,12,13],[14,15,16,17],[18,19,20,21,22,23],[24,25,26,27]];
-// Compute dynamic row y positions: tighter between face-down rows, more space for face-up rows
+// Cards per row in the classic 3-mountain layout
+const TP_ROWS=[
+  [0,1,2],
+  [3,4,5,6,7,8],
+  [9,10,11,12,13,14,15,16,17],
+  [18,19,20,21,22,23,24,25,26,27]
+];
 function tpRowYs(pyramid,cw){
-  const VG_DOWN=Math.round(cw*0.44); // tight — hidden cards need no reading room
-  const VG_UP  =Math.round(cw*0.90); // spacious — visible cards need to be read
+  const VG_DOWN=Math.round(cw*0.44);
+  const VG_UP  =Math.round(cw*0.90);
   const ys=[0];
-  for(let r=0;r<5;r++){
+  for(let r=0;r<3;r++){
     const present=TP_ROWS[r+1].filter(i=>pyramid[i]);
-    // If any card in the next row is still face-down, use tight spacing
-    const anyDown=present.some(i=>!pyramid[i].faceUp);
+    const anyDown=present.length&&present.some(i=>!pyramid[i].faceUp);
     ys.push(ys[r]+(anyDown?VG_DOWN:VG_UP));
   }
   return ys;
 }
 function tpPos(idx,cw,cgap,ys){
-  // ys = array of 6 row y-positions (computed by tpRowYs or default)
-  const TW=cw+cgap;
-  const y0=ys?ys[0]:0, y1=ys?ys[1]:Math.round(cw*0.77),
-        y2=ys?ys[2]:Math.round(cw*0.77)*2, y3=ys?ys[3]:Math.round(cw*0.77)*3,
-        y4=ys?ys[4]:Math.round(cw*0.77)*4, y5=ys?ys[5]:Math.round(cw*0.77)*5;
-  if(idx===0) return{x:Math.round(TW*.5), y:y0};
-  if(idx===1) return{x:TW*6+Math.round(TW*.5), y:y0};
-  if(idx===2) return{x:0,    y:y1};
-  if(idx===3) return{x:TW,   y:y1};
-  if(idx===4) return{x:TW*6, y:y1};
-  if(idx===5) return{x:TW*7, y:y1};
-  if(idx<=13)  return{x:(idx-6)*TW, y:y2};           // brow 6-13
-  if(idx===14) return{x:TW,   y:y3};
-  if(idx===15) return{x:TW*3, y:y3};
-  if(idx===16) return{x:TW*4, y:y3};
-  if(idx===17) return{x:TW*6, y:y3};
-  if(idx<=23)  return{x:(idx-18+1)*TW, y:y4};        // cheeks 18-23
-  return{x:(idx-24+2)*TW, y:y5};                     // jaw 24-27
+  const TW=cw+cgap;const half=Math.round(TW*0.5);
+  const y0=ys?ys[0]:0, y1=ys?ys[1]:Math.round(cw*0.70),
+        y2=ys?ys[2]:Math.round(cw*0.70)*2, y3=ys?ys[3]:Math.round(cw*0.70)*3;
+  if(idx===0) return{x:TW+half,   y:y0};
+  if(idx===1) return{x:TW*4+half, y:y0};
+  if(idx===2) return{x:TW*7+half, y:y0};
+  const shX=[TW,TW*2, TW*4,TW*5, TW*7,TW*8];
+  if(idx<=8)  return{x:shX[idx-3], y:y1};
+  if(idx<=17) return{x:half+(idx-9)*TW, y:y2};
+  return{x:(idx-18)*TW, y:y3};
 }
 function initTripeaks(floor){
   const rng=mkRng(Date.now()^(Math.random()*0xFFFFF|0));const deck=shuffle(makeDeck(),rng);
@@ -1339,7 +1365,7 @@ function renderSpider(gs,s){
 function renderTripeaks(gs,s){
   const {pyramid,stock,waste}=gs;const {cw,ch,cgap}=s;
   const wasteTop=waste.length?waste[waste.length-1]:null;
-  const ys=tpRowYs(pyramid,cw);const totalH=ys[5]+ch+10;const totalW=8*(cw+cgap)-cgap;
+  const ys=tpRowYs(pyramid,cw);const totalH=ys[3]+ch+10;const totalW=10*(cw+cgap)-cgap;
   let pyH='';
   for(let i=0;i<28;i++){
     const card=pyramid[i];if(!card)continue;const p=tpPos(i,cw,cgap,ys);const free=tpFree(pyramid,i);
@@ -1907,6 +1933,25 @@ function autoMoveKlondike(src,col,idx){
   return true;
 }
 
+function animateSpiderComplete(tableau,colIdx){
+  // Capture top 13 cards from the DOM column and fly them to the foundations badge
+  const colCards=[...document.querySelectorAll(`[data-src="tab"][data-col="${colIdx}"]`)].slice(-13);
+  const foundBadge=document.querySelector('.sp-foundations')||document.querySelector('[class*="found"]');
+  const destRect=foundBadge?foundBadge.getBoundingClientRect():null;
+  colCards.forEach((el,i)=>{
+    const r=el.getBoundingClientRect();
+    const d=document.createElement('div');
+    d.className=el.className.replace(/sel|sel-top/g,'')+' fly-card sp-found';
+    d.innerHTML=el.innerHTML;
+    d.style.cssText=`left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+    document.body.appendChild(d);
+    setTimeout(()=>{
+      if(destRect){d.style.left=destRect.left+'px';d.style.top=destRect.top+'px';d.style.width='20px';d.style.height='28px';}
+      d.style.opacity='0';
+    },i*30);
+    setTimeout(()=>d.remove(),450+i*30);
+  });
+}
 function autoMoveSpider(src,col,idx){
   const gs=A.gs;
   if(src!=='tab') return false;
@@ -1925,19 +1970,14 @@ function autoMoveSpider(src,col,idx){
 
   // Prefer same-suit match at destination top
   const suit=cards[0].suit;
-  const sameSuit=validCols.filter(d=>{
-    const tp=gs.tableau[d];
-    return tp.length && tp[tp.length-1].suit===suit;
-  });
+  const sameSuit=validCols.filter(d=>{const tp=gs.tableau[d];return tp.length&&tp[tp.length-1].suit===suit;});
   const nonEmpty=validCols.filter(d=>gs.tableau[d].length>0);
-
+  // Always pick best target — same-suit top first, then any non-empty, then empty
   let target;
-  if(sameSuit.length===1)       target=sameSuit[0];
-  else if(sameSuit.length>1)    return false;
-  else if(nonEmpty.length===1)  target=nonEmpty[0];
-  else if(nonEmpty.length>1)    return false;
-  else if(validCols.length===1) target=validCols[0];
-  else                          return false;
+  if(sameSuit.length>=1)       target=sameSuit[0];
+  else if(nonEmpty.length>=1)  target=nonEmpty[0];
+  else if(validCols.length>=1) target=validCols[0];
+  else                         return false;
 
   pushUndo();
   const s=cloneState(gs);
@@ -1946,7 +1986,7 @@ function autoMoveSpider(src,col,idx){
   if(s.tableau[col].length) s.tableau[col][s.tableau[col].length-1].faceUp=true;
   for(let c=0;c<s.tableau.length;c++){
     const csuit=spCheckComplete(s.tableau[c]);
-    if(csuit!==false){s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(csuit);addScore(100);}
+    if(csuit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(csuit);addScore(100);}
   }
   A.gs=s; A.moves++;
   if(spWon(A.gs)) handleWin();
@@ -2074,6 +2114,21 @@ function handlePyramidClick(src,idx){
     if(A.sel){
       if(A.sel.type==='pycard'&&A.sel.idx===idx){A.sel=null;render();return;}
       if(A.sel.type==='pycard'){const other=gs.pyramid[A.sel.idx];const{r:or,c:oc}=getRowCol(A.sel.idx);const otherFree=!pyBlocked(gs.pyramid,or,oc);if(other&&otherFree&&other.rank+card.rank===13){const cap1=captureRect(idx);const cap2=captureRect(A.sel.idx);pushUndo();const s=cloneState(gs);s.pyramid[idx]=null;s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap1);launchOff(cap2);return;}}
+      // Waste selected first → pair with this pyramid card
+      if(A.sel.type==='waste-py'){
+        const wasteCard=gs.waste[gs.waste.length-1];
+        if(wasteCard&&wasteCard.rank+card.rank===13){
+          const cap=captureRect(idx);const wasteEl=document.querySelector('[data-src="py-waste"]');const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
+          pushUndo();const s=cloneState(gs);s.waste.splice(gs.waste.length-1,1);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return;
+        }
+      }
+      if(A.sel.type==='waste-py2'){
+        const wasteCard=gs.waste[gs.waste.length-2];
+        if(wasteCard&&wasteCard.rank+card.rank===13){
+          const cap=captureRect(idx);const wasteEl=document.querySelector('[data-src="py-waste2"]');const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
+          pushUndo();const s=cloneState(gs);s.waste.splice(gs.waste.length-2,1);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return;
+        }
+      }
       if(A.sel.type==='waste-py'&&tryPairWaste(gs.waste.length-1,'waste-py','py-waste'))return;
       if(A.sel.type==='waste-py2'&&tryPairWaste(gs.waste.length-2,'waste-py2','py-waste2'))return;
       A.sel={type:'pycard',idx};
@@ -2139,7 +2194,7 @@ function spMove(sel,targetSrc,targetCol){
   const cards=gs.tableau[sel.col].slice(sel.idx);const tp=gs.tableau[targetCol];if(!spCanDrop(cards,tp))return false;
   pushUndo();const s=cloneState(gs);const moved=s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...moved);
   if(s.tableau[sel.col].length)s.tableau[sel.col][s.tableau[sel.col].length-1].faceUp=true;
-  for(let c=0;c<s.tableau.length;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(suit);addScore(100);}}
+  for(let c=0;c<s.tableau.length;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(suit);addScore(100);}}
   A.gs=s;A.moves++;if(spWon(A.gs))handleWin();return true;
 }
 
