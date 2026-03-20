@@ -723,7 +723,7 @@ function spDeal(gs){
   if(!gs.stockGroups.length)return gs;if(gs.tableau.some(c=>!c.length))return gs;
   const s=cloneState(gs);const group=s.stockGroups.shift();
   group.forEach((card,i)=>{card.faceUp=true;s.tableau[i].push(card);});
-  for(let c=0;c<10;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(suit);addScore(100);}}
+  for(let c=0;c<10;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(suit);addScore(100);}}
   return s;
 }
 function spWon(gs){return gs.foundations.length>=8;}
@@ -1986,7 +1986,7 @@ function autoMoveSpider(src,col,idx){
   if(s.tableau[col].length) s.tableau[col][s.tableau[col].length-1].faceUp=true;
   for(let c=0;c<s.tableau.length;c++){
     const csuit=spCheckComplete(s.tableau[c]);
-    if(csuit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(csuit);addScore(100);}
+    if(csuit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(csuit);addScore(100);}
   }
   A.gs=s; A.moves++;
   if(spWon(A.gs)) handleWin();
@@ -2102,7 +2102,33 @@ function handlePyramidClick(src,idx){
     const isW1=src==='py-waste';const wasteIdx=isW1?gs.waste.length-1:gs.waste.length-2;
     const selType=isW1?'waste-py':'waste-py2';
     if(wasteIdx<0){A.sel=null;render();return;}
+    // Deselect if clicking same card again
     if(A.sel&&A.sel.type===selType){A.sel=null;render();return;}
+    // King in waste → remove immediately
+    const clickedCard=gs.waste[wasteIdx];
+    if(clickedCard&&clickedCard.rank===13){
+      const wasteEl=document.querySelector(`[data-src="${src}"]`);
+      const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
+      pushUndo();const s=cloneState(gs);s.waste.splice(wasteIdx,1);A.gs=s;A.moves++;A.sel=null;addScore(5);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(wasteR);return;
+    }
+    // Waste-vs-waste pairing (W1 + W2 sum to 13)
+    if(A.sel&&(A.sel.type==='waste-py'||A.sel.type==='waste-py2')){
+      const otherIsW1=A.sel.type==='waste-py';
+      const otherIdx=otherIsW1?gs.waste.length-1:gs.waste.length-2;
+      const otherCard=gs.waste[otherIdx];
+      if(otherCard&&clickedCard&&otherCard.rank+clickedCard.rank===13&&otherIdx!==wasteIdx){
+        const el1=document.querySelector('[data-src="py-waste"]');
+        const el2=document.querySelector('[data-src="py-waste2"]');
+        const r1=el1?{rect:el1.getBoundingClientRect(),inner:el1.innerHTML,cls:el1.className}:null;
+        const r2=el2?{rect:el2.getBoundingClientRect(),inner:el2.innerHTML,cls:el2.className}:null;
+        pushUndo();const s=cloneState(gs);
+        // Remove higher index first to preserve lower index
+        const hi=Math.max(wasteIdx,otherIdx);const lo=Math.min(wasteIdx,otherIdx);
+        s.waste.splice(hi,1);s.waste.splice(lo,1);
+        A.gs=s;A.moves++;A.sel=null;addScore(10);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(r1);launchOff(r2);return;
+      }
+    }
+    // Try pairing with already-selected pyramid card
     if(tryPairWaste(wasteIdx,selType,src))return;
     A.sel={type:selType};render();
     return;
@@ -2194,7 +2220,7 @@ function spMove(sel,targetSrc,targetCol){
   const cards=gs.tableau[sel.col].slice(sel.idx);const tp=gs.tableau[targetCol];if(!spCanDrop(cards,tp))return false;
   pushUndo();const s=cloneState(gs);const moved=s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...moved);
   if(s.tableau[sel.col].length)s.tableau[sel.col][s.tableau[sel.col].length-1].faceUp=true;
-  for(let c=0;c<s.tableau.length;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);s.foundations.push(suit);addScore(100);}}
+  for(let c=0;c<s.tableau.length;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(suit);addScore(100);}}
   A.gs=s;A.moves++;if(spWon(A.gs))handleWin();return true;
 }
 
