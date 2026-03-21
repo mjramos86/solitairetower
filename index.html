@@ -717,8 +717,9 @@ const drawCount=diff(floor)==='easy'?1:3;
 const tableau=[];let idx=0;
 for(let c=0;c<7;c++){const pile=[];for(let r=0;r<=c;r++){pile.push({...deck[idx++],faceUp:r===c});}tableau.push(pile);}
 const stock=deck.slice(idx).map(c=>({...c,faceUp:false}));
-return{type:'klondike',tableau,stock,waste:[],foundations:[[],[],[],[]],drawCount,drawsLeft:diff(floor)==='hard'?3:999,floor};
+return{type:'klondike',tableau,stock,waste:[],foundations:[[],[],[],[]],drawCount,drawsLeft:diff(floor)==='hard'?3:999,floor,cardPoints:{}};
 }
+function klAutoRevealSilent(gs){gs.tableau.forEach(col=>{if(col.length&&!col[col.length-1].faceUp){col[col.length-1].faceUp=true;}});}
 function klGreedySolvable(gs){
 let s=cloneState(gs);
 for(let iter=0;iter<600;iter++){
@@ -726,7 +727,7 @@ if(klWon(s))return true;
 let moved=false;
 let again=true;
 while(again){again=false;
-for(let c=0;c<7;c++){const p=s.tableau[c];if(!p.length)continue;const t=p[p.length-1];if(t.faceUp&&klCanFoundation(t,s.foundations)){p.pop();s.foundations[t.suit].push(t);klAutoReveal(s);again=moved=true;}}
+for(let c=0;c<7;c++){const p=s.tableau[c];if(!p.length)continue;const t=p[p.length-1];if(t.faceUp&&klCanFoundation(t,s.foundations)){p.pop();s.foundations[t.suit].push(t);klAutoRevealSilent(s);again=moved=true;}}
 if(s.waste.length){const t=s.waste[s.waste.length-1];if(klCanFoundation(t,s.foundations)){s.waste.pop();s.foundations[t.suit].push(t);again=moved=true;}}
 }
 if(moved)continue;
@@ -736,7 +737,7 @@ let si=sp.length-1;while(si>0&&sp[si].faceUp)si--;if(!sp[si].faceUp)si++;
 const cards=sp.slice(si);if(!cards.length||!cards[0].faceUp)continue;
 for(let dc=0;dc<7&&!moved;dc++){
 if(dc===sc)continue;
-if(klCanTableau(cards,s.tableau[dc])&&s.tableau[dc].length>0){s.tableau[dc].push(...s.tableau[sc].splice(si));klAutoReveal(s);moved=true;}
+if(klCanTableau(cards,s.tableau[dc])&&s.tableau[dc].length>0){s.tableau[dc].push(...s.tableau[sc].splice(si));klAutoRevealSilent(s);moved=true;}
 }
 }
 if(moved)continue;
@@ -763,7 +764,18 @@ for(let i=0;i<s.drawCount&&s.stock.length>0;i++){const c=s.stock.pop();c.faceUp=
 function klCanFoundation(card,foundations){const f=foundations[card.suit];return f.length===0?card.rank===1:f[f.length-1].rank===card.rank-1;}
 function klCanTableau(cards,targetPile){if(!cards||!cards.length)return false;const m=cards[0];if(!targetPile.length)return m.rank===13;const top=targetPile[targetPile.length-1];return top.faceUp&&top.rank===m.rank+1&&isRed(top.suit)!==isRed(m.suit);}
 function klWon(gs){return gs.foundations.every(f=>f.length===13);}
-function klAutoReveal(gs){gs.tableau.forEach(col=>{if(col.length&&!col[col.length-1].faceUp){col[col.length-1].faceUp=true;addScore(5);}});}
+function klCardKey(card){return card.suit+'-'+card.rank;}
+const KL_MAX_CARD_PTS=20;
+function klCardScore(gs,card,pts){
+  if(!gs.cardPoints)gs.cardPoints={};
+  const key=klCardKey(card);
+  const earned=gs.cardPoints[key]||0;
+  const give=Math.min(pts,KL_MAX_CARD_PTS-earned);
+  if(give>0){gs.cardPoints[key]=earned+give;addScore(give);}
+  return give;
+}
+function klTotalCardPoints(gs){if(!gs||!gs.cardPoints)return 0;return Object.values(gs.cardPoints).reduce((a,b)=>a+b,0);}
+function klAutoReveal(gs){gs.tableau.forEach(col=>{if(col.length&&!col[col.length-1].faceUp){col[col.length-1].faceUp=true;klCardScore(gs,col[col.length-1],5);}});}
 
 function initSpider(floor){
 const d=diff(floor);const suits=d==='easy'?1:d==='medium'?2:4;
@@ -1134,7 +1146,7 @@ if(screen){
 }
 
 function playIntroVideo(callback){
-const videos=['Intro.mp4','Intro%20V2.mp4','Intro%203.mp4'];
+const videos=['Intro.mp4','Intro%20V2.mp4','Intro3.mp4'];
 const src=videos[Math.floor(Math.random()*videos.length)];
 const overlay=document.createElement('div');
 overlay.id='intro-video-overlay';
@@ -1519,6 +1531,10 @@ app.innerHTML=`<div class="game-screen"> <div class="win95-window"> <div class="
     <div class="win95-hearts">${liv}</div>
   </div>
   <div class="rules-strip">${(RULES[t]||[]).map(r=>`<span class="rule-item">▸ ${r}</span>`).join('')}</div>
+  ${t==='klondike'?`<div style="width:100%;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;position:relative;">
+    <div id="kl-score-bar" style="height:100%;width:${(klTotalCardPoints(A.gs)/(52*KL_MAX_CARD_PTS)*100).toFixed(1)}%;background:linear-gradient(90deg,rgba(212,168,75,.6),rgba(212,168,75,.9));border-radius:3px;transition:width .3s ease;"></div>
+    <div style="position:absolute;right:6px;top:-1px;font-family:var(--pixel);font-size:9px;color:var(--text-dim);line-height:8px;">${klTotalCardPoints(A.gs)} / ${52*KL_MAX_CARD_PTS}</div>
+  </div>`:''}
   ${itemModeBanner}
   <div class="garea" id="garea">${gameHTML}</div>
   <div class="win95-status">
@@ -2271,10 +2287,11 @@ const card=cards[0];
 if(klCanFoundation(card,gs.foundations)){
 pushUndo();
 const s=cloneState(gs);
-if(src==='waste') s.waste.pop(); else s.tableau[col].pop();
+if(src==='waste'){s.waste.pop();klCardScore(s,card,5);}else s.tableau[col].pop();
 s.foundations[card.suit].push(card);
+klCardScore(s,card,KL_MAX_CARD_PTS);
 klAutoReveal(s);
-A.gs=s; A.moves++; addScore(src==='waste'?15:10);
+A.gs=s; A.moves++;
 if(klWon(A.gs)) handleWin();
 return true;
 }
@@ -2296,10 +2313,10 @@ if(nonEmpty.length>1) return false;
 const target = nonEmpty.length===1 ? nonEmpty[0] : validCols[0];
 pushUndo();
 const s=cloneState(gs);
-if(src==='waste') s.waste.pop(); else s.tableau[col].splice(idx);
+if(src==='waste'){s.waste.pop();cards.forEach(c=>klCardScore(s,c,5));}else s.tableau[col].splice(idx);
 s.tableau[target].push(...cards);
 klAutoReveal(s);
-A.gs=s; A.moves++; addScore(10);
+A.gs=s; A.moves++;
 if(klWon(A.gs)) handleWin();
 return true;
 }
@@ -2442,7 +2459,7 @@ else if(t==='spider'){if(src==='tab'&&gs.tableau[col]?.length){const p=gs.tablea
 else if(t==='freecell'){if(src==='fc'&&gs.freecells[col])card=gs.freecells[col];else if(src==='tab'&&gs.tableau[col]?.length){const p=gs.tableau[col];card=p[p.length-1];}}
 if(!card)return;
 pushUndo();let moved=false;
-if(t==='klondike'){if(klCanFoundation(card,gs.foundations)){const s=cloneState(gs);if(src==='waste')s.waste.pop();else s.tableau[col].pop();s.foundations[card.suit].push(card);klAutoReveal(s);A.gs=s;A.moves++;addScore(src==='waste'?15:10);if(klWon(A.gs))handleWin();moved=true;}}
+if(t==='klondike'){if(klCanFoundation(card,gs.foundations)){const s=cloneState(gs);if(src==='waste'){s.waste.pop();klCardScore(s,card,5);}else s.tableau[col].pop();s.foundations[card.suit].push(card);klCardScore(s,card,KL_MAX_CARD_PTS);klAutoReveal(s);A.gs=s;A.moves++;if(klWon(A.gs))handleWin();moved=true;}}
 else if(t==='freecell'){if(fcCanFoundation(card,gs.foundations)){const s=cloneState(gs);if(src==='fc')s.freecells[col]=null;else s.tableau[col].pop();s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5);if(fcWon(A.gs))handleWin();moved=true;}}
 else if(t==='spider'){if(src==='tab'){const seqLen=spSeqLen(gs.tableau[col]);if(seqLen===13&&spCheckComplete(gs.tableau[col])){const s=cloneState(gs);const suit=s.tableau[col][s.tableau[col].length-1].suit;s.tableau[col].splice(s.tableau[col].length-13);s.foundations.push(suit);addScore(100);if(s.tableau[col].length)s.tableau[col][s.tableau[col].length-1].faceUp=true;A.gs=s;A.moves++;if(spWon(A.gs))handleWin();moved=true;}}}
 if(moved){A.sel=null;render();}else A.undoStack.pop();
@@ -2574,8 +2591,8 @@ const tc=A.toolboxCard;
 if(!klCanTableau([tc],gs.tableau[targetCol]))return false;
 pushUndo();const s=cloneState(gs);s.tableau[targetCol].push({...tc});A.toolboxCard=null;A.moves++;A.gs=s;return true;
 }
-if(targetSrc==='tab'){if(!klCanTableau(cards,gs.tableau[targetCol]))return false;pushUndo();const s=cloneState(gs);if(sel.type==='waste')s.waste.pop();else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);klAutoReveal(s);A.gs=s;A.moves++;addScore(10);if(klWon(A.gs))handleWin();return true;}
-if(targetSrc==='found'){if(cards.length>1)return false;const card=cards[0];if(!klCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='waste')s.waste.pop();else s.tableau[sel.col].pop();s.foundations[card.suit].push(card);klAutoReveal(s);A.gs=s;A.moves++;addScore(sel.type==='waste'?15:10);if(klWon(A.gs))handleWin();return true;}
+if(targetSrc==='tab'){if(!klCanTableau(cards,gs.tableau[targetCol]))return false;pushUndo();const s=cloneState(gs);if(sel.type==='waste'){s.waste.pop();cards.forEach(c=>klCardScore(s,c,5));}else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);klAutoReveal(s);A.gs=s;A.moves++;if(klWon(A.gs))handleWin();return true;}
+if(targetSrc==='found'){if(cards.length>1)return false;const card=cards[0];if(!klCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='waste'){s.waste.pop();klCardScore(s,card,5);}else s.tableau[sel.col].pop();s.foundations[card.suit].push(card);klCardScore(s,card,KL_MAX_CARD_PTS);klAutoReveal(s);A.gs=s;A.moves++;if(klWon(A.gs))handleWin();return true;}
 return false;
 }
 
