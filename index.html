@@ -81,7 +81,7 @@ text-shadow:0 0 24px var(--gold-glow);letter-spacing:.08em;line-height:1;}
 .lheart.losing{animation:heartpop .4s ease forwards;}
 @keyframes heartpop{0%{transform:scale(1.4);opacity:1;}100%{transform:scale(0);opacity:0;width:0;margin:0;}}
 .map-body{display:flex;flex-direction:row;align-items:flex-start;gap:20px;width:100%;max-width:1100px;}
-.tower-container{position:relative;width:700px;flex-shrink:0;max-width:100%;}
+.tower-container{position:relative;width:700px;flex-shrink:0;max-width:100%;overflow:hidden;}
 .tower-svg{width:100%;display:block;}
 .floors-overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;padding:26% 0 4% 0;}
 
@@ -385,7 +385,7 @@ padding:12px 10px;gap:6px;position:relative;
 .lb-time{color:#808080;font-size:15px;white-space:nowrap;}
 
 /* ── GAME LAYOUTS ── */
-.kl-wrap{display:flex;flex-direction:column;gap:12px;width:100%;}
+.kl-wrap{display:inline-flex;flex-direction:column;gap:12px;}
 .kl-top{display:flex;gap:var(--cgap,10px);align-items:flex-start;}
 .kl-stock-area{display:flex;gap:var(--cgap,10px);}
 .kl-founds{display:flex;gap:var(--cgap,10px);margin-left:auto;}
@@ -1101,16 +1101,40 @@ app.innerHTML=`<div class="intro-screen" id="intro-screen">
 function startFromIntro(){
 const screen=document.getElementById('intro-screen');
 if(screen){
-screen.style.transition='opacity 0.8s ease';
-screen.style.opacity='0';
-setTimeout(()=>{
-A.screen='map';
-render();
-},820);
+  screen.style.transition='opacity 0.8s ease';
+  screen.style.opacity='0';
+  setTimeout(()=>{A.screen='map';render();},820);
 } else {
-A.screen='map';
-render();
+  A.screen='map';render();
 }
+}
+
+function playIntroVideo(callback){
+const videos=['Intro.mp4','Intro%20V2.mp4'];
+const src=videos[Math.floor(Math.random()*videos.length)];
+const overlay=document.createElement('div');
+overlay.id='intro-video-overlay';
+overlay.style.cssText='position:fixed;inset:0;z-index:1000;background:#000;display:flex;align-items:center;justify-content:center;';
+const video=document.createElement('video');
+video.src=src;video.autoplay=true;video.playsInline=true;
+video.style.cssText='width:100%;height:100%;object-fit:contain;';
+const skipBtn=document.createElement('div');
+skipBtn.textContent='Skip \u25b6';
+skipBtn.style.cssText='position:fixed;bottom:30px;right:30px;z-index:1001;font-family:var(--pixel);font-size:16px;color:rgba(212,168,75,.5);cursor:pointer;transition:color .2s;';
+skipBtn.onmouseenter=()=>skipBtn.style.color='rgba(212,168,75,1)';
+skipBtn.onmouseleave=()=>skipBtn.style.color='rgba(212,168,75,.5)';
+let done=false;
+function finish(){
+  if(done)return;done=true;
+  overlay.style.transition='opacity 0.6s ease';overlay.style.opacity='0';
+  setTimeout(()=>{overlay.remove();callback();},600);
+}
+skipBtn.onclick=finish;
+video.onended=finish;
+video.onerror=finish;
+overlay.appendChild(video);overlay.appendChild(skipBtn);
+document.body.appendChild(overlay);
+video.play().catch(()=>finish());
 }
 
 function render(){
@@ -1152,10 +1176,6 @@ app.innerHTML=`<div class="map-wrap">
 <div class="map-title">The Solitaire Tower of Doom</div>
 <div class="map-sub">A roguelike Solitaire game by Emjayhar.</div>
 </div>
-<div class="map-keyart-wrap">
-<img class="map-keyart" src="keyart.jpg" alt="Solitaire Tower of Doom key art"/>
-<div class="map-lore"><strong>The Cult of Solitaire has arrived.</strong>The only means of escape is to face their challenge on every floor.</div>
-</div>
 <div class="map-body">
 <div class="map-side-panel">
 <div class="map-side-section">
@@ -1173,7 +1193,7 @@ ${invSlots}
 </div>
 <div class="tower-container" id="tower-container">
 <div class="tower-lightning" id="tower-lightning"></div>
-<img class="tower-svg" src="tower.jpg" alt="The Solitaire Tower of Doom" style="display:block;width:100%;image-rendering:pixelated;"/>
+<video class="tower-svg" src="toweranimated.mp4" autoplay loop muted playsinline style="display:block;width:100%;margin-top:-32%;margin-bottom:-18%;"></video>
 <div class="floors-overlay">${floorNodes}</div>
 </div>
 <div class="map-lb-panel" id="map-lb">
@@ -1925,13 +1945,109 @@ function attachEvents(){
 const ga=document.getElementById('garea');if(!ga)return;
 ga.addEventListener('click',handleClick);
 ga.addEventListener('dblclick',handleDblClick);
-ga.addEventListener('dragstart',handleDragStart);
-ga.addEventListener('dragover',handleDragOver);
-ga.addEventListener('drop',handleDrop);
-ga.addEventListener('dragend',handleDragEnd);
+// Prevent native drag ghost
+ga.addEventListener('dragstart',e=>e.preventDefault());
+// Mouse drag (desktop)
+ga.addEventListener('mousedown',handleMouseDown);
+document.addEventListener('mousemove',handleMouseMove);
+document.addEventListener('mouseup',handleMouseUp);
+// Touch drag (mobile)
 ga.addEventListener('touchstart',handleTouchStart,{passive:false});
 ga.addEventListener('touchmove',handleTouchMove,{passive:false});
 ga.addEventListener('touchend',handleTouchEnd,{passive:false});
+}
+
+// ── Shared ghost builder ───────────────────────────────
+function buildDragGhost(startEl,src,col,idx){
+const s=getS(A.gtype);
+trySelect(src,col,idx);
+if(!A.sel)return null;
+const ghost=document.createElement('div');ghost.style.cssText='position:fixed;pointer-events:none;z-index:2000;opacity:.8;';
+const dimmed=[];
+if(src==='tab'&&A.sel&&A.sel.type==='tab'){
+  // Walk up to find column container (position:relative with height)
+  let colDiv=startEl;
+  while(colDiv&&colDiv.id!=='garea'){
+    if(colDiv.style&&colDiv.style.position==='relative'&&colDiv.dataset&&colDiv.dataset.src==='tab')break;
+    colDiv=colDiv.parentElement;
+  }
+  if(colDiv&&colDiv.dataset&&colDiv.dataset.src==='tab'){
+    const cards=colDiv.querySelectorAll('.card[data-idx]');
+    const coverUp=s.coverUp||s.fcOver||s.spUp||28;
+    let stackH=0;
+    cards.forEach(cardEl=>{
+      const cidx=parseInt(cardEl.dataset.idx);
+      if(cidx>=idx){
+        const w=document.createElement('div');
+        w.style.cssText=`position:absolute;top:${stackH}px;left:0;width:${s.cw}px;`;
+        w.innerHTML=cardEl.outerHTML;
+        ghost.appendChild(w);
+        const parentWrap=cardEl.parentElement;
+        if(parentWrap)parentWrap.style.opacity='0.25';
+        dimmed.push(parentWrap||cardEl);
+        stackH+=coverUp;
+      }
+    });
+  }
+} else {
+  const cardEl=startEl.closest('.card')||startEl;
+  ghost.innerHTML=cardEl.outerHTML;
+  startEl.style.opacity='0.25';
+  dimmed.push(startEl);
+}
+document.body.appendChild(ghost);
+return {ghost,dimmed};
+}
+
+// ── Mouse drag (desktop) ───────────────────────────────
+let MOUSE={active:false,startEl:null,startX:0,startY:0,ghost:null,moved:false,src:'',col:0,idx:0,_dimmedEls:[],_highlightEl:null};
+let _dragJustCompleted=false;
+
+function handleMouseDown(e){
+if(e.button!==0)return;
+const el=e.target.closest('[data-src]');if(!el)return;
+const src=el.dataset.src;
+if(['stock','sp-stock','tp-stock','py-stock'].includes(src))return;
+const card=el.closest('.card')||el;
+if(card.classList.contains('back'))return;
+MOUSE={active:true,startEl:el,startX:e.clientX,startY:e.clientY,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
+}
+
+function handleMouseMove(e){
+if(!MOUSE.active)return;
+const dx=e.clientX-MOUSE.startX,dy=e.clientY-MOUSE.startY;
+if(!MOUSE.moved&&Math.sqrt(dx*dx+dy*dy)<8)return;
+if(!MOUSE.moved){MOUSE.moved=true;}
+e.preventDefault();
+if(!MOUSE.ghost){
+  const result=buildDragGhost(MOUSE.startEl,MOUSE.src,MOUSE.col,MOUSE.idx);
+  if(!result){MOUSE.active=false;return;}
+  MOUSE.ghost=result.ghost;MOUSE._dimmedEls=result.dimmed;
+}
+const s=getS(A.gtype);
+MOUSE.ghost.style.left=(e.clientX-s.cw/2)+'px';
+MOUSE.ghost.style.top=(e.clientY-s.ch/2)+'px';
+MOUSE.ghost.style.width=s.cw+'px';
+const dropTgt=findDropTarget(e.clientX,e.clientY);
+if(MOUSE._highlightEl&&MOUSE._highlightEl!==dropTgt){MOUSE._highlightEl.style.outline='';MOUSE._highlightEl.style.outlineOffset='';}
+if(dropTgt){dropTgt.style.outline='2px solid rgba(212,168,75,.6)';dropTgt.style.outlineOffset='-2px';MOUSE._highlightEl=dropTgt;}
+}
+
+function handleMouseUp(e){
+if(!MOUSE.active){return;}
+const wasDrag=MOUSE.moved;
+if(MOUSE.ghost){MOUSE.ghost.remove();}
+if(MOUSE._highlightEl){MOUSE._highlightEl.style.outline='';MOUSE._highlightEl.style.outlineOffset='';}
+MOUSE._dimmedEls.forEach(el=>{if(el)el.style.opacity='';});
+if(wasDrag){
+  const tgt=findDropTarget(e.clientX,e.clientY);
+  if(tgt&&A.sel){tryMoveFromSel(tgt.dataset.src,parseInt(tgt.dataset.col)||0,0);}
+  A.sel=null;
+  _dragJustCompleted=true;
+  setTimeout(()=>{_dragJustCompleted=false;},100);
+  render();
+}
+MOUSE={active:false,startEl:null,ghost:null,moved:false,_dimmedEls:[],_highlightEl:null};
 }
 
 function handleTouchStart(e){
@@ -1945,46 +2061,14 @@ function handleTouchMove(e){
 if(!TOUCH.active)return;const t=e.touches[0];const dx=t.clientX-TOUCH.startX,dy=t.clientY-TOUCH.startY;
 if(!TOUCH.moved&&Math.sqrt(dx*dx+dy*dy)<8)return;TOUCH.moved=true;e.preventDefault();
 if(!TOUCH.ghost){
-const s=getS(A.gtype);trySelect(TOUCH.src,TOUCH.col,TOUCH.idx);
-if(!A.sel){TOUCH.active=false;return;}
-const ghost=document.createElement('div');ghost.style.cssText=`position:fixed;pointer-events:none;z-index:2000;opacity:.8;`;
-// Clone stack: find all cards in this column at/after our index
-if(TOUCH.src==='tab'&&A.sel&&A.sel.type==='tab'){
-  const colContainer=TOUCH.startEl.closest('[data-src="tab"][data-col]')||TOUCH.startEl;
-  // Walk up to find the column container (the div with height/position:relative)
-  let colDiv=TOUCH.startEl;
-  while(colDiv&&!(colDiv.style&&colDiv.style.position==='relative'&&colDiv.style.height))colDiv=colDiv.parentElement;
-  if(colDiv){
-    const cards=colDiv.querySelectorAll('.card[data-idx]');
-    const coverUp=s.coverUp||28;
-    let stackH=0;
-    cards.forEach(cardEl=>{
-      const cidx=parseInt(cardEl.dataset.idx);
-      if(cidx>=TOUCH.idx){
-        const w=document.createElement('div');
-        w.style.cssText=`position:absolute;top:${stackH}px;left:0;width:${s.cw}px;`;
-        w.innerHTML=cardEl.outerHTML;
-        ghost.appendChild(w);
-        const parentWrap=cardEl.parentElement;
-        if(parentWrap)parentWrap.style.opacity='0.25';
-        TOUCH._dimmedEls.push(parentWrap||cardEl);
-        stackH+=coverUp;
-      }
-    });
-  }
-} else {
-  const cardEl=TOUCH.startEl.closest('.card')||TOUCH.startEl;
-  ghost.innerHTML=cardEl.outerHTML;
-  TOUCH.startEl.style.opacity='0.25';
-  TOUCH._dimmedEls.push(TOUCH.startEl);
-}
-document.body.appendChild(ghost);TOUCH.ghost=ghost;
+  const result=buildDragGhost(TOUCH.startEl,TOUCH.src,TOUCH.col,TOUCH.idx);
+  if(!result){TOUCH.active=false;return;}
+  TOUCH.ghost=result.ghost;TOUCH._dimmedEls=result.dimmed;
 }
 const s=getS(A.gtype);
 TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';
 TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';
 TOUCH.ghost.style.width=s.cw+'px';
-
 // Highlight nearest drop target
 const dropTgt=findDropTarget(t.clientX,t.clientY);
 if(TOUCH._highlightEl&&TOUCH._highlightEl!==dropTgt){TOUCH._highlightEl.style.outline='';TOUCH._highlightEl.style.outlineOffset='';}
@@ -1992,18 +2076,24 @@ if(dropTgt){dropTgt.style.outline='2px solid rgba(212,168,75,.6)';dropTgt.style.
 }
 
 function findDropTarget(x,y){
+// Determine which drag is active
+const startEl=MOUSE.active?MOUSE.startEl:TOUCH.startEl;
+const ghost=MOUSE.active?MOUSE.ghost:TOUCH.ghost;
 // First try exact hit
 const els=document.elementsFromPoint(x,y);
-for(const el of els){const d=el.closest('[data-src]');if(d&&d!==TOUCH.startEl&&!TOUCH.ghost.contains(d))return d;}
+for(const el of els){
+  const d=el.closest('[data-src]');
+  if(d&&d!==startEl&&(!ghost||!ghost.contains(d)))return d;
+}
 // Proximity: find closest column/slot within 80px
 const garea=document.getElementById('garea');if(!garea)return null;
 const targets=garea.querySelectorAll('[data-src="tab"],[data-src="found"],[data-src="fc"],[data-src="toolbox"]');
 let best=null,bestDist=80;
 targets.forEach(el=>{
+  if(el===startEl)return;
   const r=el.getBoundingClientRect();
   const cx=r.left+r.width/2,cy=r.top+r.height/2;
   const dist=Math.sqrt((x-cx)**2+(y-cy)**2);
-  // For tall tableau columns, just check horizontal distance and vertical overlap
   const inYRange=y>=r.top-20&&y<=r.bottom+40;
   const xDist=Math.abs(x-cx);
   const score=inYRange?xDist:dist;
@@ -2025,6 +2115,7 @@ TOUCH={active:false,startEl:null,ghost:null,moved:false,_dimmedEls:[],_highlight
 }
 
 function handleClick(e){
+if(_dragJustCompleted)return;
 const el=e.target.closest('[data-src]');if(!el)return;
 // Item mode intercepts first
 if(A.itemMode){if(handleItemModeClick(el))return;}
@@ -2493,7 +2584,8 @@ else if(type==='tripeaks')A.gs=initTripeaks(floor);
 else if(type==='pyramid')A.gs=initPyramid(floor);
 else if(type==='freecell')A.gs=initFreecell(floor);
 if(A.timerElapsed>0&&!A.timerRunning){A.timerStart=Date.now()-A.timerElapsed;A.timerRunning=true;}
-A.screen='game';render();
+// Play intro video then start the game
+playIntroVideo(()=>{A.screen='game';render();});
 }
 
 function handleWin(){A.winOverlay=true;}
