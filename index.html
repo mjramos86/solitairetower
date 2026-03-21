@@ -1211,9 +1211,9 @@ function startTowerAtmosphere(){
   if(!tower)return;
   const towerW=tower.offsetWidth;
   const towerH=tower.offsetHeight;
-  // Building in tower.jpg: body starts ~32% from top, bottom at ~93%
-  // Narrows toward the top due to perspective: ~35%-65% at top, ~20%-80% at bottom
-  const bldgTopY=towerH*0.32, bldgBotY=towerH*0.93;
+  // Building in tower.jpg: roof at ~42% from top, base at ~93%
+  // Narrows sharply toward top: ~42%-58% at top, ~25%-75% at bottom
+  const bldgTopY=towerH*0.42, bldgBotY=towerH*0.93;
   const bldgH=bldgBotY-bldgTopY;
   // Current floor Y position (floor 0=top of building, floor 9=bottom)
   const floorFrac=(A.floor+0.5)/10;
@@ -1234,8 +1234,8 @@ function startTowerAtmosphere(){
     }
     // X range narrows toward top (perspective): lerp between narrow top and wide bottom
     const yFrac=(y-bldgTopY)/bldgH;
-    const leftEdge=towerW*(0.35-yFrac*0.12);
-    const rightEdge=towerW*(0.65+yFrac*0.12);
+    const leftEdge=towerW*(0.42-yFrac*0.17);
+    const rightEdge=towerW*(0.58+yFrac*0.17);
     const x=leftEdge+Math.random()*(rightEdge-leftEdge);
     light.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
     const durVal=(1.5+Math.random()*3).toFixed(1);
@@ -1450,7 +1450,18 @@ function renderKlondike(gs,s){
 const {tableau,stock,waste,foundations}=gs;const {cw,ch,cgap,coverDown,coverUp}=s;
 const isSel=(type,col,idx)=>A.sel&&A.sel.type===type&&A.sel.col===col&&(type==='tab'?idx>=A.sel.idx:A.sel.idx===idx);
 const mkCard=(card,cls,attrs='')=>{const cc=isRed(card.suit)?'red':'blk';return`<div class="card ${cc} ${cls}" data-ckey="${card.suit}-${card.rank}" ${attrs}><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div>`;};
-const stockH=stock.length?`<div class="card back" data-src="stock" style="cursor:pointer"></div>`:emptyH('','↺');
+// Stock: show stacked cards to indicate depth
+let stockH='';
+if(stock.length){
+  const layers=Math.min(6,Math.ceil(stock.length/4));
+  let stackHTML='';
+  for(let i=0;i<layers;i++){
+    const off=i*2;
+    stackHTML+=`<div class="card back" style="position:absolute;top:${-off}px;left:${off}px;z-index:${i};" ${i===layers-1?'data-src="stock"':''} ></div>`;
+  }
+  stockHTML=`<div style="position:relative;width:${cw}px;height:${ch}px;cursor:pointer" data-src="stock">${stackHTML}<div style="position:absolute;bottom:2px;right:3px;font-family:var(--pixel);font-size:10px;color:rgba(255,255,255,.7);z-index:10;text-shadow:0 0 3px #000">${stock.length}</div></div>`;
+  stockH=stockHTML;
+} else { stockH=emptyH('','↺'); }
 const wasteTop=waste.length?waste[waste.length-1]:null;
 const wasteDom=wasteTop?mkCard(wasteTop,isSel('waste',-1,-1)?'sel':'',`data-src="waste" data-col="-1" data-idx="-1" draggable="true"`):emptyH();
 const foundH=foundations.map((f,i)=>{const top=f.length?f[f.length-1]:null;if(top){const selCls=(A.sel&&A.sel.type==='found'&&A.sel.col===i)?'sel':'';return mkCard(top,selCls,`data-src="found" data-col="${i}" draggable="true"`);}return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;}).join('');
