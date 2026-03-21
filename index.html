@@ -56,6 +56,13 @@
 body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden;}
 #app{width:100vw;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 
+/* Music toggle */
+#music-toggle{position:fixed;bottom:12px;right:12px;z-index:600;width:36px;height:36px;
+  background:rgba(10,6,22,.85);border:2px solid;border-color:rgba(212,168,75,.4) rgba(212,168,75,.15) rgba(212,168,75,.15) rgba(212,168,75,.4);
+  border-radius:4px;cursor:pointer;font-size:18px;line-height:32px;text-align:center;
+  color:var(--gold-dim);transition:opacity .2s,background .2s;opacity:.6;}
+#music-toggle:hover{opacity:1;background:rgba(20,12,40,.95);}
+
 /* ── MAP ── */
 .map-wrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;
 background:#050508;padding:16px 16px 32px;
@@ -1108,13 +1115,14 @@ render();
 
 function render(){
 const app=document.getElementById('app');
-if(A.screen==='intro'){renderIntro(app);return;}
-if(A.screen==='map'){if(A.timerRunning)stopTimer();renderMap(app);return;}
+if(A.screen==='intro'){stopMusic();renderIntro(app);return;}
+if(A.screen==='map'){playMusic('map');if(A.timerRunning)stopTimer();renderMap(app);return;}
 if(A.screen!=='map')stopAmbientAudio();
-if(A.screen==='shop'){renderShop(app);return;}
-if(A.screen==='gameover'){renderNameEntry(app,false);return;}
-if(A.screen==='victory'){renderNameEntry(app,true);return;}
+if(A.screen==='shop'){stopMusic();renderShop(app);return;}
+if(A.screen==='gameover'){stopMusic();renderNameEntry(app,false);return;}
+if(A.screen==='victory'){stopMusic();renderNameEntry(app,true);return;}
 const s=getS(A.gtype);applyS(s);
+playMusic(A.gtype);
 snapCards();renderGame(app,s);
 requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
 if(A.pickerOverlay)renderPickerOverlay();
@@ -1255,36 +1263,16 @@ function startTowerAtmosphere(){
   startAmbientAudio();
 }
 
-// ── AMBIENT AUDIO (Web Audio API) ──────────────────────────
-let _ambientCtx=null, _rainNode=null, _rainGain=null;
+// ── AMBIENT AUDIO (Web Audio API - thunder only) ──────────
+let _ambientCtx=null;
 function startAmbientAudio(){
-  if(_ambientCtx)return; // already running
+  if(_ambientCtx)return;
   try{
     _ambientCtx=new (window.AudioContext||window.webkitAudioContext)();
   }catch(e){return;}
-  // Rain: brown noise through a bandpass filter
-  const bufSize=4096;
-  const rain=_ambientCtx.createScriptProcessor(bufSize,1,1);
-  let lastOut=0;
-  rain.onaudioprocess=function(e){
-    const out=e.outputBuffer.getChannelData(0);
-    for(let i=0;i<bufSize;i++){
-      const white=Math.random()*2-1;
-      lastOut=(lastOut+0.02*white)/1.02;
-      out[i]=lastOut*3.5;
-    }
-  };
-  const filter=_ambientCtx.createBiquadFilter();
-  filter.type='bandpass';filter.frequency.value=800;filter.Q.value=0.5;
-  _rainGain=_ambientCtx.createGain();
-  _rainGain.gain.value=0.15;
-  rain.connect(filter);filter.connect(_rainGain);_rainGain.connect(_ambientCtx.destination);
-  _rainNode=rain;
 }
 
 function stopAmbientAudio(){
-  if(_rainNode){_rainNode.disconnect();_rainNode=null;}
-  if(_rainGain){_rainGain.disconnect();_rainGain=null;}
   if(_ambientCtx){_ambientCtx.close().catch(()=>{});_ambientCtx=null;}
 }
 
@@ -1306,12 +1294,59 @@ function playThunder(){
     const gain=_ambientCtx.createGain();
     const now=_ambientCtx.currentTime;
     gain.gain.setValueAtTime(0,now);
-    gain.gain.linearRampToValueAtTime(0.25+Math.random()*0.15,now+0.05);
+    gain.gain.linearRampToValueAtTime(0.45+Math.random()*0.2,now+0.05);
     gain.gain.exponentialRampToValueAtTime(0.01,now+dur);
     noise.connect(filt);osc.connect(filt);filt.connect(gain);gain.connect(_ambientCtx.destination);
     noise.start(now);osc.start(now);
     noise.stop(now+dur);osc.stop(now+dur);
   }catch(e){}
+}
+
+// ── BACKGROUND MUSIC SYSTEM ────────────────────────────────
+const MUSIC_TRACKS={
+  klondike:'music/Fluorescent_Nocturne.mp3',
+  spider:'music/The_Spider_s_Waltz.mp3',
+  tripeaks:'music/Bone_Altar_Hymn.mp3',
+  pyramid:'music/Pharaoh_s_Dirge.mp3',
+  freecell:'music/The_Unveiling_of_the_Golden_Staff.mp3',
+  map:'music/Umbral_Rites.mp3',
+};
+let _bgMusic=null, _bgMusicTrack=null;
+
+function playMusic(trackKey){
+  if(_musicMuted)return;
+  const src=MUSIC_TRACKS[trackKey];
+  if(!src){stopMusic();return;}
+  // Already playing this track
+  if(_bgMusic&&_bgMusicTrack===trackKey&&!_bgMusic.paused)return;
+  stopMusic();
+  const audio=new Audio(src);
+  audio.loop=true;
+  audio.volume=0;
+  audio.play().then(()=>{
+    // Fade in
+    let vol=0;
+    const fadeIn=setInterval(()=>{
+      vol=Math.min(1,vol+0.05);
+      audio.volume=vol*(trackKey==='map'?0.15:0.35); // map quieter for thunder SFX
+      if(vol>=1)clearInterval(fadeIn);
+    },50);
+  }).catch(()=>{});
+  _bgMusic=audio;
+  _bgMusicTrack=trackKey;
+}
+
+function stopMusic(){
+  if(!_bgMusic)return;
+  const audio=_bgMusic;
+  _bgMusic=null;_bgMusicTrack=null;
+  // Fade out
+  let vol=audio.volume;
+  const fadeOut=setInterval(()=>{
+    vol=Math.max(0,vol-0.02);
+    audio.volume=vol;
+    if(vol<=0){clearInterval(fadeOut);audio.pause();audio.src='';}
+  },30);
 }
 
 function renderMapBoard(el,board){
@@ -1462,8 +1497,22 @@ if(stock.length){
   stockHTML=`<div style="position:relative;width:${cw}px;height:${ch}px;cursor:pointer" data-src="stock">${stackHTML}<div style="position:absolute;bottom:2px;right:3px;font-family:var(--pixel);font-size:10px;color:rgba(255,255,255,.7);z-index:10;text-shadow:0 0 3px #000">${stock.length}</div></div>`;
   stockH=stockHTML;
 } else { stockH=emptyH('','↺'); }
-const wasteTop=waste.length?waste[waste.length-1]:null;
-const wasteDom=wasteTop?mkCard(wasteTop,isSel('waste',-1,-1)?'sel':'',`data-src="waste" data-col="-1" data-idx="-1" draggable="true"`):emptyH();
+// Waste: fan up to 3 cards like classic Windows Solitaire
+let wasteDom='';
+if(waste.length){
+  const show=waste.slice(-3);
+  const fan=Math.min(show.length,3);
+  const offset=Math.round(cw*0.22);
+  let wasteHTML='';
+  for(let i=0;i<fan;i++){
+    const card=show[i];
+    const isTop=i===fan-1;
+    const selCls=isTop&&isSel('waste',-1,-1)?'sel':'';
+    const attrs=isTop?`data-src="waste" data-col="-1" data-idx="-1" draggable="true"`:'';
+    wasteHTML+=`<div style="position:absolute;left:${i*offset}px;top:0;z-index:${i};">${mkCard(card,selCls,attrs)}</div>`;
+  }
+  wasteDom=`<div style="position:relative;width:${cw+(fan-1)*offset}px;height:${ch}px;">${wasteHTML}</div>`;
+} else { wasteDom=emptyH(); }
 const foundH=foundations.map((f,i)=>{const top=f.length?f[f.length-1]:null;if(top){const selCls=(A.sel&&A.sel.type==='found'&&A.sel.col===i)?'sel':'';return mkCard(top,selCls,`data-src="found" data-col="${i}" draggable="true"`);}return`<div class="empty-slot" data-src="found" data-col="${i}">${SYM[i]}</div>`;}).join('');
 let tabH='';
 for(let c=0;c<7;c++){
@@ -1890,7 +1939,7 @@ const el=e.target.closest('[data-src]');if(!el)return;
 const src=el.dataset.src;
 if(['stock','sp-stock','tp-stock','py-stock'].includes(src))return;
 const t=e.touches[0];
-TOUCH={active:true,startEl:el,startX:t.clientX,startY:t.clientY,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0};
+TOUCH={active:true,startEl:el,startX:t.clientX,startY:t.clientY,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
 }
 function handleTouchMove(e){
 if(!TOUCH.active)return;const t=e.touches[0];const dx=t.clientX-TOUCH.startX,dy=t.clientY-TOUCH.startY;
@@ -1898,19 +1947,81 @@ if(!TOUCH.moved&&Math.sqrt(dx*dx+dy*dy)<8)return;TOUCH.moved=true;e.preventDefau
 if(!TOUCH.ghost){
 const s=getS(A.gtype);trySelect(TOUCH.src,TOUCH.col,TOUCH.idx);
 if(!A.sel){TOUCH.active=false;return;}
-const ghost=document.createElement('div');ghost.style.cssText=`position:fixed;pointer-events:none;z-index:2000;opacity:.75;`;
-const cardEl=TOUCH.startEl.closest('.card')||TOUCH.startEl.querySelector('.card')||TOUCH.startEl;
-ghost.innerHTML=cardEl.outerHTML;document.body.appendChild(ghost);TOUCH.ghost=ghost;TOUCH.startEl.style.opacity='0.3';
+const ghost=document.createElement('div');ghost.style.cssText=`position:fixed;pointer-events:none;z-index:2000;opacity:.8;`;
+// Clone stack: find all cards in this column at/after our index
+if(TOUCH.src==='tab'&&A.sel&&A.sel.type==='tab'){
+  const colContainer=TOUCH.startEl.closest('[data-src="tab"][data-col]')||TOUCH.startEl;
+  // Walk up to find the column container (the div with height/position:relative)
+  let colDiv=TOUCH.startEl;
+  while(colDiv&&!(colDiv.style&&colDiv.style.position==='relative'&&colDiv.style.height))colDiv=colDiv.parentElement;
+  if(colDiv){
+    const cards=colDiv.querySelectorAll('.card[data-idx]');
+    const coverUp=s.coverUp||28;
+    let stackH=0;
+    cards.forEach(cardEl=>{
+      const cidx=parseInt(cardEl.dataset.idx);
+      if(cidx>=TOUCH.idx){
+        const w=document.createElement('div');
+        w.style.cssText=`position:absolute;top:${stackH}px;left:0;width:${s.cw}px;`;
+        w.innerHTML=cardEl.outerHTML;
+        ghost.appendChild(w);
+        const parentWrap=cardEl.parentElement;
+        if(parentWrap)parentWrap.style.opacity='0.25';
+        TOUCH._dimmedEls.push(parentWrap||cardEl);
+        stackH+=coverUp;
+      }
+    });
+  }
+} else {
+  const cardEl=TOUCH.startEl.closest('.card')||TOUCH.startEl;
+  ghost.innerHTML=cardEl.outerHTML;
+  TOUCH.startEl.style.opacity='0.25';
+  TOUCH._dimmedEls.push(TOUCH.startEl);
 }
-const s=getS(A.gtype);TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';TOUCH.ghost.style.width=s.cw+'px';TOUCH.ghost.style.height=s.ch+'px';
+document.body.appendChild(ghost);TOUCH.ghost=ghost;
 }
+const s=getS(A.gtype);
+TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';
+TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';
+TOUCH.ghost.style.width=s.cw+'px';
+
+// Highlight nearest drop target
+const dropTgt=findDropTarget(t.clientX,t.clientY);
+if(TOUCH._highlightEl&&TOUCH._highlightEl!==dropTgt){TOUCH._highlightEl.style.outline='';TOUCH._highlightEl.style.outlineOffset='';}
+if(dropTgt){dropTgt.style.outline='2px solid rgba(212,168,75,.6)';dropTgt.style.outlineOffset='-2px';TOUCH._highlightEl=dropTgt;}
+}
+
+function findDropTarget(x,y){
+// First try exact hit
+const els=document.elementsFromPoint(x,y);
+for(const el of els){const d=el.closest('[data-src]');if(d&&d!==TOUCH.startEl&&!TOUCH.ghost.contains(d))return d;}
+// Proximity: find closest column/slot within 80px
+const garea=document.getElementById('garea');if(!garea)return null;
+const targets=garea.querySelectorAll('[data-src="tab"],[data-src="found"],[data-src="fc"],[data-src="toolbox"]');
+let best=null,bestDist=80;
+targets.forEach(el=>{
+  const r=el.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2;
+  const dist=Math.sqrt((x-cx)**2+(y-cy)**2);
+  // For tall tableau columns, just check horizontal distance and vertical overlap
+  const inYRange=y>=r.top-20&&y<=r.bottom+40;
+  const xDist=Math.abs(x-cx);
+  const score=inYRange?xDist:dist;
+  if(score<bestDist){bestDist=score;best=el;}
+});
+return best;
+}
+
 function handleTouchEnd(e){
-if(!TOUCH.active)return;if(TOUCH.ghost){TOUCH.ghost.remove();TOUCH.ghost=null;}if(TOUCH.startEl)TOUCH.startEl.style.opacity='';
+if(!TOUCH.active)return;
+if(TOUCH.ghost){TOUCH.ghost.remove();TOUCH.ghost=null;}
+if(TOUCH._highlightEl){TOUCH._highlightEl.style.outline='';TOUCH._highlightEl.style.outlineOffset='';TOUCH._highlightEl=null;}
+TOUCH._dimmedEls.forEach(el=>{if(el)el.style.opacity='';});
 if(!TOUCH.moved){TOUCH.active=false;return;}
-const t=e.changedTouches[0];const els=document.elementsFromPoint(t.clientX,t.clientY);let tgt=null;
-for(const el of els){const d=el.closest('[data-src]');if(d&&d!==TOUCH.startEl){tgt=d;break;}}
+const t=e.changedTouches[0];
+const tgt=findDropTarget(t.clientX,t.clientY);
 if(tgt&&A.sel){tryMoveFromSel(tgt.dataset.src,parseInt(tgt.dataset.col)||0,0);A.sel=null;}else{A.sel=null;}
-TOUCH={active:false,startEl:null,ghost:null,moved:false};render();
+TOUCH={active:false,startEl:null,ghost:null,moved:false,_dimmedEls:[],_highlightEl:null};render();
 }
 
 function handleClick(e){
@@ -2540,7 +2651,20 @@ window.startGame=startGame;window.undoMove=undoMove;window.newShuffle=newShuffle
 window.nextFloor=nextFloor;window.init=init;window.submitScore=submitScore;
 window.togglePause=togglePause;window.buyItem=buyItem;window.leaveShop=leaveShop;
 window.activateItem=activateItem;window.cancelItemMode=cancelItemMode;
-</script>
 
+// ── MUSIC MUTE TOGGLE ──────────────────────────────────────
+let _musicMuted=localStorage.getItem('musicMuted')==='1';
+function toggleMusicMute(){
+  _musicMuted=!_musicMuted;
+  localStorage.setItem('musicMuted',_musicMuted?'1':'0');
+  const btn=document.getElementById('music-toggle');
+  if(btn)btn.textContent=_musicMuted?'🔇':'🔊';
+  if(_musicMuted){stopMusic();}else{if(A.screen==='map')playMusic('map');else if(A.screen==='game')playMusic(A.gtype);}
+}
+window.toggleMusicMute=toggleMusicMute;
+// Apply initial mute state on load
+window.addEventListener('DOMContentLoaded',()=>{const btn=document.getElementById('music-toggle');if(btn&&_musicMuted)btn.textContent='🔇';});
+</script>
+<div id="music-toggle" title="Toggle Music" onclick="toggleMusicMute()">🔊</div>
 </body>
 </html>
