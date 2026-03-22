@@ -64,6 +64,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   animation:scoreFloat 1.2s ease-out forwards;opacity:0;}
 .score-float.pos{color:#4dff91;}
 .score-float.neg{color:#ff4d4d;}
+.score-float.wide{letter-spacing:0.12em;}
 @keyframes scoreFloat{0%{opacity:1;transform:translate(-50%,-50%) scale(1);}
   55%{opacity:1;transform:translate(-50%,-65%) scale(1.12);}
   100%{opacity:0;transform:translate(-50%,-80%) scale(.85);}}
@@ -2883,7 +2884,7 @@ function addScore(n,reason=''){
     if(!A.scoreLog)A.scoreLog=[];
     A.scoreLog.push({amount:n,reason:reason||'score',floor:A.floor,gtype:A.gtype,total:A.score});
     const el=document.createElement('div');
-    el.className='score-float '+(n>0?'pos':'neg');
+    el.className='score-float '+(n>0?'pos':'neg')+(Math.abs(n)>=100?' wide':'');
     el.textContent=(n>0?'+':'')+n;
     document.body.appendChild(el);
     setTimeout(()=>el.remove(),1200);
