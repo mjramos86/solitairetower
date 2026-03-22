@@ -58,14 +58,27 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 /* Floating score popup */
 .score-float{position:fixed;pointer-events:none;z-index:900;
-  font-family:var(--pixel);font-weight:bold;font-size:18px;
-  text-shadow:0 0 8px currentColor,0 1px 2px rgba(0,0,0,.8);
-  animation:scoreFloat .9s ease-out forwards;opacity:0;}
+  font-family:var(--pixel);font-weight:bold;font-size:360px;white-space:nowrap;
+  text-shadow:0 0 60px currentColor,0 4px 16px rgba(0,0,0,.9);
+  left:50%;top:45%;
+  animation:scoreFloat 1.2s ease-out forwards;opacity:0;}
 .score-float.pos{color:#4dff91;}
 .score-float.neg{color:#ff4d4d;}
-@keyframes scoreFloat{0%{opacity:1;transform:translateY(0) scale(1);}
-  60%{opacity:1;transform:translateY(-30px) scale(1.1);}
-  100%{opacity:0;transform:translateY(-50px) scale(.9);}}
+@keyframes scoreFloat{0%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  55%{opacity:1;transform:translate(-50%,-65%) scale(1.12);}
+  100%{opacity:0;transform:translate(-50%,-80%) scale(.85);}}
+
+/* Score history overlay */
+.score-hist-overlay{position:fixed;inset:0;z-index:960;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;}
+.score-hist-panel{background:var(--w95-bg);border:2px solid;border-color:var(--w95-white) var(--w95-dark) var(--w95-dark) var(--w95-white);max-width:460px;width:92%;max-height:80vh;display:flex;flex-direction:column;font-family:var(--pixel);}
+.score-hist-title{background:var(--w95-blue,#000080);color:#fff;font-size:14px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center;}
+.score-hist-close{background:var(--w95-bg);border:2px solid;border-color:var(--w95-white) var(--w95-dark) var(--w95-dark) var(--w95-white);cursor:pointer;font-weight:bold;padding:0 6px;line-height:1.4;}
+.score-hist-body{overflow-y:auto;flex:1;min-height:0;padding:6px 8px;font-size:12px;}
+.score-hist-row{display:flex;justify-content:space-between;padding:2px 4px;border-bottom:1px solid var(--w95-dark,#808080);gap:8px;}
+.score-hist-row.pos span:last-child{color:#006600;}
+.score-hist-row.neg span:last-child{color:#cc0000;}
+.score-hist-total{padding:4px 8px;font-weight:bold;border-top:2px solid var(--w95-dark);}
+.score-hist-footer{padding:6px 8px;border-top:1px solid var(--w95-dark);display:flex;gap:6px;flex-wrap:wrap;}
 
 /* CRT glitch overlay */
 .crt-glitch-overlay{position:fixed;inset:0;z-index:800;pointer-events:none;overflow:hidden;}
@@ -665,7 +678,7 @@ const ICONS={klondike:'🂡',spider:'🕷',tripeaks:'⛰',pyramid:'△',freecell
 let A={
 lives:3,floor:0,choices:[],done:new Set(),screen:'map',
 gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
-score:0,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
+score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
 // Shop / gold / inventory
 gold:0,inventory:[],
 shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
@@ -771,7 +784,7 @@ function klCardScore(gs,card,pts){
   const key=klCardKey(card);
   const earned=gs.cardPoints[key]||0;
   const give=Math.min(pts,KL_MAX_CARD_PTS-earned);
-  if(give>0){gs.cardPoints[key]=earned+give;addScore(give);}
+  if(give>0){gs.cardPoints[key]=earned+give;addScore(give,'card points');}
   return give;
 }
 function klTotalCardPoints(gs){if(!gs||!gs.cardPoints)return 0;return Object.values(gs.cardPoints).reduce((a,b)=>a+b,0);}
@@ -794,7 +807,7 @@ function spDeal(gs){
 if(!gs.stockGroups.length)return gs;if(gs.tableau.some(c=>!c.length))return gs;
 const s=cloneState(gs);const group=s.stockGroups.shift();
 group.forEach((card,i)=>{card.faceUp=true;s.tableau[i].push(card);});
-for(let c=0;c<10;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(suit);addScore(100);}}
+for(let c=0;c<10;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(suit);addScore(100,'suit completed');}}
 return s;
 }
 function spWon(gs){return gs.foundations.length>=8;}
@@ -1541,7 +1554,7 @@ app.innerHTML=`<div class="game-screen"> <div class="win95-window"> <div class="
     <div class="win95-status-pane">Floor ${10-A.floor} of 10</div>
     <div class="win95-status-pane">${ICONS[t]} ${NAMES[t]}</div>
     <div class="win95-status-pane">♥ ${A.lives}</div>
-    <div class="win95-status-pane" id="score-pane">★ ${A.score.toLocaleString()} pts</div>
+    <div class="win95-status-pane" id="score-pane" onclick="showScoreHistory()" style="cursor:pointer" title="Click to view score history">★ ${A.score.toLocaleString()} pts</div>
     <div class="win95-status-pane" id="timer-pane">⏱ ${fmtTime(getElapsed())}</div>
     <div class="win95-status-pane" style="margin-left:auto">Solitaire Tower of Doom v2.0</div>
   </div>
@@ -1549,7 +1562,8 @@ app.innerHTML=`<div class="game-screen"> <div class="win95-window"> <div class="
 
   </div>
   ${A.winOverlay?winOverlayHTML():''}
-  ${A.paused?pauseOverlayHTML():''}`;
+  ${A.paused?pauseOverlayHTML():''}
+  ${A.scoreHistOverlay?scoreHistOverlayHTML():''}`;
   attachEvents();
 }
 
@@ -1839,11 +1853,11 @@ case 'ace-to-found':{ // Stapler
 let found=false;pushUndo();
 const s=cloneState(gs);
 if(t==='klondike'){
-for(let c=0;c<7&&!found;c++){const pile=s.tableau[c];const top=pile[pile.length-1];if(top&&top.faceUp&&top.rank===1&&klCanFoundation(top,s.foundations)){pile.pop();s.foundations[top.suit].push(top);klAutoReveal(s);addScore(15);found=true;}}
-if(!found&&s.waste.length&&s.waste[s.waste.length-1].rank===1){const card=s.waste.pop();s.foundations[card.suit].push(card);addScore(15);found=true;}
+for(let c=0;c<7&&!found;c++){const pile=s.tableau[c];const top=pile[pile.length-1];if(top&&top.faceUp&&top.rank===1&&klCanFoundation(top,s.foundations)){pile.pop();s.foundations[top.suit].push(top);klAutoReveal(s);addScore(15,'ace to foundation');found=true;}}
+if(!found&&s.waste.length&&s.waste[s.waste.length-1].rank===1){const card=s.waste.pop();s.foundations[card.suit].push(card);addScore(15,'ace to foundation');found=true;}
 } else if(t==='freecell'){
-for(let c=0;c<8&&!found;c++){const pile=s.tableau[c];const top=pile[pile.length-1];if(top&&top.rank===1&&fcCanFoundation(top,s.foundations)){pile.pop();s.foundations[top.suit].push(top);addScore(5);found=true;}}
-for(let c=0;c<s.freecells.length&&!found;c++){const card=s.freecells[c];if(card&&card.rank===1&&fcCanFoundation(card,s.foundations)){s.freecells[c]=null;s.foundations[card.suit].push(card);addScore(5);found=true;}}
+for(let c=0;c<8&&!found;c++){const pile=s.tableau[c];const top=pile[pile.length-1];if(top&&top.rank===1&&fcCanFoundation(top,s.foundations)){pile.pop();s.foundations[top.suit].push(top);addScore(5,'ace to foundation');found=true;}}
+for(let c=0;c<s.freecells.length&&!found;c++){const card=s.freecells[c];if(card&&card.rank===1&&fcCanFoundation(card,s.foundations)){s.freecells[c]=null;s.foundations[card.suit].push(card);addScore(5,'ace to foundation');found=true;}}
 }
 if(found){A.gs=s;consumeItem(invIdx);checkWin();}else{A.undoStack.pop();showToast('No Ace available!');}
 render();break;}
@@ -2224,7 +2238,7 @@ pushUndo();const gs=A.gs;const wasteTop=gs.waste.length?gs.waste[gs.waste.length
 if(tpFree(gs.pyramid,idx)&&tpCanPlay(card,wasteTop)){
 const srcEl=document.querySelector(`[data-src="pycard"][data-idx="${idx}"]`);const srcRect=srcEl?srcEl.getBoundingClientRect():null;const cardInner=srcEl?srcEl.innerHTML:'';const cardCls=isRed(card.suit)?'red':'blk';
 const s=cloneState(gs);s.waste.push({...s.pyramid[idx],faceUp:true});s.pyramid[idx]=null;tpUpdateFaceUp(s.pyramid);A.gs=s;A.moves++;
-A.tpStreak=(A.tpStreak||0)+1;addScore(A.tpStreak);if(idx<3)addScore(15);
+A.tpStreak=(A.tpStreak||0)+1;addScore(A.tpStreak,'streak x'+A.tpStreak);if(idx<3)addScore(15,'top card bonus');
 _skipNextAnim=true;render();
 if(srcRect){const wasteSlot=document.getElementById('tp-waste-slot');const destRect=wasteSlot?wasteSlot.getBoundingClientRect():null;if(destRect){const d=document.createElement('div');d.className=`card ${cardCls} fly-card`;d.innerHTML=cardInner;d.style.left=srcRect.left+'px';d.style.top=srcRect.top+'px';d.style.width=srcRect.width+'px';d.style.height=srcRect.height+'px';document.body.appendChild(d);requestAnimationFrame(()=>requestAnimationFrame(()=>{d.style.left=destRect.left+'px';d.style.top=destRect.top+'px';d.style.width=destRect.width+'px';d.style.height=destRect.height+'px';}));setTimeout(()=>d.remove(),320);}}
 if(tpWon(A.gs))handleWin();
@@ -2374,7 +2388,7 @@ s.tableau[target].push(...moved);
 if(s.tableau[col].length) s.tableau[col][s.tableau[col].length-1].faceUp=true;
 for(let c=0;c<s.tableau.length;c++){
 const csuit=spCheckComplete(s.tableau[c]);
-if(csuit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(csuit);addScore(100);}
+if(csuit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(csuit);addScore(100,'suit completed');}
 }
 A.gs=s; A.moves++;
 if(spWon(A.gs)) handleWin();
@@ -2404,7 +2418,7 @@ if(cards.length===1 && fcCanFoundation(card,gs.foundations)){
 pushUndo(); const s=cloneState(gs);
 if(src==='fc') s.freecells[col]=null; else s.tableau[col].splice(idx);
 s.foundations[card.suit].push(card);
-A.gs=s; A.moves++; addScore(5);
+A.gs=s; A.moves++; addScore(5,'card to foundation');
 if(fcWon(A.gs)) handleWin();
 return true;
 }
@@ -2460,8 +2474,8 @@ else if(t==='freecell'){if(src==='fc'&&gs.freecells[col])card=gs.freecells[col];
 if(!card)return;
 pushUndo();let moved=false;
 if(t==='klondike'){if(klCanFoundation(card,gs.foundations)){const s=cloneState(gs);if(src==='waste'){s.waste.pop();klCardScore(s,card,5);}else s.tableau[col].pop();s.foundations[card.suit].push(card);klCardScore(s,card,KL_MAX_CARD_PTS);klAutoReveal(s);A.gs=s;A.moves++;if(klWon(A.gs))handleWin();moved=true;}}
-else if(t==='freecell'){if(fcCanFoundation(card,gs.foundations)){const s=cloneState(gs);if(src==='fc')s.freecells[col]=null;else s.tableau[col].pop();s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5);if(fcWon(A.gs))handleWin();moved=true;}}
-else if(t==='spider'){if(src==='tab'){const seqLen=spSeqLen(gs.tableau[col]);if(seqLen===13&&spCheckComplete(gs.tableau[col])){const s=cloneState(gs);const suit=s.tableau[col][s.tableau[col].length-1].suit;s.tableau[col].splice(s.tableau[col].length-13);s.foundations.push(suit);addScore(100);if(s.tableau[col].length)s.tableau[col][s.tableau[col].length-1].faceUp=true;A.gs=s;A.moves++;if(spWon(A.gs))handleWin();moved=true;}}}
+else if(t==='freecell'){if(fcCanFoundation(card,gs.foundations)){const s=cloneState(gs);if(src==='fc')s.freecells[col]=null;else s.tableau[col].pop();s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5,'card to foundation');if(fcWon(A.gs))handleWin();moved=true;}}
+else if(t==='spider'){if(src==='tab'){const seqLen=spSeqLen(gs.tableau[col]);if(seqLen===13&&spCheckComplete(gs.tableau[col])){const s=cloneState(gs);const suit=s.tableau[col][s.tableau[col].length-1].suit;s.tableau[col].splice(s.tableau[col].length-13);s.foundations.push(suit);addScore(100,'suit completed');if(s.tableau[col].length)s.tableau[col][s.tableau[col].length-1].faceUp=true;A.gs=s;A.moves++;if(spWon(A.gs))handleWin();moved=true;}}}
 if(moved){A.sel=null;render();}else A.undoStack.pop();
 }
 
@@ -2480,7 +2494,7 @@ if(A.sel&&A.sel.type==='pycard'){
 const pyrCard=gs.pyramid[A.sel.idx];
 if(pyrCard&&wasteCard.rank+pyrCard.rank===13&&!pyBlocked(gs.pyramid,getRowCol(A.sel.idx).r,getRowCol(A.sel.idx).c)){
 const cap=captureRect(A.sel.idx);const wasteEl=document.querySelector(`[data-src="${wasteSrcStr}"]`);const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
-pushUndo();const s=cloneState(gs);s.waste.splice(wasteArrayIdx,1);s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return true;
+pushUndo();const s=cloneState(gs);s.waste.splice(wasteArrayIdx,1);s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10,'pair matched');updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return true;
 }
 }
 return false;
@@ -2497,7 +2511,7 @@ const clickedCard=gs.waste[wasteIdx];
 if(clickedCard&&clickedCard.rank===13){
 const wasteEl=document.querySelector(`[data-src="${src}"]`);
 const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
-pushUndo();const s=cloneState(gs);s.waste.splice(wasteIdx,1);A.gs=s;A.moves++;A.sel=null;addScore(5);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(wasteR);return;
+pushUndo();const s=cloneState(gs);s.waste.splice(wasteIdx,1);A.gs=s;A.moves++;A.sel=null;addScore(5,'waste pair');if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(wasteR);return;
 }
 // Waste-vs-waste pairing (W1 + W2 sum to 13)
 if(A.sel&&(A.sel.type==='waste-py'||A.sel.type==='waste-py2')){
@@ -2513,7 +2527,7 @@ pushUndo();const s=cloneState(gs);
 // Remove higher index first to preserve lower index
 const hi=Math.max(wasteIdx,otherIdx);const lo=Math.min(wasteIdx,otherIdx);
 s.waste.splice(hi,1);s.waste.splice(lo,1);
-A.gs=s;A.moves++;A.sel=null;addScore(10);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(r1);launchOff(r2);return;
+A.gs=s;A.moves++;A.sel=null;addScore(10,'pair matched');if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(r1);launchOff(r2);return;
 }
 }
 // Try pairing with already-selected pyramid card
@@ -2524,23 +2538,23 @@ return;
 
 if(src==='pycard'){
 const card=gs.pyramid[idx];if(!card)return;const{r,c}=getRowCol(idx);const free=!pyBlocked(gs.pyramid,r,c);if(!free)return;
-if(card.rank===13){const cap=captureRect(idx);pushUndo();const s=cloneState(gs);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(5);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);return;}
+if(card.rank===13){const cap=captureRect(idx);pushUndo();const s=cloneState(gs);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(5,'king removed');updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);return;}
 if(A.sel){
 if(A.sel.type==='pycard'&&A.sel.idx===idx){A.sel=null;render();return;}
-if(A.sel.type==='pycard'){const other=gs.pyramid[A.sel.idx];const{r:or,c:oc}=getRowCol(A.sel.idx);const otherFree=!pyBlocked(gs.pyramid,or,oc);if(other&&otherFree&&other.rank+card.rank===13){const cap1=captureRect(idx);const cap2=captureRect(A.sel.idx);pushUndo();const s=cloneState(gs);s.pyramid[idx]=null;s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap1);launchOff(cap2);return;}}
+if(A.sel.type==='pycard'){const other=gs.pyramid[A.sel.idx];const{r:or,c:oc}=getRowCol(A.sel.idx);const otherFree=!pyBlocked(gs.pyramid,or,oc);if(other&&otherFree&&other.rank+card.rank===13){const cap1=captureRect(idx);const cap2=captureRect(A.sel.idx);pushUndo();const s=cloneState(gs);s.pyramid[idx]=null;s.pyramid[A.sel.idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10,'pair matched');updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap1);launchOff(cap2);return;}}
 // Waste selected first → pair with this pyramid card
 if(A.sel.type==='waste-py'){
 const wasteCard=gs.waste[gs.waste.length-1];
 if(wasteCard&&wasteCard.rank+card.rank===13){
 const cap=captureRect(idx);const wasteEl=document.querySelector('[data-src="py-waste"]');const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
-pushUndo();const s=cloneState(gs);s.waste.splice(gs.waste.length-1,1);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return;
+pushUndo();const s=cloneState(gs);s.waste.splice(gs.waste.length-1,1);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10,'pair matched');updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return;
 }
 }
 if(A.sel.type==='waste-py2'){
 const wasteCard=gs.waste[gs.waste.length-2];
 if(wasteCard&&wasteCard.rank+card.rank===13){
 const cap=captureRect(idx);const wasteEl=document.querySelector('[data-src="py-waste2"]');const wasteR=wasteEl?{rect:wasteEl.getBoundingClientRect(),inner:wasteEl.innerHTML,cls:wasteEl.className}:null;
-pushUndo();const s=cloneState(gs);s.waste.splice(gs.waste.length-2,1);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10);updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return;
+pushUndo();const s=cloneState(gs);s.waste.splice(gs.waste.length-2,1);s.pyramid[idx]=null;A.gs=s;A.moves++;A.sel=null;addScore(10,'pair matched');updatePyFaceUp(A.gs);if(pyWon(A.gs))handleWin();_skipNextAnim=true;render();launchOff(cap);launchOff(wasteR);return;
 }
 }
 if(A.sel.type==='waste-py'&&tryPairWaste(gs.waste.length-1,'waste-py','py-waste'))return;
@@ -2608,7 +2622,7 @@ const seqLen=spSeqLen(gs.tableau[sel.col]);const topIdx=gs.tableau[sel.col].leng
 const cards=gs.tableau[sel.col].slice(sel.idx);const tp=gs.tableau[targetCol];if(!spCanDrop(cards,tp))return false;
 pushUndo();const s=cloneState(gs);const moved=s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...moved);
 if(s.tableau[sel.col].length)s.tableau[sel.col][s.tableau[sel.col].length-1].faceUp=true;
-for(let c=0;c<s.tableau.length;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(suit);addScore(100);}}
+for(let c=0;c<s.tableau.length;c++){const suit=spCheckComplete(s.tableau[c]);if(suit!==false){animateSpiderComplete(s.tableau,c);s.tableau[c].splice(s.tableau[c].length-13);if(s.tableau[c].length)s.tableau[c][s.tableau[c].length-1].faceUp=true;s.foundations.push(suit);addScore(100,'suit completed');}}
 A.gs=s;A.moves++;if(spWon(A.gs))handleWin();return true;
 }
 
@@ -2622,7 +2636,7 @@ if(targetSrc==='toolbox'&&!A.toolboxCard&&A.toolboxUses>0&&cards.length===1){
 pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else s.tableau[sel.col].splice(sel.idx);A.gs=s;A.toolboxCard={...card};A.toolboxUses--;A.moves++;return true;
 }
 if(targetSrc==='fc'){if(cards.length>1)return false;if(gs.freecells[targetCol]!==null)return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.freecells[targetCol]=card;A.gs=s;A.moves++;return true;}
-if(targetSrc==='found'){if(cards.length>1)return false;if(!fcCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5);if(fcWon(A.gs))handleWin();return true;}
+if(targetSrc==='found'){if(cards.length>1)return false;if(!fcCanFoundation(card,gs.foundations))return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.foundations[card.suit].push(card);A.gs=s;A.moves++;addScore(5,'card to foundation');if(fcWon(A.gs))handleWin();return true;}
 if(targetSrc==='tab'){const tp=gs.tableau[targetCol];if(!fcCanTableau(card,tp))return false;if(targetCol===sel.col&&sel.type==='tab')return false;pushUndo();const s=cloneState(gs);if(sel.type==='fc')s.freecells[sel.col]=null;else if(sel.type==='found')s.foundations[sel.col].pop();else s.tableau[sel.col].splice(sel.idx);s.tableau[targetCol].push(...cards);A.gs=s;A.moves++;if(fcWon(A.gs))handleWin();return true;}
 return false;
 }
@@ -2803,7 +2817,7 @@ function instaWin(){A.instaWin=true;A.instaWinScore=A.score;A.winOverlay=true;re
 
 function nextFloor(){
 A.done.add(A.floor);
-if(A.instaWin){A.score=A.instaWinScore;}else{addScore(100*(10-A.floor));}
+if(A.instaWin){A.score=A.instaWinScore;}else{addScore(100*(10-A.floor),'floor cleared');}
 A.instaWin=false;A.instaWinScore=0;
 A.tpStreak=0;
 if(A.floor>=9){stopTimer();A.screen='victory';render();return;}
@@ -2863,20 +2877,60 @@ if(t==='freecell'&&fcWon(gs))handleWin();
 // ═══════════════════════════════════════════════════════════
 //  SCORING & TIMER
 // ═══════════════════════════════════════════════════════════
-function addScore(n){
+function addScore(n,reason=''){
   A.score=Math.max(0,(A.score||0)+n);startTimer();
-  // Floating score popup
   if(n!==0){
+    if(!A.scoreLog)A.scoreLog=[];
+    A.scoreLog.push({amount:n,reason:reason||'score',floor:A.floor,gtype:A.gtype,total:A.score});
     const el=document.createElement('div');
     el.className='score-float '+(n>0?'pos':'neg');
     el.textContent=(n>0?'+':'')+n;
-    // Position near last action or score pane
-    const sel=document.querySelector('.sel-top,.sel')||document.getElementById('score-pane');
-    if(sel){const r=sel.getBoundingClientRect();el.style.left=(r.left+r.width/2-20)+'px';el.style.top=(r.top-10)+'px';}
-    else{el.style.right='80px';el.style.top='40px';}
     document.body.appendChild(el);
-    setTimeout(()=>el.remove(),1000);
+    setTimeout(()=>el.remove(),1200);
   }
+}
+
+// ── SCORE HISTORY ────────────────────────────────────────
+function showScoreHistory(){A.scoreHistOverlay=true;render();}
+function closeScoreHistory(){A.scoreHistOverlay=false;render();}
+function downloadScoreHistory(){
+  const log=A.scoreLog||[];
+  const lines=['Solitaire Tower of Doom - Score History','='.repeat(44),''];
+  let prevFloor=-1;
+  for(const e of log){
+    if(e.floor!==prevFloor){
+      if(prevFloor!==-1)lines.push('');
+      lines.push(`Floor ${e.floor+1} - ${NAMES[e.gtype]||e.gtype||'?'}`,'─'.repeat(30));
+      prevFloor=e.floor;
+    }
+    const sign=e.amount>0?'+':'';
+    lines.push(`  ${(sign+e.amount+' pts').padEnd(12)}  ${e.reason}  →  total: ${e.total}`);
+  }
+  lines.push('','─'.repeat(44),`FINAL SCORE: ${(A.score||0).toLocaleString()} pts`);
+  const blob=new Blob([lines.join('\n')],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='score-history.txt';document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(a.href);
+}
+function scoreHistOverlayHTML(){
+  const log=A.scoreLog||[];
+  const floorLog=log.filter(e=>e.floor===A.floor);
+  const floorTotal=floorLog.reduce((s,e)=>s+e.amount,0);
+  const rows=floorLog.length
+    ?floorLog.map(e=>`<div class="score-hist-row ${e.amount>=0?'pos':'neg'}">
+        <span>${e.reason}</span><span>${e.amount>=0?'+':''}${e.amount} pts</span></div>`).join('')
+    +'<div class="score-hist-total">Floor total: '+(floorTotal>=0?'+':'')+floorTotal+' pts</div>'
+    :'<div style="padding:10px;color:#888">No scoring events this floor yet.</div>';
+  return`<div class="score-hist-overlay" onclick="if(event.target===this)closeScoreHistory()">
+  <div class="score-hist-panel">
+    <div class="score-hist-title"><span>★ Score History — Floor ${A.floor+1}</span>
+      <button class="score-hist-close" onclick="closeScoreHistory()">✕</button></div>
+    <div class="score-hist-body">${rows}</div>
+    <div class="score-hist-footer">
+      <button class="btn" onclick="downloadScoreHistory()">⬇ Download Full History (.txt)</button>
+      <button class="btn" onclick="closeScoreHistory()">Close</button>
+    </div>
+  </div></div>`;
 }
 
 // ── CRT GLITCH EFFECT ────────────────────────────────────
@@ -3026,7 +3080,7 @@ function startFresh(){
 clearSave();
 _scoreSubmitted=false;
 A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'intro',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
-score:0,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
+score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
 floorStartLives:3,floorUndosUsed:0,floorStartTime:0,floorStartScore:0,
 itemMode:null,bonusUndos:0,revealAllUntil:0,hintUntil:0,hints:[],hintTargets:[],
