@@ -2672,7 +2672,7 @@ function handleWin(){
   if(A.gtype==='klondike'){
     playCascadeAnimation(()=>{A.winOverlay=true;render();});
   } else {
-    A.winOverlay=true;
+    A.winOverlay=true;render();
   }
 }
 
@@ -2843,13 +2843,13 @@ render();
 }
 
 function pushUndo(){
-A.undoStack.push({gs:cloneState(A.gs),sel:A.sel?{...A.sel}:null,moves:A.moves});
+A.undoStack.push({gs:cloneState(A.gs),sel:A.sel?{...A.sel}:null,moves:A.moves,score:A.score||0,tpStreak:A.tpStreak||0});
 if(A.undoStack.length>50)A.undoStack.shift();
 }
 function undoMove(){
 const budget=A.bonusUndos>0?Infinity:A.undoStack.length;
 if(!A.undoStack.length)return;
-const prev=A.undoStack.pop();A.gs=prev.gs;A.sel=prev.sel;A.moves=prev.moves;A.winOverlay=false;
+const prev=A.undoStack.pop();A.gs=prev.gs;A.sel=prev.sel;A.moves=prev.moves;A.score=prev.score;A.tpStreak=prev.tpStreak;A.winOverlay=false;
 if(A.bonusUndos>0)A.bonusUndos--;else A.floorUndosUsed++;
 render();
 }
