@@ -58,13 +58,12 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 /* Floating score popup */
 .score-float{position:fixed;pointer-events:none;z-index:900;
-  font-family:var(--pixel);font-weight:bold;font-size:180px;white-space:nowrap;
+  font-family:var(--pixel);font-weight:bold;font-size:180px;white-space:nowrap;letter-spacing:0.6em;
   text-shadow:0 0 60px currentColor,0 4px 16px rgba(0,0,0,.9);
   left:50%;top:75%;
   animation:scoreFloat 1.2s ease-out forwards;opacity:0;}
 .score-float.pos{color:#4dff91;}
 .score-float.neg{color:#ff4d4d;}
-.score-float.wide{letter-spacing:0.6em;}
 @keyframes scoreFloat{0%{opacity:1;transform:translate(-50%,-50%) scale(1);}
   55%{opacity:1;transform:translate(-50%,-65%) scale(1.12);}
   100%{opacity:0;transform:translate(-50%,-80%) scale(.85);}}
