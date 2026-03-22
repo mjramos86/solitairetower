@@ -58,7 +58,7 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 
 /* Floating score popup */
 .score-float{position:fixed;pointer-events:none;z-index:900;
-  font-family:var(--pixel);font-weight:bold;font-size:180px;white-space:nowrap;letter-spacing:0.6em;
+  font-family:var(--pixel);font-weight:bold;font-size:180px;white-space:nowrap;letter-spacing:0.1em;
   text-shadow:0 0 60px currentColor,0 4px 16px rgba(0,0,0,.9);
   left:50%;top:75%;
   animation:scoreFloat 1.2s ease-out forwards;opacity:0;}
@@ -2884,8 +2884,10 @@ function addScore(n,reason=''){
     if(!A.scoreLog)A.scoreLog=[];
     A.scoreLog.push({amount:n,reason:reason||'score',floor:A.floor,gtype:A.gtype,total:A.score});
     const el=document.createElement('div');
-    el.className='score-float '+(n>0?'pos':'neg')+(Math.abs(n)>=100?' wide':'');
+    el.className='score-float '+(n>0?'pos':'neg');
     el.textContent=(n>0?'+':'')+n;
+    const floatCount=document.querySelectorAll('.score-float').length;
+    if(floatCount>0)el.style.top=`calc(75% - ${floatCount*110}px)`;
     document.body.appendChild(el);
     setTimeout(()=>el.remove(),1200);
   }
