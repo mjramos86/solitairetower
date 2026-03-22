@@ -2984,6 +2984,7 @@ async function submitScore(isVictory){
   const btn=document.getElementById('submit-score-btn');if(btn){btn.textContent='[ SAVING... ]';btn.disabled=true;}
   const inp=document.getElementById('pname');const name=(inp&&inp.value.trim())||'Anonymous';
   const board=await saveScore(name);renderBoard(board);
+  clearSave();
   const formEl=document.querySelector('.ne-form');
   if(formEl)formEl.innerHTML=`<div style="font-family:var(--pixel);font-size:20px;color:#00ff00">Score saved!</div><button class="btn" style="margin-top:12px" onclick="init()">[ PLAY AGAIN ]</button>`;
 }
