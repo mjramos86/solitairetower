@@ -2679,8 +2679,9 @@ else if(type==='tripeaks')A.gs=initTripeaks(floor);
 else if(type==='pyramid')A.gs=initPyramid(floor);
 else if(type==='freecell')A.gs=initFreecell(floor);
 if(A.timerElapsed>0&&!A.timerRunning){A.timerStart=Date.now()-A.timerElapsed;A.timerRunning=true;}
-// Play intro video then start the game
-playIntroVideo(()=>{A.screen='game';render();});
+// Play intro video only on the first level (floor 10 displayed)
+if(floor===0){playIntroVideo(()=>{A.screen='game';render();});}
+else{A.screen='game';render();}
 }
 
 function handleWin(){
@@ -3017,6 +3018,9 @@ app.innerHTML=`<div class="end-screen ${isVictory?'':'lose-screen'}">
 <label class="ne-label">ENTER YOUR NAME:</label>
 <input class="ne-input" id="pname" type="text" maxlength="20" placeholder="PLAYER_1" autocomplete="off" spellcheck="false"/>
 <button class="btn" id="submit-score-btn" onclick="submitScore(${isVictory})">[ SUBMIT ]</button>
+</div>
+<div style="text-align:center;margin-top:12px">
+<button class="btn" onclick="downloadScoreHistory()">⬇ Download Score History (.txt)</button>
 </div>
 </div>
 </div>
