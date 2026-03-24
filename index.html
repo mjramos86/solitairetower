@@ -513,6 +513,8 @@ transition:opacity 0.6s ease, background 0.2s, color 0.2s;
 .map-beta-notice strong{color:var(--gold);font-style:normal;font-family:'Cinzel',serif;letter-spacing:.06em;display:block;margin-bottom:4px;}
 .map-beta-notice a{color:#88aadd;text-decoration:none;}
 .map-beta-notice a:hover{text-decoration:underline;}
+.itch-donate-btn{display:inline-block;font-family:var(--pixel);font-size:15px;color:#fa5c5c;background:#1a1a1a;border:2px solid #fa5c5c;padding:6px 16px;text-decoration:none;letter-spacing:.05em;cursor:pointer;transition:background .15s,color .15s;margin-top:6px;}
+.itch-donate-btn:hover{background:#fa5c5c;color:#fff;text-decoration:none;}
 @media(max-width:820px){
 .map-keyart{max-width:100%;}
 .map-side-panel{min-width:0;max-width:100%;width:100%;flex-direction:row;flex-wrap:wrap;gap:10px;}
@@ -1289,7 +1291,7 @@ ${invSlots}
 <div class="map-lb-body" id="map-lb-body"><div class="map-lb-loading">Loading...</div></div>
 </div>
 </div>
-<div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a></div>
+<div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a><br><a class="itch-donate-btn" href="https://emjayhar.itch.io/the-solitaire-tower-of-doom" target="_blank" rel="noopener">🎮 Support on itch.io</a></div>
 
   </div>`;
   const curEl=document.getElementById(`floor-${A.floor}`);
@@ -1589,7 +1591,7 @@ function winOverlayHTML(){
       <p>${isLast?'You burst into the streets! You are FREE!':'Staircase found. Descending...'}</p>
       <button class="btn" onclick="nextFloor()">${isLast?'[ ESCAPE ]':'[ DESCEND ]'}</button>
     </div>
-      <div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a></div>
+      <div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a><br><a class="itch-donate-btn" href="https://emjayhar.itch.io/the-solitaire-tower-of-doom" target="_blank" rel="noopener">🎮 Support on itch.io</a></div>
   </div></div>`;
 }
 
@@ -3028,6 +3030,7 @@ app.innerHTML=`<div class="end-screen ${isVictory?'':'lose-screen'}">
 <div class="lb-title">🏆 HIGH SCORES</div>
 <div class="lb-body" id="lb-body"><div style="font-family:var(--pixel);color:#aaa;font-size:18px">Loading...</div></div>
 </div>
+<a class="itch-donate-btn" href="https://emjayhar.itch.io/the-solitaire-tower-of-doom" target="_blank" rel="noopener">🎮 Support Development on itch.io</a>
 
   </div>`;
   setTimeout(()=>{const inp=document.getElementById('pname');if(inp){inp.focus();inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitScore(isVictory);});}},100);
