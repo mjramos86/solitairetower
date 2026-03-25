@@ -568,7 +568,7 @@ cw,ch,cgap,
 coverDown: Math.max(4, Math.round(t.coverDown*r)),
 coverUp:   Math.round(t.coverUp*r),
 spDown:    Math.max(4, Math.round(t.spDown*r)),
-spUp:      Math.round(t.spUp*r),
+spUp:      Math.max(18,Math.round(t.spUp*r)),
 fcOver:    Math.round(t.fcOver*r),
 cfs:    Math.max(8, Math.round(t.cfs*r)),
 cfss:   Math.max(6, Math.round(t.cfss*r)),
@@ -619,7 +619,7 @@ desc:'Get one free waste→stock recycle.',
 use:'Instant: recycles without counting.',bestFor:'Klondike · Pyramid'},
 // tier 1 = Medium (150-250)
 {id:'scissors',name:'Scissors',icon:'✂️',price:185,tier:1,effect:'remove-card',
-desc:'Remove any one card from the board entirely.',
+desc:'Remove any one face-up card from the board entirely.',
 use:'Click mode: pick a card to vanish it.',bestFor:'Pyramid · TriPeaks'},
 {id:'magnifier',name:'Magnifying Glass',icon:'🔍',price:210,tier:1,effect:'reveal-all',
 desc:'Reveal all face-down cards for 8 seconds.',
@@ -634,14 +634,14 @@ use:'Instant: pops 10 undo states.',bestFor:'All games'},
 desc:'Shuffle waste back into stock for free.',
 use:'Instant: free recycle.',bestFor:'Klondike · Pyramid'},
 {id:'paperclip',name:'Paperclip',icon:'📎',price:165,tier:1,effect:'flip-card',
-desc:'Flip any one face-down card face-up.',
+desc:'Flip any face-down tableau card face-up.',
 use:'Click mode: pick a face-down card.',bestFor:'Spider · Klondike'},
 {id:'calculator',name:'Calculator',icon:'🧮',price:180,tier:1,effect:'hint-all',
 desc:'Flash ALL valid moves for 8 seconds.',
 use:'Instant: full board hint glow.',bestFor:'All games'},
 // tier 2 = Expensive (350-600)
 {id:'briefcase',name:'Briefcase',icon:'💼',price:430,tier:2,effect:'retrieve-waste',
-desc:'Retrieve any card from the waste pile to play now.',
+desc:'Bring any buried waste card to the top to play next.',
 use:'Opens waste picker -- select a card.',bestFor:'Klondike · TriPeaks'},
 {id:'spare-key',name:'Spare Key',icon:'🔑',price:390,tier:2,effect:'extra-freecell',
 desc:'Unlock a 5th free cell for this entire floor.',
@@ -654,7 +654,7 @@ desc:'Sweep the top card of any pile to the first empty column.',
 use:'Click mode: pick a source pile top.',bestFor:'Spider · FreeCell'},
 // tier 3 = Rare (800-1500)
 {id:'master-key',name:'Master Key',icon:'🗝️',price:920,tier:3,effect:'choose-from-stock',
-desc:'Browse the entire stock pile and pull any card out.',
+desc:'Pull any card from stock to the top of the waste pile.',
 use:'Opens stock browser -- pick your card.',bestFor:'Klondike · TriPeaks'},
 {id:'extinguisher',name:'Fire Extinguisher',icon:'🧯',price:1100,tier:3,effect:'no-life-abandon',
 desc:'Abandon this floor without losing a life.',
@@ -1048,9 +1048,9 @@ document.querySelectorAll('.card.back').forEach(el=>el.classList.add('x-revealed
 // ═══════════════════════════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════════════════════════
-let _snapshots={};let _skipNextAnim=false;
+let _snapshots={};let _skipNextAnim=false;let _prevFaceDown=new Set();
 function snapCards(){
-if(_skipNextAnim){_snapshots={};return;}
+if(_skipNextAnim){_snapshots={};_prevFaceDown=new Set();return;}
 _snapshots={};
 // First pass: find any duplicate keys (happens in Spider with repeated suits)
 const count={};
@@ -1061,6 +1061,9 @@ const k=el.dataset.ckey;
 if(count[k]>1)return;
 const r=el.getBoundingClientRect();_snapshots[k]={x:r.left,y:r.top};
 });
+// Track face-down card positions for flip-animation detection
+_prevFaceDown=new Set();
+document.querySelectorAll('.card.back[data-col][data-idx]').forEach(el=>_prevFaceDown.add(el.dataset.col+'-'+el.dataset.idx));
 }
 function animateCards(){
 if(_skipNextAnim){_skipNextAnim=false;_snapshots={};return;}
@@ -1068,7 +1071,7 @@ if(_skipNextAnim){_skipNextAnim=false;_snapshots={};return;}
 const movers=[];
 document.querySelectorAll('[data-ckey]').forEach(el=>{
 const key=el.dataset.ckey;const prev=_snapshots[key];
-if(!prev&&!el.classList.contains('back')){el.classList.add('flipping');el.addEventListener('animationend',()=>el.classList.remove('flipping'),{once:true});return;}
+if(!prev&&!el.classList.contains('back')&&_prevFaceDown.has(el.dataset.col+'-'+el.dataset.idx)){el.classList.add('flipping');el.addEventListener('animationend',()=>el.classList.remove('flipping'),{once:true});return;}
 if(!prev)return;const cur=el.getBoundingClientRect();const dx=prev.x-cur.left,dy=prev.y-cur.top;
 if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
 movers.push({el,dx,dy,col:el.dataset.col||'',src:el.dataset.src||'',idx:parseInt(el.dataset.idx)||0});
@@ -1695,7 +1698,7 @@ tabH+=`<div data-src="tab" data-col="${c}" style="height:${h}px;position:relativ
 pile.forEach((card,idx)=>{
 const inSel=isSel(c,idx);
 const selCls=inSel?(idx===A.sel.idx?'sel sel-top':'sel'):'';
-if(!card.faceUp){tabH+=`<div style="position:absolute;top:${tops_sp[idx]}px;left:0;z-index:${idx}"><div class="card back"></div></div>`;}
+if(!card.faceUp){tabH+=`<div style="position:absolute;top:${tops_sp[idx]}px;left:0;z-index:${idx}"><div class="card back" data-src="tab" data-col="${c}" data-idx="${idx}"></div></div>`;}
 else{const cc=isRed(card.suit)?'red':'blk';tabH+=`<div style="position:absolute;top:${tops_sp[idx]}px;left:0;z-index:${idx}"><div class="card ${cc} ${selCls}" draggable="true" data-src="tab" data-col="${c}" data-idx="${idx}" data-ckey="${card.suit}-${card.rank}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div></div>`;}
 });tabH+=`</div>`;
 }
@@ -1857,7 +1860,7 @@ showToast('+5 undos added!');render();break;}
 case 'free-draw':{ // Coffee
 if(!['klondike','tripeaks','pyramid'].includes(t)){showToast('Not useful in this game!');return;}
 pushUndo();
-if(t==='klondike'){A.gs=klDraw(A.gs);}
+if(t==='klondike'){A.gs=klDraw(A.gs);A.floorUndosUsed=Math.max(0,A.floorUndosUsed-1);}
 else if(t==='tripeaks'){tpDrawStock();}
 else if(t==='pyramid'){A.gs=pyDrawStock(A.gs);}
 consumeItem(invIdx);render();break;}
@@ -1875,10 +1878,17 @@ consumeItem(invIdx);showToast('Free recycle added!');render();break;}
 case 'remove-card':{ // Scissors
 A.itemMode={effect:'remove-card',invIdx,icon:'✂️',banner:'SCISSORS: Click any card to remove it from play'};render();break;}
 case 'reveal-all':{ // Magnifying Glass
-A.revealAllUntil=Date.now()+8000;consumeItem(invIdx);render();
-setTimeout(()=>{A.revealAllUntil=0;applyReveal();},8000);break;}
+const revSnap=cloneState(gs);
+const rs=cloneState(gs);
+if(rs.tableau)rs.tableau.forEach(pile=>pile.forEach(card=>{if(!card.faceUp)card.faceUp=true;}));
+A.gs=rs;A.revealAllUntil=Date.now()+8000;A.revealSnapshot=revSnap;
+consumeItem(invIdx);render();
+setTimeout(()=>{
+if(A.revealSnapshot&&A.gs.tableau){A.gs.tableau.forEach((pile,c)=>{const op=A.revealSnapshot.tableau[c];if(!op)return;pile.forEach((card,i)=>{const orig=op[i];if(orig&&orig.suit===card.suit&&orig.rank===card.rank&&!orig.faceUp)card.faceUp=false;});});}
+A.revealAllUntil=0;A.revealSnapshot=null;render();
+},8000);break;}
 case 'ace-to-found':{ // Stapler
-let found=false;pushUndo();
+let found=false;
 const s=cloneState(gs);
 if(t==='klondike'){
 for(let c=0;c<7&&!found;c++){const pile=s.tableau[c];const top=pile[pile.length-1];if(top&&top.faceUp&&top.rank===1&&klCanFoundation(top,s.foundations)){pile.pop();s.foundations[top.suit].push(top);klAutoReveal(s);addScore(15,'ace to foundation');found=true;}}
@@ -1887,10 +1897,10 @@ if(!found&&s.waste.length&&s.waste[s.waste.length-1].rank===1){const card=s.wast
 for(let c=0;c<8&&!found;c++){const pile=s.tableau[c];const top=pile[pile.length-1];if(top&&top.rank===1&&fcCanFoundation(top,s.foundations)){pile.pop();s.foundations[top.suit].push(top);addScore(5,'ace to foundation');found=true;}}
 for(let c=0;c<s.freecells.length&&!found;c++){const card=s.freecells[c];if(card&&card.rank===1&&fcCanFoundation(card,s.foundations)){s.freecells[c]=null;s.foundations[card.suit].push(card);addScore(5,'ace to foundation');found=true;}}
 }
-if(found){A.gs=s;consumeItem(invIdx);checkWin();}else{A.undoStack.pop();showToast('No Ace available!');}
+if(found){pushUndo();A.gs=s;consumeItem(invIdx);checkWin();}else{showToast('No Ace available!');}
 render();break;}
 case 'big-undo':{ // Eraser
-for(let i=0;i<10&&A.undoStack.length>0;i++){const prev=A.undoStack.pop();A.gs=prev.gs;A.sel=prev.sel;A.moves=prev.moves;A.winOverlay=false;}
+for(let i=0;i<10&&A.undoStack.length>0;i++){const prev=A.undoStack.pop();A.gs=prev.gs;A.sel=prev.sel;A.moves=prev.moves;A.score=prev.score;A.tpStreak=prev.tpStreak;A.winOverlay=false;}
 consumeItem(invIdx);showToast('Rewound 10 moves!');render();break;}
 case 'free-cycle':{ // Envelope
 pushUndo();
@@ -1922,7 +1932,7 @@ break;}
 case 'extra-freecell':{ // Spare Key
 if(t!=='freecell'){showToast('Only works in FreeCell!');return;}
 if(gs.freecells.length>=5){showToast('Already have 5 free cells!');return;}
-const s=cloneState(gs);s.freecells.push(null);A.gs=s;
+const s=cloneState(gs);s.freecells.push(null);A.gs=s;A.extraFreecell=true;
 consumeItem(invIdx);showToast('5th free cell unlocked!');render();break;}
 case 'toolbox':{ // Toolbox
 if(A.toolboxUses>0||A.toolboxCard){showToast('Toolbox already active!');return;}
@@ -2706,10 +2716,10 @@ function handleDragEnd(e){DR={active:false,cards:null,src:null};document.querySe
 // ═══════════════════════════════════════════════════════════
 function startGame(type,floor){
 A.gtype=type;A.floor=floor;A.moves=0;A.undoStack=[];A.sel=null;A.winOverlay=false;A.paused=false;
-A.itemMode=null;A.hints=[];A.hintTargets=[];A.hintUntil=0;A.revealAllUntil=0;A.pickerOverlay=null;
+A.itemMode=null;A.hints=[];A.hintTargets=[];A.hintUntil=0;A.revealAllUntil=0;A.revealSnapshot=null;A.pickerOverlay=null;
 // Per-floor tracking
 A.floorStartLives=A.lives;A.floorUndosUsed=0;A.floorStartTime=Date.now();A.floorStartScore=A.score;
-A.toolboxCard=null;A.toolboxUses=0;
+A.toolboxCard=null;A.toolboxUses=0;A.extraFreecell=false;
 randomCardback();
 if(type==='klondike')A.gs=initKlondike(floor);
 else if(type==='spider')A.gs=initSpider(floor);
@@ -3128,7 +3138,7 @@ A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'intro',gtype:null
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
 floorStartLives:3,floorUndosUsed:0,floorStartTime:0,floorStartScore:0,
-itemMode:null,bonusUndos:0,revealAllUntil:0,hintUntil:0,hints:[],hintTargets:[],
+itemMode:null,bonusUndos:0,revealAllUntil:0,revealSnapshot:null,hintUntil:0,hints:[],hintTargets:[],
 toolboxCard:null,toolboxUses:0,extraFreecell:false,pickerOverlay:null};
 render();
 }
