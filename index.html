@@ -226,8 +226,10 @@ border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white
 @media(max-width:600px){.rules-strip{font-size:13px;}.rule-item{white-space:normal;}}
 
 /* ── CARDS ── */
-.card{width:var(--cw);height:var(--ch);border-radius:4px;border:1px solid #7a6a44;background:#e8ddb8;position:relative;cursor:pointer;flex-shrink:0;font-family:'Georgia','Times New Roman',serif;box-shadow:1px 2px 6px rgba(0,0,0,0.55),inset 0 0 18px rgba(0,0,0,0.06);}
-.card.animating{transition:transform 0.18s ease;pointer-events:none;}
+.card{width:var(--cw);height:var(--ch);border-radius:4px;border:1px solid #7a6a44;background:#e8ddb8;position:relative;cursor:pointer;flex-shrink:0;font-family:'Georgia','Times New Roman',serif;box-shadow:1px 2px 6px rgba(0,0,0,0.55),inset 0 0 18px rgba(0,0,0,0.06);transition:transform 0.12s cubic-bezier(0.22,0.68,0,1.0),box-shadow 0.12s ease;}
+.card.animating{transition:transform 0.22s cubic-bezier(0.22,0.68,0,1.0);pointer-events:none;}
+.card:not(.back):not(.fly-card):hover{transform:translateY(-4px);box-shadow:1px 6px 14px rgba(0,0,0,.7),inset 0 0 18px rgba(0,0,0,.06);}
+.card.sel-top:hover{transform:translateY(-8px);}
 .card.red{color:#8b1a0a;}
 .card.blk{color:#1a1408;}
 .card.back{
@@ -257,8 +259,8 @@ box-shadow:1px 2px 6px rgba(0,0,0,0.7),inset 0 0 14px rgba(0,0,0,0.5);}
 .card.item-target{outline:3px solid #ff44ff !important;box-shadow:0 0 14px 4px rgba(255,100,255,.7) !important;animation:item-pulse 0.6s ease-in-out infinite !important;cursor:crosshair !important;}
 @keyframes item-pulse{0%,100%{outline-color:#ff44ff;}50%{outline-color:#aa00ff;}}
 @keyframes card-flip{0%{transform:scaleX(0) perspective(400px);opacity:0.6;}50%{transform:scaleX(0.05) perspective(400px);}100%{transform:scaleX(1) perspective(400px);opacity:1;}}
-.card.flipping{animation:card-flip 0.28s ease-out;}
-.fly-card{position:fixed;z-index:9999;pointer-events:none;transition:left 0.22s ease,top 0.22s ease,width 0.22s ease,height 0.22s ease,opacity 0.22s ease,transform 0.3s ease;}
+.card.flipping{animation:card-flip 0.32s cubic-bezier(0.22,0.68,0,1.0);}
+.fly-card{position:fixed;z-index:9999;pointer-events:none;transition:left 0.25s cubic-bezier(0.22,0.68,0,1.0),top 0.25s cubic-bezier(0.22,0.68,0,1.0),width 0.25s cubic-bezier(0.22,0.68,0,1.0),height 0.25s cubic-bezier(0.22,0.68,0,1.0),opacity 0.25s ease,transform 0.32s cubic-bezier(0.22,0.68,0,1.0);}
 .fly-card.sp-found{transition:left 0.38s cubic-bezier(.15,1.4,.5,1),top 0.38s cubic-bezier(.15,1.4,.5,1),width 0.38s ease,height 0.38s ease,opacity 0.38s ease;}
 .empty-slot{width:var(--cw);height:var(--ch);border-radius:4px;border:1px dashed rgba(255,240,180,.15);background:rgba(0,0,0,.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:rgba(255,240,180,.18);font-size:1.8rem;}
 .sp-complete-slot{width:var(--cw);height:var(--ch);border-radius:2px;border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);background:rgba(0,0,0,.18);box-shadow:inset 1px 1px 0 rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:rgba(255,255,255,.3);font-family:var(--pixel);text-align:center;}
@@ -1062,14 +1064,27 @@ const r=el.getBoundingClientRect();_snapshots[k]={x:r.left,y:r.top};
 }
 function animateCards(){
 if(_skipNextAnim){_skipNextAnim=false;_snapshots={};return;}
+// Collect moved cards so we can stagger stack moves
+const movers=[];
 document.querySelectorAll('[data-ckey]').forEach(el=>{
 const key=el.dataset.ckey;const prev=_snapshots[key];
-if(!prev&&el.dataset.src==='pycard'){el.classList.add('flipping');el.addEventListener('animationend',()=>el.classList.remove('flipping'),{once:true});return;}
+if(!prev&&!el.classList.contains('back')){el.classList.add('flipping');el.addEventListener('animationend',()=>el.classList.remove('flipping'),{once:true});return;}
 if(!prev)return;const cur=el.getBoundingClientRect();const dx=prev.x-cur.left,dy=prev.y-cur.top;
 if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
-el.style.transition='none';el.style.transform=`translate(${dx}px,${dy}px)`;
-requestAnimationFrame(()=>{el.style.transition='transform 0.2s ease';el.style.transform='translate(0,0)';});
-});_snapshots={};
+movers.push({el,dx,dy,col:el.dataset.col||'',src:el.dataset.src||'',idx:parseInt(el.dataset.idx)||0});
+});
+// Group by (src+col) to detect stack moves; sort each group by idx for stagger
+const groups={};
+movers.forEach(m=>{const k=m.src+'|'+m.col;(groups[k]=groups[k]||[]).push(m);});
+Object.values(groups).forEach(grp=>{
+grp.sort((a,b)=>a.idx-b.idx);
+grp.forEach((m,i)=>{
+  const delay=i*28;
+  m.el.style.transition='none';m.el.style.transform=`translate(${m.dx}px,${m.dy}px) scale(1.02)`;
+  requestAnimationFrame(()=>{m.el.style.transition=`transform 0.25s ${delay}ms cubic-bezier(0.22,0.68,0,1.0)`;m.el.style.transform='translate(0,0) scale(1)';});
+});
+});
+_snapshots={};
 }
 function flyCardOff(fromRect,innerHTML,cc=''){
 const d=document.createElement('div');d.className=`card ${cc} fly-card`;
@@ -2113,7 +2128,8 @@ const src=el.dataset.src;
 if(['stock','sp-stock','tp-stock','py-stock'].includes(src))return;
 const card=el.closest('.card')||el;
 if(card.classList.contains('back'))return;
-MOUSE={active:true,startEl:el,startX:e.clientX,startY:e.clientY,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
+const r=card.getBoundingClientRect();
+MOUSE={active:true,startEl:el,startX:e.clientX,startY:e.clientY,grabOffX:e.clientX-r.left,grabOffY:e.clientY-r.top,prevX:e.clientX,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
 }
 
 function handleMouseMove(e){
@@ -2128,9 +2144,13 @@ if(!MOUSE.ghost){
   MOUSE.ghost=result.ghost;MOUSE._dimmedEls=result.dimmed;
 }
 const s=getS(A.gtype);
-MOUSE.ghost.style.left=(e.clientX-s.cw/2)+'px';
-MOUSE.ghost.style.top=(e.clientY-s.ch/2)+'px';
+const vx=e.clientX-MOUSE.prevX;MOUSE.prevX=e.clientX;
+const rot=Math.max(-6,Math.min(6,vx*0.4));
+MOUSE.ghost.style.left=(e.clientX-MOUSE.grabOffX)+'px';
+MOUSE.ghost.style.top=(e.clientY-MOUSE.grabOffY)+'px';
 MOUSE.ghost.style.width=s.cw+'px';
+MOUSE.ghost.style.transform=`rotate(${rot}deg) scale(1.04)`;
+MOUSE.ghost.style.boxShadow='0 10px 28px rgba(0,0,0,.5)';
 const dropTgt=findDropTarget(e.clientX,e.clientY);
 if(MOUSE._highlightEl&&MOUSE._highlightEl!==dropTgt){MOUSE._highlightEl.style.outline='';MOUSE._highlightEl.style.outlineOffset='';}
 if(dropTgt){dropTgt.style.outline='2px solid rgba(212,168,75,.6)';dropTgt.style.outlineOffset='-2px';MOUSE._highlightEl=dropTgt;}
@@ -2158,7 +2178,8 @@ const el=e.target.closest('[data-src]');if(!el)return;
 const src=el.dataset.src;
 if(['stock','sp-stock','tp-stock','py-stock'].includes(src))return;
 const t=e.touches[0];
-TOUCH={active:true,startEl:el,startX:t.clientX,startY:t.clientY,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
+const card=el.closest('.card')||el;const r=card.getBoundingClientRect();
+TOUCH={active:true,startEl:el,startX:t.clientX,startY:t.clientY,grabOffX:t.clientX-r.left,grabOffY:t.clientY-r.top,prevX:t.clientX,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
 }
 function handleTouchMove(e){
 if(!TOUCH.active)return;const t=e.touches[0];const dx=t.clientX-TOUCH.startX,dy=t.clientY-TOUCH.startY;
@@ -2169,9 +2190,13 @@ if(!TOUCH.ghost){
   TOUCH.ghost=result.ghost;TOUCH._dimmedEls=result.dimmed;
 }
 const s=getS(A.gtype);
-TOUCH.ghost.style.left=(t.clientX-s.cw/2)+'px';
-TOUCH.ghost.style.top=(t.clientY-s.ch/2)+'px';
+const vx=t.clientX-TOUCH.prevX;TOUCH.prevX=t.clientX;
+const rot=Math.max(-6,Math.min(6,vx*0.4));
+TOUCH.ghost.style.left=(t.clientX-TOUCH.grabOffX)+'px';
+TOUCH.ghost.style.top=(t.clientY-TOUCH.grabOffY)+'px';
 TOUCH.ghost.style.width=s.cw+'px';
+TOUCH.ghost.style.transform=`rotate(${rot}deg) scale(1.04)`;
+TOUCH.ghost.style.boxShadow='0 10px 28px rgba(0,0,0,.5)';
 // Highlight nearest drop target
 const dropTgt=findDropTarget(t.clientX,t.clientY);
 if(TOUCH._highlightEl&&TOUCH._highlightEl!==dropTgt){TOUCH._highlightEl.style.outline='';TOUCH._highlightEl.style.outlineOffset='';}
