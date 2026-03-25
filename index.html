@@ -2080,7 +2080,7 @@ function buildDragGhost(startEl,src,col,idx){
 const s=getS(A.gtype);
 trySelect(src,col,idx);
 if(!A.sel)return null;
-const ghost=document.createElement('div');ghost.style.cssText='position:fixed;pointer-events:none;z-index:2000;opacity:.8;';
+const ghost=document.createElement('div');ghost.style.cssText='position:fixed;pointer-events:none;z-index:2000;opacity:1;';
 const dimmed=[];
 if(src==='tab'&&A.sel&&A.sel.type==='tab'){
   // Walk up to find column container (position:relative with height)
@@ -2101,7 +2101,7 @@ if(src==='tab'&&A.sel&&A.sel.type==='tab'){
         w.innerHTML=cardEl.outerHTML;
         ghost.appendChild(w);
         const parentWrap=cardEl.parentElement;
-        if(parentWrap)parentWrap.style.opacity='0.25';
+        if(parentWrap)parentWrap.style.opacity='0';
         dimmed.push(parentWrap||cardEl);
         stackH+=coverUp;
       }
@@ -2110,7 +2110,7 @@ if(src==='tab'&&A.sel&&A.sel.type==='tab'){
 } else {
   const cardEl=startEl.closest('.card')||startEl;
   ghost.innerHTML=cardEl.outerHTML;
-  startEl.style.opacity='0.25';
+  startEl.style.opacity='0';
   dimmed.push(startEl);
 }
 document.body.appendChild(ghost);
@@ -2168,6 +2168,7 @@ if(wasDrag){
   A.sel=null;
   _dragJustCompleted=true;
   setTimeout(()=>{_dragJustCompleted=false;},100);
+  _skipNextAnim=true;
   render();
 }
 MOUSE={active:false,startEl:null,ghost:null,moved:false,_dimmedEls:[],_highlightEl:null};
@@ -2239,7 +2240,7 @@ if(!TOUCH.moved){TOUCH.active=false;return;}
 const t=e.changedTouches[0];
 const tgt=findDropTarget(t.clientX,t.clientY);
 if(tgt&&A.sel){tryMoveFromSel(tgt.dataset.src,parseInt(tgt.dataset.col)||0,0);A.sel=null;}else{A.sel=null;}
-TOUCH={active:false,startEl:null,ghost:null,moved:false,_dimmedEls:[],_highlightEl:null};render();
+TOUCH={active:false,startEl:null,ghost:null,moved:false,_dimmedEls:[],_highlightEl:null};_skipNextAnim=true;render();
 }
 
 function handleClick(e){
