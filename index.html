@@ -606,7 +606,7 @@ const ALL_SHOP_ITEMS=[
 desc:'Highlights one valid move on the board.',
 use:'Instant: glows on valid source & target.',bestFor:'All games'},
 {id:'rubber-band',name:'Rubber Band',icon:'🟠',price:75,tier:0,effect:'extra-undos',
-desc:'Grants 5 bonus undo uses this floor.',
+desc:'You only get 3 undos per floor. This adds 5 more.',
 use:'Instant: adds 5 undos to your budget.',bestFor:'All games'},
 {id:'coffee',name:'Coffee Mug',icon:'☕',price:70,tier:0,effect:'free-draw',
 desc:'Draw 1 extra card from stock for free.',
@@ -1541,6 +1541,8 @@ return html;
 function renderGame(app,s){
 const t=A.gtype,gs=A.gs;
 const liv=Array.from({length:A.lives},()=>`<span class="win95-heart">♥</span>`).join('');
+const undosLeft=Math.max(0,3-A.floorUndosUsed)+(A.bonusUndos||0);
+const undoBtn=`<button class="btn"${undosLeft===0?' disabled':''} onclick="undoMove()">↩ Undo (${undosLeft})</button>`;
 let gameHTML='';
 if(t==='klondike')gameHTML=renderKlondike(gs,s);
 else if(t==='spider')gameHTML=renderSpider(gs,s);
@@ -1554,7 +1556,7 @@ ${A.itemMode.icon||'🔮'} ${A.itemMode.banner}
 
   </div>`:'';
 
-app.innerHTML=`<div class="game-screen"> <div class="win95-window"> <div class="win95-title"> <span class="win95-title-icon">🃏</span> <span class="win95-title-text">Solitaire Tower of Doom -- ${NAMES[t]} (Floor ${10-A.floor})</span> <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div> </div> <div class="win95-toolbar"> <button class="btn" onclick="undoMove()">↩ Undo${A.bonusUndos>0?` +${A.bonusUndos}`:''}</button>
+app.innerHTML=`<div class="game-screen"> <div class="win95-window"> <div class="win95-title"> <span class="win95-title-icon">🃏</span> <span class="win95-title-text">Solitaire Tower of Doom -- ${NAMES[t]} (Floor ${10-A.floor})</span> <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div> </div> <div class="win95-toolbar"> ${undoBtn}
 <button class="btn btn-d" onclick="newShuffle()">⟳ Shuffle</button>
 <div class="win95-toolbar-sep"></div>
 <button class="btn" onclick="togglePause()">⏸ Pause</button>
@@ -2897,8 +2899,9 @@ A.undoStack.push({gs:cloneState(A.gs),sel:A.sel?{...A.sel}:null,moves:A.moves,sc
 if(A.undoStack.length>50)A.undoStack.shift();
 }
 function undoMove(){
-const budget=A.bonusUndos>0?Infinity:A.undoStack.length;
+const regularLeft=Math.max(0,3-A.floorUndosUsed);
 if(!A.undoStack.length)return;
+if(A.bonusUndos<=0&&regularLeft<=0){showToast('No undos left this floor!');return;}
 const prev=A.undoStack.pop();A.gs=prev.gs;A.sel=prev.sel;A.moves=prev.moves;A.score=prev.score;A.tpStreak=prev.tpStreak;A.winOverlay=false;
 if(A.bonusUndos>0)A.bonusUndos--;else A.floorUndosUsed++;
 render();
