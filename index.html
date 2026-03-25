@@ -1261,7 +1261,7 @@ if(A.screen==='shop'){stopMusic();stopCrtGlitch();renderShop(app);return;}
 if(A.screen==='gameover'){stopMusic();stopCrtGlitch();renderNameEntry(app,false);return;}
 if(A.screen==='victory'){stopMusic();stopCrtGlitch();renderNameEntry(app,true);return;}
 const s=getS(A.gtype);applyS(s);
-playMusic(A.gtype);
+playMusic('game');
 startCrtGlitch();
 snapCards();renderGame(app,s);
 requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
@@ -1440,18 +1440,22 @@ function playThunder(){
 
 // ── BACKGROUND MUSIC SYSTEM ────────────────────────────────
 const MUSIC_TRACKS={
-  klondike:'music/Fluorescent_Nocturne.mp3',
-  spider:'music/The_Spider_s_Waltz.mp3',
-  tripeaks:'music/Bone_Altar_Hymn.mp3',
-  pyramid:'music/Pharaoh_s_Dirge.mp3',
-  freecell:'music/The_Unveiling_of_the_Golden_Staff.mp3',
   map:'music/Umbral_Rites.mp3',
 };
+const GAME_TRACKS=[
+  'music/The_Spider_s_Waltz.mp3',
+  'music/Bone_Altar_Hymn.mp3',
+  'music/Pharaoh_s_Dirge.mp3',
+  'music/The_Unveiling_of_the_Golden_Staff.mp3',
+];
 let _bgMusic=null, _bgMusicTrack=null;
 
 function playMusic(trackKey){
   if(_musicMuted)return;
-  const src=MUSIC_TRACKS[trackKey];
+  let src=MUSIC_TRACKS[trackKey];
+  if(!src&&trackKey==='game'){
+    src=GAME_TRACKS[Math.floor(Math.random()*GAME_TRACKS.length)];
+  }
   if(!src){stopMusic();return;}
   // Already playing this track
   if(_bgMusic&&_bgMusicTrack===trackKey&&!_bgMusic.paused)return;
@@ -3174,7 +3178,7 @@ function toggleMusicMute(){
   localStorage.setItem('musicMuted',_musicMuted?'1':'0');
   const btn=document.getElementById('music-toggle');
   if(btn)btn.textContent=_musicMuted?'🔇':'🔊';
-  if(_musicMuted){stopMusic();}else{if(A.screen==='map')playMusic('map');else if(A.screen==='game')playMusic(A.gtype);}
+  if(_musicMuted){stopMusic();}else{if(A.screen==='map')playMusic('map');else if(A.screen==='game')playMusic('game');}
 }
 window.toggleMusicMute=toggleMusicMute;
 // Apply initial mute state on load
