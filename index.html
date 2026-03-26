@@ -31,7 +31,7 @@
   };
   const app=initializeApp(firebaseConfig);getAnalytics(app);
   const db=getFirestore(app);const scoresCol=collection(db,'scores_v2');
-  window._fbSave=async(name,score,time)=>{await addDoc(scoresCol,{name,score,time,date:Date.now()});};
+  window._fbSave=async(name,score,time,allFloors)=>{await addDoc(scoresCol,{name,score,time,date:Date.now(),allFloors:!!allFloors});};
   window._fbLoad=async()=>{const q=query(scoresCol,orderBy('score','desc'),orderBy('time','asc'),limit(20));const snap=await getDocs(q);return snap.docs.map(d=>d.data());};
   window._fbReady=true;window.dispatchEvent(new Event('fb-ready'));
 </script>
@@ -352,7 +352,7 @@ min-width:160px;flex:1;
 
 /* ── SHOP SCREEN ── */
 .shop-screen{
-flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior-y:contain;
+flex:1;min-height:0;overflow-y:scroll;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior-y:contain;
 background:#0a0610;
 background-image:repeating-linear-gradient(0deg,transparent,transparent 1px,rgba(212,168,75,0.02) 1px,rgba(212,168,75,0.02) 2px);
 padding:20px 10px;display:flex;flex-direction:column;align-items:center;gap:14px;
@@ -514,11 +514,11 @@ transition:opacity 0.6s ease, background 0.2s, color 0.2s;
 .map-side-inv-slot:last-child{border-bottom:none;}
 .map-side-inv-empty{font-family:var(--pixel);font-size:13px;color:var(--text-dim);font-style:italic;}
 .map-narrative-call{font-family:'Cinzel',serif;font-size:1rem;color:#cc3333;font-weight:700;letter-spacing:.08em;text-align:center;text-shadow:0 0 10px rgba(200,50,50,.4);margin-top:4px;}
-.map-beta-notice{margin-top:12px;padding:10px 14px;border:1px solid rgba(212,168,75,.25);border-radius:4px;background:rgba(10,6,22,.6);font-family:'EB Garamond',serif;font-size:.78rem;color:var(--text-dim);text-align:center;line-height:1.6;width:100%;}
-.map-beta-notice strong{color:var(--gold);font-style:normal;font-family:'Cinzel',serif;letter-spacing:.06em;display:block;margin-bottom:4px;}
+.map-beta-notice{margin-top:8px;padding:12px 14px;border:1px solid rgba(212,168,75,.35);border-radius:4px;background:rgba(10,6,22,.8);font-family:'EB Garamond',serif;font-size:1rem;color:var(--text-dim);text-align:center;line-height:1.7;width:100%;}
+.map-beta-notice strong{color:var(--gold);font-style:normal;font-family:'Cinzel',serif;letter-spacing:.06em;font-size:1.1rem;display:block;margin-bottom:6px;}
 .map-beta-notice a{color:#88aadd;text-decoration:none;}
 .map-beta-notice a:hover{text-decoration:underline;}
-.itch-donate-btn{display:inline-block;font-family:var(--pixel);font-size:15px;color:#fa5c5c;background:#1a1a1a;border:2px solid #fa5c5c;padding:6px 16px;text-decoration:none;letter-spacing:.05em;cursor:pointer;transition:background .15s,color .15s;margin-top:6px;}
+.itch-donate-btn{display:inline-block;font-family:var(--pixel);font-size:17px;color:#fa5c5c;background:#1a1a1a;border:2px solid #fa5c5c;padding:8px 18px;text-decoration:none;letter-spacing:.05em;cursor:pointer;transition:background .15s,color .15s;margin-top:8px;}
 .itch-donate-btn:hover{background:#fa5c5c;color:#fff;text-decoration:none;}
 .itch-donate-end-wrap{text-align:center;padding:16px 0 8px;}
 .itch-donate-btn--large{font-size:19px;padding:14px 28px;display:block;max-width:480px;margin:0 auto;line-height:1.5;}
@@ -1326,6 +1326,7 @@ app.innerHTML=`<div class="map-wrap">
 <div class="map-side-label">🎒 Inventory</div>
 ${invSlots}
 </div>
+<div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a><br><a class="itch-donate-btn" href="https://emjayhar.itch.io/the-solitaire-tower-of-doom" target="_blank" rel="noopener">🎮 Support on itch.io</a></div>
 </div>
 <div class="tower-container" id="tower-container">
 <div class="tower-lightning" id="tower-lightning"></div>
@@ -1337,7 +1338,6 @@ ${invSlots}
 <div class="map-lb-body" id="map-lb-body"><div class="map-lb-loading">Loading...</div></div>
 </div>
 </div>
-<div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a><br><a class="itch-donate-btn" href="https://emjayhar.itch.io/the-solitaire-tower-of-doom" target="_blank" rel="noopener">🎮 Support on itch.io</a></div>
 
   </div>`;
   const curEl=document.getElementById(`floor-${A.floor}`);
@@ -1513,7 +1513,7 @@ function renderMapBoard(el,board){
 if(!board.length){el.innerHTML=`<div class="map-lb-empty">No scores yet.<br>Be the first to escape!</div>`;return;}
 el.innerHTML=board.map((e,i)=>`<div class="map-lb-row ${i===0?'map-lb-gold':i===1?'map-lb-silver':i===2?'map-lb-bronze':''}">
 <span class="map-lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-<span class="map-lb-name">${e.name}</span>
+<span class="map-lb-name">${e.name}${e.allFloors?'<span style="color:#ff4444;margin-left:5px;font-size:11px" title="Cleared all floors">✓</span>':''}</span>
 <span class="map-lb-right"><span class="map-lb-score">${e.score.toLocaleString()}</span><span class="map-lb-time">${fmtTime(e.time)}</span></span>
 
   </div>`).join('');
@@ -3066,9 +3066,9 @@ function getElapsed(){if(!A.timerStart&&!A.timerElapsed)return 0;if(A.timerRunni
 function fmtTime(ms){const s=Math.floor(ms/1000);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);const sc=s%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;}
 
 // ── LEADERBOARD ───────────────────────────────────────────
-async function saveScore(name){
+async function saveScore(name,isVictory){
 const entry={name:name.trim().substring(0,20)||'Anonymous',score:A.score,time:getElapsed(),date:Date.now()};
-try{if(window._fbSave)await window._fbSave(entry.name,entry.score,entry.time);}catch(e){console.error('Failed to save:',e);}
+try{if(window._fbSave)await window._fbSave(entry.name,entry.score,entry.time,isVictory);}catch(e){console.error('Failed to save:',e);}
 return loadBoard();
 }
 async function loadBoard(){try{if(window._fbLoad)return await window._fbLoad();return[];}catch(e){return[];}}
@@ -3108,7 +3108,7 @@ app.innerHTML=`<div class="end-screen ${isVictory?'':'lose-screen'}">
 function renderBoard(board){
   const el=document.getElementById('lb-body');if(!el)return;
   if(!board.length){el.innerHTML=`<div style="font-family:var(--pixel);color:#888;font-size:18px;padding:12px">No scores yet!</div>`;return;}
-  el.innerHTML=board.map((e,i)=>`<div class="lb-row ${i===0?'lb-first':i===1?'lb-second':i===2?'lb-third':''}"><span class="lb-rank">${i+1}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score.toLocaleString()}</span><span class="lb-time">${fmtTime(e.time)}</span></div>`).join('');
+  el.innerHTML=board.map((e,i)=>`<div class="lb-row ${i===0?'lb-first':i===1?'lb-second':i===2?'lb-third':''}"><span class="lb-rank">${i+1}</span><span class="lb-name">${e.name}${e.allFloors?'<span style="color:#ff4444;margin-left:5px;font-size:13px" title="Cleared all floors">✓</span>':''}</span><span class="lb-score">${e.score.toLocaleString()}</span><span class="lb-time">${fmtTime(e.time)}</span></div>`).join('');
 }
 let _scoreSubmitted=false;
 async function submitScore(isVictory){
@@ -3116,7 +3116,7 @@ async function submitScore(isVictory){
   _scoreSubmitted=true;
   const btn=document.getElementById('submit-score-btn');if(btn){btn.textContent='[ SAVING... ]';btn.disabled=true;}
   const inp=document.getElementById('pname');const name=(inp&&inp.value.trim())||'Anonymous';
-  const board=await saveScore(name);renderBoard(board);
+  const board=await saveScore(name,isVictory);renderBoard(board);
   clearSave();
   const formEl=document.querySelector('.ne-form');
   if(formEl)formEl.innerHTML=`<div style="font-family:var(--pixel);font-size:20px;color:#00ff00">Score saved!</div><button class="btn" style="margin-top:12px" onclick="init()">[ PLAY AGAIN ]</button>`;
