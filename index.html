@@ -897,8 +897,7 @@ function pyPos(r,c,cw,cgap){const G=cgap,ROWS=7;const rowW=(cw+G)*(r+1)-G;const 
 function pyBlocked(pyramid,r,c){if(r>=6)return false;return pyramid[pyIdx(r+1,c)]!==null||pyramid[pyIdx(r+1,c+1)]!==null;}
 function initPyramid(floor){
 const rng=mkRng(Date.now()^(Math.random()*0xFFFFF|0));const deck=shuffle(makeDeck(),rng);
-const pyramid=deck.slice(0,28).map(c=>({...c,faceUp:false}));
-for(let r=6;r>=0;r--)for(let c=0;c<=r;c++){const idx=pyIdx(r,c);if(!pyBlocked(pyramid,r,c))pyramid[idx].faceUp=true;}
+const pyramid=deck.slice(0,28).map(c=>({...c,faceUp:true}));
 const stock=deck.slice(28).map(c=>({...c,faceUp:false}));
 const waste=stock.length?[{...stock.shift(),faceUp:true}]:[];
 const maxCycles =
