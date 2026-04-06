@@ -499,6 +499,8 @@ transition:opacity 0.6s ease, background 0.2s, color 0.2s;
 .intro-watch-btn{display:block;font-family:var(--pixel);font-size:18px;color:rgba(212,168,75,.7);background:transparent;border:1px solid rgba(212,168,75,.4);padding:10px 28px;cursor:pointer;letter-spacing:.1em;opacity:0;transition:opacity 0.8s ease,color .2s,border-color .2s;margin-top:12px;}
 .intro-watch-btn.vis{opacity:1;}
 .intro-watch-btn:hover{color:rgba(212,168,75,1);border-color:rgba(212,168,75,.8);}
+.map-watch-intro-btn{display:block;width:100%;font-family:var(--pixel);font-size:12px;color:rgba(212,168,75,.65);background:transparent;border:1px solid rgba(212,168,75,.35);padding:8px 10px;cursor:pointer;letter-spacing:.08em;margin-top:10px;transition:color .2s,border-color .2s;}
+.map-watch-intro-btn:hover{color:rgba(212,168,75,1);border-color:rgba(212,168,75,.8);}
 
 /* ── MAP SIDE PANEL (narrative) ── */
 .map-keyart-wrap{width:100%;max-width:1100px;display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:16px;}
@@ -1214,6 +1216,10 @@ document.body.appendChild(overlay);
 video.play().catch(()=>finish());
 }
 
+function watchIntroFromMap(){
+A.screen='intro';render();
+}
+
 function playWinningCinematic(){
 const overlay=document.createElement('div');
 overlay.style.cssText='position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;';
@@ -1326,6 +1332,7 @@ app.innerHTML=`<div class="map-wrap">
 ${invSlots}
 </div>
 <div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a><br><a class="itch-donate-btn" href="https://emjayhar.itch.io/the-solitaire-tower-of-doom" target="_blank" rel="noopener">🎮 Support on itch.io</a></div>
+<button class="map-watch-intro-btn" onclick="watchIntroFromMap()">▶ Watch Intro</button>
 </div>
 <div class="tower-container" id="tower-container">
 <div class="tower-lightning" id="tower-lightning"></div>
@@ -3189,6 +3196,7 @@ window.loadSavedGame=loadSavedGame;window.startFresh=startFresh;
 window.nextFloor=nextFloor;window.init=init;window.submitScore=submitScore;
 window.togglePause=togglePause;window.buyItem=buyItem;window.leaveShop=leaveShop;
 window.activateItem=activateItem;window.cancelItemMode=cancelItemMode;
+window.watchIntroFromMap=watchIntroFromMap;
 
 // ── MUSIC MUTE TOGGLE ──────────────────────────────────────
 let _musicMuted=localStorage.getItem('musicMuted')==='1';
