@@ -1,3 +1,6 @@
+# © 2026 Mario Jorge Ramos. All rights reserved.
+# The Solitaire Tower of Doom
+
 name: Deploy to GitHub Pages
 on:
   push:
