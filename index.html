@@ -23,7 +23,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
-  import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, doc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, linkWithCredential, EmailAuthProvider, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
   const firebaseConfig = {
     apiKey:"AIzaSyD5WyhbaRz209eadnuIO_2piPr5WsLY0RE",authDomain:"solitaire-tower-9b415.firebaseapp.com",
     projectId:"solitaire-tower-9b415",storageBucket:"solitaire-tower-9b415.firebasestorage.app",
@@ -34,6 +35,70 @@
   window._fbSave=async(name,score,time,allFloors)=>{await addDoc(scoresCol,{name,score,time,date:Date.now(),allFloors:!!allFloors});};
   window._fbLoad=async()=>{const q=query(scoresCol,orderBy('score','desc'),orderBy('time','asc'),limit(20));const snap=await getDocs(q);return snap.docs.map(d=>d.data());};
   window._fbReady=true;window.dispatchEvent(new Event('fb-ready'));
+
+  // ── PLAYER ACCOUNTS (Firebase Auth + players/{uid} profile) ──
+  const auth=getAuth(app);
+  let _resolveAuthReady;
+  window._fbAuthReady=new Promise(res=>{_resolveAuthReady=res;});
+  onAuthStateChanged(auth,user=>{
+    if(user){
+      window._fbUser=user;
+      if(_resolveAuthReady){_resolveAuthReady();_resolveAuthReady=null;}
+      window.dispatchEvent(new Event('fb-auth-ready'));
+    }else{
+      signInAnonymously(auth).catch(e=>console.error('Anonymous sign-in failed:',e));
+    }
+  });
+
+  const playerRef=()=>auth.currentUser?doc(db,'players',auth.currentUser.uid):null;
+
+  window._fbGetProfile=async()=>{
+    const ref=playerRef();if(!ref)return null;
+    try{const snap=await getDoc(ref);return snap.exists()?snap.data():null;}catch(e){return null;}
+  };
+
+  window._fbRecordGame=async(won,score,time)=>{
+    const ref=playerRef();if(!ref)return;
+    const u=auth.currentUser;
+    try{
+      const snap=await getDoc(ref);
+      const prev=snap.exists()?snap.data():{};
+      const update={
+        displayName:u.displayName||prev.displayName||'Guest',
+        email:u.email||null,
+        gamesPlayed:(prev.gamesPlayed||0)+1,
+        gamesWon:(prev.gamesWon||0)+(won?1:0),
+        totalScore:(prev.totalScore||0)+(score||0),
+        bestScore:Math.max(prev.bestScore||0,score||0),
+        bestTime:(won&&(!prev.bestTime||time<prev.bestTime))?time:(prev.bestTime??null),
+        createdAt:prev.createdAt||Date.now(),
+        lastPlayed:Date.now()
+      };
+      await setDoc(ref,update,{merge:true});
+    }catch(e){console.error('Failed to record game stats:',e);}
+  };
+
+  window._fbSaveCloud=async(snap)=>{
+    const ref=playerRef();if(!ref)return;
+    try{await setDoc(ref,{save:snap,lastPlayed:Date.now()},{merge:true});}catch(e){}
+  };
+
+  window._fbLoadCloud=async()=>{
+    const ref=playerRef();if(!ref)return null;
+    try{const snap=await getDoc(ref);return snap.exists()?(snap.data().save||null):null;}catch(e){return null;}
+  };
+
+  window._fbLinkEmail=async(email,password,displayName)=>{
+    const u=auth.currentUser;
+    if(!u)throw new Error('Not signed in');
+    const cred=EmailAuthProvider.credential(email,password);
+    const result=await linkWithCredential(u,cred);
+    if(displayName)await updateProfile(result.user,{displayName});
+    return result.user;
+  };
+
+  window._fbSignIn=async(email,password)=>signInWithEmailAndPassword(auth,email,password);
+  window._fbSignOut=async()=>signOut(auth);
 </script>
 <style>
 :root {
@@ -1230,7 +1295,7 @@ let done=false;
 function finish(){
   if(done)return;done=true;
   overlay.style.transition='opacity 0.6s ease';overlay.style.opacity='0';
-  setTimeout(()=>{overlay.remove();A.screen='victory';render();},600);
+  setTimeout(()=>{overlay.remove();A.screen='victory';recordRunEnd(true);render();},600);
 }
 overlay.onclick=finish;
 video.onended=finish;
@@ -1242,6 +1307,7 @@ video.play().catch(()=>finish());
 
 // ── AUTO-SAVE SYSTEM ─────────────────────────────────────
 const SAVE_KEY='solitaireTowerSave';
+let _lastCloudSave=0;
 function saveGame(){
   try{
     const snap=Object.assign({},A);
@@ -1249,7 +1315,15 @@ function saveGame(){
     snap.undoStack=[];
     snap._saveTime=Date.now();
     localStorage.setItem(SAVE_KEY,JSON.stringify(snap));
+    const now=Date.now();
+    if(window._fbSaveCloud&&now-_lastCloudSave>4000){_lastCloudSave=now;window._fbSaveCloud(snap).catch(()=>{});}
   }catch(e){}
+}
+let _statsRecorded=false;
+function recordRunEnd(won){
+  if(_statsRecorded)return;
+  _statsRecorded=true;
+  try{if(window._fbRecordGame)window._fbRecordGame(won,A.score||0,getElapsed());}catch(e){}
 }
 function loadGame(){
   try{
@@ -1330,6 +1404,10 @@ app.innerHTML=`<div class="map-wrap">
 <div class="map-side-section">
 <div class="map-side-label">🎒 Inventory</div>
 ${invSlots}
+</div>
+<div class="map-side-section">
+<div class="map-side-label">Account</div>
+<button class="map-watch-intro-btn" onclick="openAccountPanel()">👤 Account &amp; Stats</button>
 </div>
 <div class="map-beta-notice"><strong>⚠ BETA VERSION</strong>This game is a work in progress.<br>Feedback wanted!<br><a href="mailto:emjayhar@gmail.com">emjayhar@gmail.com</a><br><a class="itch-donate-btn" href="https://emjayhar.itch.io/the-solitaire-tower-of-doom" target="_blank" rel="noopener">🎮 Support on itch.io</a></div>
 <button class="map-watch-intro-btn" onclick="watchIntroFromMap()">▶ Watch Intro</button>
@@ -2918,14 +2996,14 @@ A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.in
 }
 if(!confirm('Abandon this floor? You will lose a life.'))return;
 A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;
-if(A.lives<=0){stopTimer();A.screen='gameover';render();return;}
+if(A.lives<=0){stopTimer();A.screen='gameover';recordRunEnd(false);render();return;}
 A.screen='map';render();
 }
 
 function newShuffle(){
 if(!confirm('New Shuffle? Costs 1 life.'))return;
 A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;
-if(A.lives<=0){stopTimer();A.screen='gameover';render();return;}
+if(A.lives<=0){stopTimer();A.screen='gameover';recordRunEnd(false);render();return;}
 A.undoStack=[];A.moves=0;A.floorUndosUsed=0;A.floorStartTime=Date.now();A.floorStartScore=A.score;
 const t=A.gtype,f=A.floor;
 if(t==='klondike')A.gs=initKlondike(f);else if(t==='spider')A.gs=initSpider(f);
@@ -3079,6 +3157,90 @@ return loadBoard();
 }
 async function loadBoard(){try{if(window._fbLoad)return await window._fbLoad();return[];}catch(e){return[];}}
 
+// ── ACCOUNT PANEL ──────────────────────────────────────────
+async function openAccountPanel(){
+  closeAccountPanel();
+  const user=window._fbUser||null;
+  const isAnon=!user||user.isAnonymous;
+  const profile=window._fbGetProfile?await window._fbGetProfile().catch(()=>null):null;
+  const stats=profile||{};
+  const overlay=document.createElement('div');
+  overlay.id='account-overlay';
+  overlay.className='score-hist-overlay';
+  overlay.onclick=(e)=>{if(e.target===overlay)closeAccountPanel();};
+  overlay.innerHTML=`
+    <div class="score-hist-panel" style="max-width:380px;">
+      <div class="score-hist-title"><span>👤 Account</span><button class="score-hist-close" onclick="closeAccountPanel()">✕</button></div>
+      <div class="score-hist-body">
+        <div style="margin-bottom:10px;">
+          <div>Status: <strong>${isAnon?'Guest (this device)':'Signed in'}</strong></div>
+          ${!isAnon&&user.email?`<div>Email: ${user.email}</div>`:''}
+        </div>
+        <div style="margin-bottom:14px;">
+          <div>Games Played: ${stats.gamesPlayed||0}</div>
+          <div>Games Won: ${stats.gamesWon||0}</div>
+          <div>Best Score: ${(stats.bestScore||0).toLocaleString()}</div>
+          <div>Best Time: ${stats.bestTime?fmtTime(stats.bestTime):'—'}</div>
+        </div>
+        ${isAnon?`
+          <div style="margin-bottom:8px;font-size:12px;color:#888;">Save your progress &amp; stats online — create an account so you can sign in on any device.</div>
+          <input id="acct-email" type="email" placeholder="Email" class="ne-input" style="width:100%;margin-bottom:6px;">
+          <input id="acct-pass" type="password" placeholder="Password (6+ chars)" class="ne-input" style="width:100%;margin-bottom:6px;">
+          <button class="btn" onclick="accountLinkEmail()">[ CREATE ACCOUNT ]</button>
+          <div style="margin:10px 0 4px;font-size:12px;color:#888;">Already have an account from another device?</div>
+          <button class="btn" onclick="accountShowSignIn()">[ SIGN IN ]</button>
+        `:`
+          <button class="btn" onclick="accountSignOut()">[ SIGN OUT ]</button>
+        `}
+        <div id="acct-msg" style="margin-top:8px;font-size:12px;"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function closeAccountPanel(){const el=document.getElementById('account-overlay');if(el)el.remove();}
+async function accountLinkEmail(){
+  const email=document.getElementById('acct-email').value.trim();
+  const pass=document.getElementById('acct-pass').value;
+  const msg=document.getElementById('acct-msg');
+  if(!email||pass.length<6){msg.textContent='Enter a valid email and a 6+ character password.';msg.style.color='#ff4d4d';return;}
+  msg.textContent='Saving...';msg.style.color='#aaa';
+  try{
+    await window._fbLinkEmail(email,pass);
+    msg.textContent='Account created! Your progress is now saved online.';msg.style.color='#4dff91';
+    setTimeout(openAccountPanel,1200);
+  }catch(e){msg.textContent='Error: '+(e.message||'failed to create account');msg.style.color='#ff4d4d';}
+}
+function accountShowSignIn(){
+  const body=document.querySelector('#account-overlay .score-hist-body');
+  if(!body)return;
+  body.innerHTML=`
+    <div style="margin-bottom:8px;font-size:12px;color:#888;">Sign in to the account you created on another device. This replaces your guest progress on this device.</div>
+    <input id="acct-email2" type="email" placeholder="Email" class="ne-input" style="width:100%;margin-bottom:6px;">
+    <input id="acct-pass2" type="password" placeholder="Password" class="ne-input" style="width:100%;margin-bottom:6px;">
+    <button class="btn" onclick="accountSignIn()">[ SIGN IN ]</button>
+    <button class="btn" onclick="openAccountPanel()">[ BACK ]</button>
+    <div id="acct-msg" style="margin-top:8px;font-size:12px;"></div>`;
+}
+async function accountSignIn(){
+  const email=document.getElementById('acct-email2').value.trim();
+  const pass=document.getElementById('acct-pass2').value;
+  const msg=document.getElementById('acct-msg');
+  msg.textContent='Signing in...';msg.style.color='#aaa';
+  try{
+    await window._fbSignIn(email,pass);
+    msg.textContent='Signed in!';msg.style.color='#4dff91';
+    setTimeout(openAccountPanel,800);
+  }catch(e){msg.textContent='Error: '+(e.message||'sign in failed');msg.style.color='#ff4d4d';}
+}
+function accountSignOut(){
+  if(!confirm('Sign out? You will continue as a new guest on this device.'))return;
+  if(window._fbSignOut)window._fbSignOut();
+  closeAccountPanel();
+}
+window.openAccountPanel=openAccountPanel;window.closeAccountPanel=closeAccountPanel;
+window.accountLinkEmail=accountLinkEmail;window.accountShowSignIn=accountShowSignIn;
+window.accountSignIn=accountSignIn;window.accountSignOut=accountSignOut;
+
 // ── END SCREENS ────────────────────────────────────────────
 function renderNameEntry(app,isVictory){
 const elapsed=getElapsed();
@@ -3150,7 +3312,47 @@ if(saved && saved.screen!=='intro'){
   </div>`;
   return;
 }
-startFresh();
+startFreshOrCloudResume();
+}
+
+function startFreshOrCloudResume(){
+  if(!window._fbLoadCloud){startFresh();return;}
+  let settled=false;
+  const finish=(snap)=>{
+    if(settled)return;settled=true;
+    if(snap&&snap.screen&&snap.screen!=='intro')showCloudResumeDialog(snap);else startFresh();
+  };
+  setTimeout(()=>finish(null),2500);
+  Promise.resolve(window._fbAuthReady).then(()=>window._fbLoadCloud()).then(finish).catch(()=>finish(null));
+}
+
+function showCloudResumeDialog(saved){
+  const app=document.getElementById('app');
+  const floorNum=10-saved.floor;
+  const gt=(saved.gtype||'').charAt(0).toUpperCase()+(saved.gtype||'').slice(1);
+  const info=saved.screen==='game'?`Floor ${floorNum} · ${gt}`:`Floor ${floorNum} · Map`;
+  window._cloudResumeSnap=saved;
+  app.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#050508;">
+    <div style="background:rgba(15,10,30,.95);border:2px solid rgba(212,168,75,.35);border-radius:8px;padding:48px 56px;text-align:center;max-width:420px;box-shadow:0 0 60px rgba(212,168,75,.08),inset 0 0 30px rgba(0,0,0,.5);">
+      <div style="font-family:'Playfair Display',serif;font-size:2.2rem;color:var(--gold);margin-bottom:12px;text-shadow:0 0 24px var(--gold-glow);letter-spacing:.04em;">Cloud Save Found</div>
+      <div style="font-family:var(--pixel);font-size:13px;color:var(--text-dim);margin-bottom:8px;">${info}</div>
+      <div style="font-family:var(--pixel);font-size:18px;color:var(--gold-dim);margin-bottom:32px;">♥ ${saved.lives} &nbsp;&nbsp; ★ ${saved.score} pts</div>
+      <div style="display:flex;gap:16px;justify-content:center;">
+        <button class="cbtn cur" onclick="loadCloudResume()" style="font-size:15px;padding:12px 32px;">Continue</button>
+        <button class="cbtn" onclick="startFresh()" style="font-size:15px;padding:12px 32px;opacity:.7;">New Game</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function loadCloudResume(){
+  const saved=window._cloudResumeSnap;
+  if(!saved){startFresh();return;}
+  saved.done=new Set(saved.done||[]);
+  saved.undoStack=[];saved.sel=null;saved.winOverlay=false;saved.paused=false;saved.itemMode=null;saved.pickerOverlay=null;
+  A=saved;
+  if(A.timerRunning&&A.timerElapsed>0){A.timerStart=Date.now()-A.timerElapsed;}
+  render();
 }
 
 function loadSavedGame(){
@@ -3164,6 +3366,7 @@ render();
 function startFresh(){
 clearSave();
 _scoreSubmitted=false;
+_statsRecorded=false;
 A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'intro',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
@@ -3190,7 +3393,7 @@ window.addEventListener('DOMContentLoaded',init);
 window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS(A.gtype);applyS(s);}else render();});
 window.addEventListener('fb-ready',()=>{const el=document.getElementById('map-lb-body');if(el)loadBoard().then(board=>{const tmp=document.getElementById('map-lb-body');if(tmp)renderMapBoard(tmp,board);});});
 window.startGame=startGame;window.undoMove=undoMove;window.newShuffle=newShuffle;window.abandonGame=abandonGame;
-window.loadSavedGame=loadSavedGame;window.startFresh=startFresh;
+window.loadSavedGame=loadSavedGame;window.startFresh=startFresh;window.loadCloudResume=loadCloudResume;
 // ── SECRET INSTAWIN (developer only): type M J R ──────────
 (()=>{const SEQ=['m','j','r'];let pos=0;document.addEventListener('keydown',e=>{if(A.screen!=='game')return;if(e.key.toLowerCase()==='g'){fireCrtGlitch();return;}if(e.key.toLowerCase()===SEQ[pos]){pos++;if(pos===SEQ.length){pos=0;instaWin();}}else{pos=e.key.toLowerCase()===SEQ[0]?1:0;}});})();
 window.nextFloor=nextFloor;window.init=init;window.submitScore=submitScore;
