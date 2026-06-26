@@ -40,15 +40,35 @@
   const auth=getAuth(app);
   let _resolveAuthReady;
   window._fbAuthReady=new Promise(res=>{_resolveAuthReady=res;});
+  window._fbAuthError=null;
+  function tryAnonSignIn(){
+    signInAnonymously(auth).catch(e=>{
+      window._fbAuthError=e;
+      console.error('Anonymous sign-in failed:',e.code,e.message);
+    });
+  }
   onAuthStateChanged(auth,user=>{
     if(user){
+      window._fbAuthError=null;
       window._fbUser=user;
       if(_resolveAuthReady){_resolveAuthReady();_resolveAuthReady=null;}
       window.dispatchEvent(new Event('fb-auth-ready'));
     }else{
-      signInAnonymously(auth).catch(e=>console.error('Anonymous sign-in failed:',e));
+      tryAnonSignIn();
     }
   });
+
+  // Wait (briefly) for a signed-in user, retrying anonymous sign-in once if needed.
+  window._fbEnsureUser=async()=>{
+    if(auth.currentUser)return auth.currentUser;
+    await Promise.race([window._fbAuthReady,new Promise(r=>setTimeout(r,4000))]);
+    if(auth.currentUser)return auth.currentUser;
+    tryAnonSignIn();
+    await Promise.race([window._fbAuthReady,new Promise(r=>setTimeout(r,4000))]);
+    if(auth.currentUser)return auth.currentUser;
+    const reason=window._fbAuthError?`${window._fbAuthError.code||''} ${window._fbAuthError.message||''}`.trim():'unknown error';
+    throw new Error('Could not connect to account services ('+reason+'). Anonymous sign-in may be disabled for this project.');
+  };
 
   const playerRef=()=>auth.currentUser?doc(db,'players',auth.currentUser.uid):null;
 
@@ -89,8 +109,7 @@
   };
 
   window._fbLinkEmail=async(email,password,displayName)=>{
-    const u=auth.currentUser;
-    if(!u)throw new Error('Not signed in');
+    const u=await window._fbEnsureUser();
     const cred=EmailAuthProvider.credential(email,password);
     const result=await linkWithCredential(u,cred);
     if(displayName)await updateProfile(result.user,{displayName});
