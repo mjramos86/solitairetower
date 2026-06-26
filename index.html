@@ -1356,8 +1356,32 @@ function loadGame(){
     snap.paused=false;
     snap.itemMode=null;
     snap.pickerOverlay=null;
+    fillSaveDefaults(snap);
     return snap;
   }catch(e){return null;}
+}
+function fillSaveDefaults(snap){
+  if(!Array.isArray(snap.choices))snap.choices=genChoices();
+  if(!Array.isArray(snap.inventory))snap.inventory=[];
+  if(!Array.isArray(snap.shopItems))snap.shopItems=[];
+  if(!Array.isArray(snap.shopGoldBreakdown))snap.shopGoldBreakdown=[];
+  if(!Array.isArray(snap.scoreLog))snap.scoreLog=[];
+  if(!Array.isArray(snap.hints))snap.hints=[];
+  if(!Array.isArray(snap.hintTargets))snap.hintTargets=[];
+  if(typeof snap.gold!=='number')snap.gold=0;
+  if(typeof snap.shopGoldEarned!=='number')snap.shopGoldEarned=0;
+  if(typeof snap.tpStreak!=='number')snap.tpStreak=0;
+  if(typeof snap.bonusUndos!=='number')snap.bonusUndos=0;
+  if(typeof snap.revealAllUntil!=='number')snap.revealAllUntil=0;
+  if(typeof snap.hintUntil!=='number')snap.hintUntil=0;
+  if(typeof snap.toolboxUses!=='number')snap.toolboxUses=0;
+  if(typeof snap.extraFreecell!=='boolean')snap.extraFreecell=false;
+  if(typeof snap.floorStartLives!=='number')snap.floorStartLives=snap.lives||3;
+  if(typeof snap.floorUndosUsed!=='number')snap.floorUndosUsed=0;
+  if(typeof snap.floorStartTime!=='number')snap.floorStartTime=0;
+  if(typeof snap.floorStartScore!=='number')snap.floorStartScore=0;
+  if(typeof snap.scoreHistOverlay!=='boolean')snap.scoreHistOverlay=false;
+  return snap;
 }
 function clearSave(){localStorage.removeItem(SAVE_KEY);}
 
@@ -3365,21 +3389,33 @@ function showCloudResumeDialog(saved){
 }
 
 function loadCloudResume(){
-  const saved=window._cloudResumeSnap;
-  if(!saved){startFresh();return;}
-  saved.done=new Set(saved.done||[]);
-  saved.undoStack=[];saved.sel=null;saved.winOverlay=false;saved.paused=false;saved.itemMode=null;saved.pickerOverlay=null;
-  A=saved;
-  if(A.timerRunning&&A.timerElapsed>0){A.timerStart=Date.now()-A.timerElapsed;}
-  render();
+  try{
+    const saved=window._cloudResumeSnap;
+    if(!saved)throw new Error('no cloud snapshot');
+    saved.done=new Set(saved.done||[]);
+    saved.undoStack=[];saved.sel=null;saved.winOverlay=false;saved.paused=false;saved.itemMode=null;saved.pickerOverlay=null;
+    fillSaveDefaults(saved);
+    A=saved;
+    if(A.timerRunning&&A.timerElapsed>0){A.timerStart=Date.now()-A.timerElapsed;}
+    render();
+  }catch(e){
+    console.error('Cloud resume failed, starting fresh:',e);
+    startFresh();
+  }
 }
 
 function loadSavedGame(){
-const saved=loadGame();
-if(!saved){startFresh();return;}
-A=saved;
-if(A.timerRunning&&A.timerElapsed>0){A.timerStart=Date.now()-A.timerElapsed;}
-render();
+  try{
+    const saved=loadGame();
+    if(!saved)throw new Error('no local save');
+    A=saved;
+    if(A.timerRunning&&A.timerElapsed>0){A.timerStart=Date.now()-A.timerElapsed;}
+    render();
+  }catch(e){
+    console.error('Local resume failed, starting fresh:',e);
+    clearSave();
+    startFresh();
+  }
 }
 
 function startFresh(){
