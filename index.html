@@ -184,6 +184,25 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .account-variant-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.08);color:#f0ede5;}
 @media(max-width:600px){.account-body{padding:16px 18px;font-size:15px;}.account-title{font-size:1.15rem;padding:12px 16px;}.account-stat-grid{font-size:14px;}.account-variant-table{font-size:13px;}}
 
+/* Compendium panel */
+.compendium-panel{background:#16121e;border:2px solid var(--gold-dim);border-radius:6px;max-width:680px;width:94%;max-height:88vh;display:flex;flex-direction:column;font-family:'EB Garamond',serif;box-shadow:0 0 50px rgba(0,0,0,.6);}
+.compendium-title{background:linear-gradient(135deg,#2e2010,#1a1208);color:var(--gold);font-family:'Playfair Display',serif;font-size:1.4rem;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--gold-dim);flex-shrink:0;}
+.compendium-close{background:transparent;border:1.5px solid var(--gold-dim);color:var(--gold);width:34px;height:34px;border-radius:5px;cursor:pointer;font-size:18px;line-height:1;}
+.compendium-close:hover{border-color:var(--gold);background:rgba(212,168,75,.1);}
+.compendium-body{overflow-y:auto;flex:1;min-height:0;padding:22px 26px;color:#f0ede5;font-size:16px;line-height:1.6;}
+.compendium-entry{margin-bottom:26px;padding-bottom:20px;border-bottom:1px solid rgba(212,168,75,.18);}
+.compendium-entry:last-child{border-bottom:none;margin-bottom:0;}
+.compendium-entry-head{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+.compendium-entry-portrait{width:64px;height:64px;border-radius:5px;border:2px solid var(--gold-dim);object-fit:cover;background:#15101e;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:rgba(255,255,255,.2);}
+.compendium-entry-name{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.2rem;}
+.compendium-entry.locked .compendium-entry-portrait{opacity:.45;}
+.compendium-entry-locked-note{color:var(--text-dim);font-style:italic;font-size:15px;}
+.compendium-entry p{margin:0 0 10px;}
+.compendium-section-title{font-family:'Cinzel',serif;color:var(--gold-dim);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;margin:16px 0 8px;}
+.compendium-locked-block{background:rgba(0,0,0,.25);border:1px dashed rgba(212,168,75,.3);border-radius:5px;padding:14px 18px;display:flex;align-items:center;gap:14px;color:var(--text-dim);font-style:italic;font-size:15px;}
+.compendium-locked-icon{font-size:1.5rem;color:rgba(255,255,255,.25);flex-shrink:0;}
+@media(max-width:600px){.compendium-body{padding:16px 18px;font-size:14px;}.compendium-title{font-size:1.15rem;padding:12px 16px;}}
+
 /* CRT glitch overlay */
 .crt-glitch-overlay{position:fixed;inset:0;z-index:800;pointer-events:none;overflow:hidden;}
 .crt-glitch-bar{position:absolute;left:0;width:100%;height:3px;
@@ -1370,7 +1389,17 @@ A.screen='intro';render();
 // ── TIME PATRONS ─────────────────────────────────────────────
 const PATRON_INTRO_KEY='patronDeeIntroSeen';
 const PATRONS=[
-  {id:'johndee',name:'John Dee',img:'JohnDee.jpg',unlocked:true},
+  {id:'johndee',name:'John Dee',img:'JohnDee.jpg',unlocked:true,
+    bio:[
+      "John Dee was the most accomplished intellectual of Elizabethan England — a mathematician, cartographer, astronomer, and the personal astrologer of Queen Elizabeth I. It was Dee who calculated the most auspicious date for her coronation. His library at Mortlake was the largest private collection in England, until a mob ransacked it.",
+      "He spent years trying to communicate with angels through a crystal ball and a medium named Edward Kelley, recording these conversations in an elaborate cipher. His notation system — Enochian, the supposed language of angels — became a cornerstone of Western occultism.",
+      "Dee also traveled undercover as an intelligence agent for Elizabeth's court. He signed his correspondence to the queen \"007\" — the two zeros representing a spy's watching eyes, the seven a lucky number."
+    ],
+    loreUnlocked:false,
+    lore:[
+      "Legend has it that Dee visited Mary, Queen of Scots during her captivity — perhaps at Chartley or Fotheringhay — and taught her a card layout he presented as a method of divination. The game was supposedly meant to occupy her mind through the long nights before her execution.",
+      "More deeply, Dee believed the universe itself was encoded — that behind the apparent randomness of the cards lay a divine mathematical order. He was the first to suspect that the Sacred Shuffle was no accident, but a door."
+    ]},
   {id:'marie',name:'Marie',unlocked:false},
   {id:'king',name:'The King',unlocked:false},
   {id:'lion',name:'The Lion',unlocked:false},
@@ -1587,6 +1616,10 @@ app.innerHTML=`<div class="map-wrap">
 <div class="map-side-section">
 <div class="map-side-label">🎒 Inventory</div>
 ${invSlots}
+</div>
+<div class="map-side-section">
+<div class="map-side-label">Lore</div>
+<button class="map-watch-intro-btn" onclick="openCompendiumPanel()">📖 Compendium</button>
 </div>
 <div class="map-side-section">
 <div class="map-side-label">Account</div>
@@ -3416,6 +3449,47 @@ function accountGoToGate(){
 }
 window.openAccountPanel=openAccountPanel;window.closeAccountPanel=closeAccountPanel;
 window.accountSignOut=accountSignOut;window.accountGoToGate=accountGoToGate;
+
+// ── COMPENDIUM PANEL ───────────────────────────────────────
+function openCompendiumPanel(){
+  closeCompendiumPanel();
+  const overlay=document.createElement('div');
+  overlay.id='compendium-overlay';
+  overlay.className='score-hist-overlay';
+  overlay.onclick=(e)=>{if(e.target===overlay)closeCompendiumPanel();};
+  const entries=PATRONS.map(p=>{
+    if(!p.unlocked){
+      return `<div class="compendium-entry locked">
+        <div class="compendium-entry-head">
+          <div class="compendium-entry-portrait">🔒</div>
+          <div class="compendium-entry-name">${p.name==='???'?'Unknown Patron':p.name}</div>
+        </div>
+        <div class="compendium-entry-locked-note">This Time Patron has not yet revealed themselves to you.</div>
+      </div>`;
+    }
+    const bioHTML=(p.bio||[]).map(t=>`<p>${t}</p>`).join('');
+    const loreHTML=p.loreUnlocked
+      ?`<div class="compendium-section-title">Connection to Solitaire</div>${(p.lore||[]).map(t=>`<p>${t}</p>`).join('')}`
+      :`<div class="compendium-section-title">Connection to Solitaire</div>
+        <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>This Patron's link to the secret history of Solitaire has not yet been uncovered.</span></div>`;
+    return `<div class="compendium-entry">
+      <div class="compendium-entry-head">
+        ${p.img?`<img class="compendium-entry-portrait" src="${p.img}" alt="${p.name}">`:`<div class="compendium-entry-portrait"></div>`}
+        <div class="compendium-entry-name">${p.name}</div>
+      </div>
+      ${bioHTML}
+      ${loreHTML}
+    </div>`;
+  }).join('');
+  overlay.innerHTML=`
+    <div class="compendium-panel">
+      <div class="compendium-title"><span>📖 Compendium</span><button class="compendium-close" onclick="closeCompendiumPanel()">✕</button></div>
+      <div class="compendium-body">${entries}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function closeCompendiumPanel(){const el=document.getElementById('compendium-overlay');if(el)el.remove();}
+window.openCompendiumPanel=openCompendiumPanel;window.closeCompendiumPanel=closeCompendiumPanel;
 
 // ── END SCREENS ────────────────────────────────────────────
 function renderNameEntry(app,isVictory){
