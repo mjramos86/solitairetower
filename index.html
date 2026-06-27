@@ -1351,9 +1351,7 @@ app.innerHTML=`<div class="intro-screen" id="intro-screen">
 function startFromIntro(){
 const screen=document.getElementById('intro-screen');
 const proceed=()=>{
-  let seen=false;
-  try{seen=localStorage.getItem(PATRON_INTRO_KEY)==='1';}catch(e){}
-  A.screen=seen?'patron-select':'patron-dialogue';
+  A.screen='patron-dialogue';
   render();
 };
 if(screen){
@@ -1391,7 +1389,6 @@ A.screen='intro';render();
 }
 
 // ── TIME PATRONS ─────────────────────────────────────────────
-const PATRON_INTRO_KEY='patronDeeIntroSeen';
 const PATRONS=[
   {id:'johndee',name:'John Dee',img:'JohnDee.jpg',unlocked:true,
     bio:[
@@ -1502,7 +1499,6 @@ function advancePatronDialogue(){
 }
 function skipPatronDialogue(){finishPatronDialogue();}
 function finishPatronDialogue(){
-  try{localStorage.setItem(PATRON_INTRO_KEY,'1');}catch(e){}
   _patronDlgIdx=0;_patronDlgChoice=null;
   A.screen='patron-select';render();
 }
@@ -1554,8 +1550,7 @@ document.body.appendChild(overlay);
 video.play().catch(()=>finish());
 }
 
-// ── AUTO-SAVE SYSTEM ─────────────────────────────────────
-const SAVE_KEY='solitaireTowerSave';
+// ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
 let _lastCloudSave=0;
 function saveGame(){
   try{
@@ -1563,7 +1558,6 @@ function saveGame(){
     snap.done=[...A.done];
     snap.undoStack=[];
     snap._saveTime=Date.now();
-    localStorage.setItem(SAVE_KEY,JSON.stringify(snap));
     const now=Date.now();
     if(window._fbSaveCloud&&now-_lastCloudSave>4000){_lastCloudSave=now;window._fbSaveCloud(snap).catch(()=>{});}
   }catch(e){}
@@ -1576,22 +1570,6 @@ function recordRunEnd(won){
 }
 function recordGameEnd(type,won){
   try{if(window._fbRecordGameResult)window._fbRecordGameResult(type,won);}catch(e){}
-}
-function loadGame(){
-  try{
-    const raw=localStorage.getItem(SAVE_KEY);
-    if(!raw)return null;
-    const snap=JSON.parse(raw);
-    snap.done=new Set(snap.done||[]);
-    snap.undoStack=[];
-    snap.sel=null;
-    snap.winOverlay=false;
-    snap.paused=false;
-    snap.itemMode=null;
-    snap.pickerOverlay=null;
-    fillSaveDefaults(snap);
-    return snap;
-  }catch(e){return null;}
 }
 function fillSaveDefaults(snap){
   if(!Array.isArray(snap.choices))snap.choices=genChoices();
@@ -1617,8 +1595,6 @@ function fillSaveDefaults(snap){
   if(typeof snap.patron==='undefined')snap.patron='johndee';
   return snap;
 }
-function clearSave(){localStorage.removeItem(SAVE_KEY);}
-
 // ── RANDOM CARDBACK ──────────────────────────────────────
 const CARDBACKS=['cardbacks/CardBack2.jpg','cardbacks/CardBack3.jpg','cardbacks/OccultEye.png','cardbacks/TheKing.jpg'];
 function randomCardback(){
@@ -3606,7 +3582,6 @@ async function submitScore(isVictory){
   const btn=document.getElementById('submit-score-btn');if(btn){btn.textContent='[ SAVING... ]';btn.disabled=true;}
   const inp=document.getElementById('pname');const name=(inp&&inp.value.trim())||'Anonymous';
   const board=await saveScore(name,isVictory);renderBoard(board);
-  clearSave();
   if(window._fbClearCloudSave)window._fbClearCloudSave().catch(()=>{});
   const formEl=document.querySelector('.ne-form');
   if(formEl)formEl.innerHTML=`<div style="font-family:var(--pixel);font-size:20px;color:#00ff00">Score saved!</div><button class="btn" style="margin-top:12px" onclick="init()">[ PLAY AGAIN ]</button>`;
@@ -3684,27 +3659,7 @@ function startCloudFlow(){
 
 function startGuestFlow(){
   window._guestMode=true;
-  const saved=loadGame();
-  if(saved && saved.screen!=='intro'){showLocalResumeDialog(saved);}
-  else{startFresh();}
-}
-
-function showLocalResumeDialog(saved){
-  const app=document.getElementById('app');
-  const floorNum=10-saved.floor;
-  const gt=(saved.gtype||'').charAt(0).toUpperCase()+(saved.gtype||'').slice(1);
-  const info=saved.screen==='game'?`Floor ${floorNum} · ${gt}`:`Floor ${floorNum} · Map`;
-  app.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#050508;">
-    <div style="background:rgba(15,10,30,.95);border:2px solid rgba(212,168,75,.35);border-radius:8px;padding:48px 56px;text-align:center;max-width:420px;box-shadow:0 0 60px rgba(212,168,75,.08),inset 0 0 30px rgba(0,0,0,.5);">
-      <div style="font-family:'Playfair Display',serif;font-size:2.2rem;color:var(--gold);margin-bottom:12px;text-shadow:0 0 24px var(--gold-glow);letter-spacing:.04em;">Saved Game Found</div>
-      <div style="font-family:var(--pixel);font-size:13px;color:var(--text-dim);margin-bottom:8px;">${info}</div>
-      <div style="font-family:var(--pixel);font-size:18px;color:var(--gold-dim);margin-bottom:32px;">♥ ${saved.lives} &nbsp;&nbsp; ★ ${saved.score} pts</div>
-      <div style="display:flex;gap:16px;justify-content:center;">
-        <button class="cbtn cur" onclick="loadSavedGame()" style="font-size:15px;padding:12px 32px;">Continue</button>
-        <button class="cbtn" onclick="startFresh()" style="font-size:15px;padding:12px 32px;opacity:.7;">New Game</button>
-      </div>
-    </div>
-  </div>`;
+  startFresh();
 }
 
 function showCloudResumeDialog(saved){
@@ -3742,22 +3697,7 @@ function loadCloudResume(){
   }
 }
 
-function loadSavedGame(){
-  try{
-    const saved=loadGame();
-    if(!saved)throw new Error('no local save');
-    A=saved;
-    if(A.timerRunning&&A.timerElapsed>0){A.timerStart=Date.now()-A.timerElapsed;}
-    render();
-  }catch(e){
-    console.error('Local resume failed, starting fresh:',e);
-    clearSave();
-    startFresh();
-  }
-}
-
 function startFresh(){
-clearSave();
 _scoreSubmitted=false;
 _statsRecorded=false;
 A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'intro',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
@@ -3787,7 +3727,7 @@ window.addEventListener('DOMContentLoaded',init);
 window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS(A.gtype);applyS(s);}else render();});
 window.addEventListener('fb-ready',()=>{const el=document.getElementById('map-lb-body');if(el)loadBoard().then(board=>{const tmp=document.getElementById('map-lb-body');if(tmp)renderMapBoard(tmp,board);});});
 window.startGame=startGame;window.undoMove=undoMove;window.newShuffle=newShuffle;window.abandonGame=abandonGame;
-window.loadSavedGame=loadSavedGame;window.startFresh=startFresh;window.loadCloudResume=loadCloudResume;
+window.startFresh=startFresh;window.loadCloudResume=loadCloudResume;
 // ── SECRET INSTAWIN (developer only): type M J R ──────────
 (()=>{const SEQ=['m','j','r'];let pos=0;document.addEventListener('keydown',e=>{if(A.screen!=='game')return;if(e.key.toLowerCase()==='g'){fireCrtGlitch();return;}if(e.key.toLowerCase()===SEQ[pos]){pos++;if(pos===SEQ.length){pos=0;instaWin();}}else{pos=e.key.toLowerCase()===SEQ[0]?1:0;}});})();
 window.nextFloor=nextFloor;window.init=init;window.submitScore=submitScore;
@@ -3796,17 +3736,14 @@ window.activateItem=activateItem;window.cancelItemMode=cancelItemMode;
 window.watchIntroFromMap=watchIntroFromMap;
 
 // ── MUSIC MUTE TOGGLE ──────────────────────────────────────
-let _musicMuted=localStorage.getItem('musicMuted')==='1';
+let _musicMuted=false;
 function toggleMusicMute(){
   _musicMuted=!_musicMuted;
-  localStorage.setItem('musicMuted',_musicMuted?'1':'0');
   const btn=document.getElementById('music-toggle');
   if(btn)btn.textContent=_musicMuted?'🔇':'🔊';
   if(_musicMuted){stopMusic();}else{if(A.screen==='map')playMusic('map');else if(A.screen==='game')playMusic('game');}
 }
 window.toggleMusicMute=toggleMusicMute;
-// Apply initial mute state on load
-window.addEventListener('DOMContentLoaded',()=>{const btn=document.getElementById('music-toggle');if(btn&&_musicMuted)btn.textContent='🔇';});
 </script>
 <div id="music-toggle" title="Toggle Music" onclick="toggleMusicMute()">🔊</div>
 </body>
