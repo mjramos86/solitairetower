@@ -605,6 +605,43 @@ transition:opacity 0.6s ease, background 0.2s, color 0.2s;
 .map-watch-intro-btn{display:block;width:100%;font-family:var(--pixel);font-size:12px;color:rgba(212,168,75,.65);background:transparent;border:1px solid rgba(212,168,75,.35);padding:8px 10px;cursor:pointer;letter-spacing:.08em;margin-top:10px;transition:color .2s,border-color .2s;}
 .map-watch-intro-btn:hover{color:rgba(212,168,75,1);border-color:rgba(212,168,75,.8);}
 
+/* ── TIME PATRON DIALOGUE ── */
+.patron-dialogue-screen{position:fixed;inset:0;background:#0a0610;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:'EB Garamond',serif;}
+.patron-dialogue-box{display:flex;gap:28px;max-width:900px;width:100%;align-items:flex-start;}
+.patron-dialogue-portrait-wrap{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.patron-dialogue-portrait{width:200px;height:200px;border-radius:6px;border:2px solid var(--gold-dim);object-fit:cover;box-shadow:0 0 30px rgba(212,168,75,.15);}
+.patron-dialogue-name{font-family:'Cinzel',serif;color:var(--gold);font-size:1.1rem;letter-spacing:.08em;}
+.patron-dialogue-text-wrap{flex:1;min-width:0;background:rgba(15,10,30,.9);border:1px solid rgba(212,168,75,.25);border-radius:6px;padding:24px 28px;min-height:200px;display:flex;flex-direction:column;justify-content:space-between;gap:16px;}
+.patron-dialogue-line{color:var(--text);font-size:1.15rem;line-height:1.7;}
+.patron-dialogue-line.scene{color:var(--text-dim);font-style:italic;font-size:1rem;}
+.patron-dialogue-actions{display:flex;justify-content:flex-end;align-items:center;gap:14px;}
+.patron-dialogue-skip{background:transparent;border:none;color:var(--text-dim);font-family:var(--pixel);font-size:13px;cursor:pointer;letter-spacing:.05em;}
+.patron-dialogue-skip:hover{color:var(--gold-dim);}
+.patron-dialogue-next{font-family:var(--pixel);font-size:15px;color:#000;background:var(--gold);border:none;border-radius:3px;padding:8px 22px;cursor:pointer;letter-spacing:.08em;}
+.patron-dialogue-next:hover{background:#e8c068;}
+@media(max-width:680px){.patron-dialogue-box{flex-direction:column;align-items:center;}.patron-dialogue-portrait{width:140px;height:140px;}}
+
+/* ── TIME PATRON SELECTION ── */
+.patron-select-screen{position:fixed;inset:0;background:#0a0610;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;padding:24px;gap:22px;text-align:center;}
+.patron-select-title{font-family:'Playfair Display',serif;font-size:2rem;color:var(--gold);text-shadow:0 0 24px var(--gold-glow);}
+.patron-select-sub{font-family:'EB Garamond',serif;font-style:italic;color:var(--text-dim);max-width:480px;line-height:1.6;}
+.patron-select-grid{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;max-width:760px;}
+.patron-card{width:130px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;}
+.patron-card.locked{cursor:default;opacity:.5;}
+.patron-card-portrait{width:110px;height:110px;border-radius:6px;border:2px solid var(--gold-dim);object-fit:cover;background:#15101e;display:flex;align-items:center;justify-content:center;transition:border-color .2s,box-shadow .2s;}
+.patron-card:not(.locked):hover .patron-card-portrait{border-color:var(--gold);box-shadow:0 0 18px var(--gold-glow);}
+.patron-card-locked-icon{font-size:2.2rem;color:rgba(255,255,255,.15);}
+.patron-card-name{font-family:'Cinzel',serif;font-size:.85rem;color:var(--text);}
+.patron-card.locked .patron-card-name{color:var(--text-dim);}
+.patron-select-confirm{font-family:var(--pixel);font-size:13px;color:var(--text-dim);}
+
+/* ── TIME PATRON BADGE (map + variant screens) ── */
+.patron-badge{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.patron-badge-portrait{width:54px;height:54px;border-radius:4px;border:2px solid var(--gold-dim);object-fit:cover;background:#15101e;display:block;}
+.patron-badge-name{font-family:'Cinzel',serif;font-size:.65rem;color:var(--gold-dim);letter-spacing:.05em;text-align:center;}
+.patron-toolbar-portrait{width:30px;height:30px;border-radius:2px;object-fit:cover;flex-shrink:0;
+border:2px solid;border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);}
+
 /* ── MAP SIDE PANEL (narrative) ── */
 .map-keyart-wrap{width:100%;max-width:1100px;display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:16px;}
 .map-lore{font-family:'EB Garamond',serif;font-style:italic;font-size:1.05rem;color:var(--text-dim);text-align:center;line-height:1.8;max-width:560px;letter-spacing:.02em;}
@@ -794,6 +831,7 @@ let A={
 lives:3,floor:0,choices:[],done:new Set(),screen:'map',
 gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
+patron:null,
 // Shop / gold / inventory
 gold:0,inventory:[],
 shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
@@ -1289,12 +1327,18 @@ app.innerHTML=`<div class="intro-screen" id="intro-screen">
 
 function startFromIntro(){
 const screen=document.getElementById('intro-screen');
+const proceed=()=>{
+  let seen=false;
+  try{seen=localStorage.getItem(PATRON_INTRO_KEY)==='1';}catch(e){}
+  A.screen=seen?'patron-select':'patron-dialogue';
+  render();
+};
 if(screen){
   screen.style.transition='opacity 0.8s ease';
   screen.style.opacity='0';
-  setTimeout(()=>{A.screen='map';render();},820);
+  setTimeout(proceed,820);
 } else {
-  A.screen='map';render();
+  proceed();
 }
 }
 
@@ -1321,6 +1365,73 @@ video.play().catch(()=>finish());
 
 function watchIntroFromMap(){
 A.screen='intro';render();
+}
+
+// ── TIME PATRONS ─────────────────────────────────────────────
+const PATRON_INTRO_KEY='patronDeeIntroSeen';
+const PATRONS=[
+  {id:'johndee',name:'John Dee',img:'JohnDee.jpg',unlocked:true},
+  {id:'marie',name:'Marie',unlocked:false},
+  {id:'king',name:'The King',unlocked:false},
+  {id:'lion',name:'The Lion',unlocked:false},
+  {id:'unknown1',name:'???',unlocked:false},
+  {id:'unknown2',name:'???',unlocked:false},
+];
+const DEE_DIALOGUE=[
+  {scene:true,text:"Screens, dozens of them, each running a different game of patience. Fluorescent light through closed blinds. Keyboards clattering somewhere that isn't quite this room. A voice arrives a half-second out of sync with itself."},
+  {text:"Don't try to remember how long you've been sitting there. Hours, days &mdash; it won't come to you, and it doesn't matter yet."},
+  {text:"I am John Dee. Astrologer, spy, mathematician. None of that matters yet either."},
+  {text:"Look around you. This is an office tower, and everyone in it is exactly where you are &mdash; chained to a screen, dealing cards they no longer remember choosing to deal. That isn't carelessness. It's a working."},
+  {text:"A Cult has taken this building, and through means I won't dignify by calling magic, they've bent every mind in it toward a single task: play, endlessly. Thousands of hands of solitaire at once, because somewhere in that flood, one shuffle will be the <em>true</em> one &mdash; the Sacred Shuffle, the one that hands them dominion over time itself. They mean to drown the secret out of hiding through sheer numbers."},
+  {text:"There is a way down through this building &mdash; floor by floor, deeper than the foundation has any right to go. Each landing wants a hand of patience cleared before it lets you pass. You may well reach the bottom today. The cards can be beaten &mdash; I won't pretend otherwise to make you grateful for my help."},
+  {text:"But the bottom of this Tower isn't the end of the Cult's working. The Sacred Shuffle isn't a prize waiting at the last floor; it's a key with many teeth, and I hold only one of them. You'll need the others &mdash; Marie, the King, the old Lion, and more besides &mdash; each carrying a piece of the same secret from a different age. Only once their strength is gathered alongside mine does what the Cult is building come apart."},
+  {text:"So descend. Reach the bottom, if your hand is good enough. Just don't mistake the floor for the end of this."},
+  {scene:true,text:"A single card waits, face down."},
+  {text:"Begin. I'll be watching for the others to find you."},
+];
+let _patronDlgIdx=0;
+function renderPatronDialogue(app){
+  const beat=DEE_DIALOGUE[_patronDlgIdx];
+  const isLast=_patronDlgIdx===DEE_DIALOGUE.length-1;
+  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-dialogue-box"> <div class="patron-dialogue-portrait-wrap"> <img class="patron-dialogue-portrait" src="JohnDee.jpg" alt="John Dee"> <div class="patron-dialogue-name">JOHN DEE</div> </div> <div class="patron-dialogue-text-wrap"> <div class="patron-dialogue-line ${beat.scene?'scene':''}">${beat.text}</div> <div class="patron-dialogue-actions"> <button class="patron-dialogue-skip" onclick="skipPatronDialogue()">Skip ▸▸</button> <button class="patron-dialogue-next" onclick="advancePatronDialogue()">${isLast?'Begin':'Continue ▸'}</button> </div> </div> </div>
+  </div>`;
+}
+function advancePatronDialogue(){
+  if(_patronDlgIdx>=DEE_DIALOGUE.length-1){finishPatronDialogue();return;}
+  _patronDlgIdx++;render();
+}
+function skipPatronDialogue(){finishPatronDialogue();}
+function finishPatronDialogue(){
+  try{localStorage.setItem(PATRON_INTRO_KEY,'1');}catch(e){}
+  _patronDlgIdx=0;
+  A.screen='patron-select';render();
+}
+function renderPatronSelect(app){
+  const cards=PATRONS.map(p=>p.unlocked
+    ?`<div class="patron-card" onclick="selectPatron('${p.id}')"> <img class="patron-card-portrait" src="${p.img}" alt="${p.name}"> <div class="patron-card-name">${p.name}</div> </div>`
+    :`<div class="patron-card locked"> <div class="patron-card-portrait"><span class="patron-card-locked-icon">🔒</span></div> <div class="patron-card-name">???</div> </div>`
+  ).join('');
+  app.innerHTML=`<div class="patron-select-screen"> <div class="patron-select-title">Choose Your Time Patron</div> <div class="patron-select-sub">An ally for this descent, lending their nature to the wares you'll find along the way.</div> <div class="patron-select-grid">${cards}</div> <div class="patron-select-confirm">Select John Dee to begin your descent.</div>
+  </div>`;
+}
+function selectPatron(id){
+  const p=PATRONS.find(x=>x.id===id);
+  if(!p||!p.unlocked)return;
+  A.patron=id;
+  A.screen='map';
+  render();
+}
+function patronBadgeHTML(){
+  if(!A.patron)return'';
+  const p=PATRONS.find(x=>x.id===A.patron);
+  if(!p||!p.img)return'';
+  return`<img class="patron-badge-portrait" src="${p.img}" alt="${p.name}" title="${p.name} -- your Time Patron">`;
+}
+function patronToolbarHTML(){
+  if(!A.patron)return'';
+  const p=PATRONS.find(x=>x.id===A.patron);
+  if(!p||!p.img)return'';
+  return`<img class="patron-toolbar-portrait" src="${p.img}" alt="${p.name}" title="${p.name} -- your Time Patron">`;
 }
 
 function playWinningCinematic(){
@@ -1403,6 +1514,7 @@ function fillSaveDefaults(snap){
   if(typeof snap.floorStartTime!=='number')snap.floorStartTime=0;
   if(typeof snap.floorStartScore!=='number')snap.floorStartScore=0;
   if(typeof snap.scoreHistOverlay!=='boolean')snap.scoreHistOverlay=false;
+  if(typeof snap.patron==='undefined')snap.patron='johndee';
   return snap;
 }
 function clearSave(){localStorage.removeItem(SAVE_KEY);}
@@ -1419,6 +1531,8 @@ const app=document.getElementById('app');
 // Auto-save on every render (except intro)
 if(A.screen!=='intro')saveGame();
 if(A.screen==='intro'){stopMusic();stopCrtGlitch();renderIntro(app);return;}
+if(A.screen==='patron-dialogue'){stopMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
+if(A.screen==='patron-select'){stopMusic();stopCrtGlitch();renderPatronSelect(app);return;}
 if(A.screen==='map'){playMusic('map');stopCrtGlitch();if(A.timerRunning)stopTimer();renderMap(app);return;}
 if(A.screen!=='map')stopAmbientAudio();
 if(A.screen==='shop'){stopMusic();stopCrtGlitch();renderShop(app);return;}
@@ -1458,6 +1572,10 @@ app.innerHTML=`<div class="map-wrap">
 </div>
 <div class="map-body">
 <div class="map-side-panel">
+<div class="map-side-section">
+<div class="map-side-label">Time Patron</div>
+<div class="patron-badge">${patronBadgeHTML()}</div>
+</div>
 <div class="map-side-section">
 <div class="map-side-label">Lives</div>
 <div class="map-side-hearts">${liv}</div>
@@ -1745,6 +1863,7 @@ app.innerHTML=`<div class="game-screen"> <div class="win95-window"> <div class="
     <div class="win95-toolbar-sep"></div>
     <div class="inv-bar">${inventoryBarHTML()}</div>
     <div class="gold-display">⏳${A.gold}</div>
+    ${patronToolbarHTML()}
     <div class="win95-hearts">${liv}</div>
   </div>
   <div class="rules-strip">${(RULES[t]||[]).map(r=>`<span class="rule-item">▸ ${r}</span>`).join('')}</div>
@@ -3498,6 +3617,7 @@ _scoreSubmitted=false;
 _statsRecorded=false;
 A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'intro',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
+patron:null,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
 floorStartLives:3,floorUndosUsed:0,floorStartTime:0,floorStartScore:0,
 itemMode:null,bonusUndos:0,revealAllUntil:0,revealSnapshot:null,hintUntil:0,hints:[],hintTargets:[],
