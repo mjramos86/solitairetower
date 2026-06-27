@@ -1463,8 +1463,8 @@ app.innerHTML=`<div class="map-wrap">
 <div class="map-side-hearts">${liv}</div>
 </div>
 <div class="map-side-section">
-<div class="map-side-label">Gold</div>
-<div class="map-side-gold">🪙 ${A.gold}</div>
+<div class="map-side-label">Time Credits</div>
+<div class="map-side-gold">⏳ ${A.gold}</div>
 </div>
 <div class="map-side-section">
 <div class="map-side-label">🎒 Inventory</div>
@@ -1744,7 +1744,7 @@ app.innerHTML=`<div class="game-screen"> <div class="win95-window"> <div class="
     <span class="win95-info">${A.moves}mv</span>
     <div class="win95-toolbar-sep"></div>
     <div class="inv-bar">${inventoryBarHTML()}</div>
-    <div class="gold-display">🪙${A.gold}</div>
+    <div class="gold-display">⏳${A.gold}</div>
     <div class="win95-hearts">${liv}</div>
   </div>
   <div class="rules-strip">${(RULES[t]||[]).map(r=>`<span class="rule-item">▸ ${r}</span>`).join('')}</div>
@@ -1967,10 +1967,10 @@ return breakdown;
 function renderShop(app){
 const breakdown=A.shopGoldBreakdown;const total=A.shopGoldEarned;
 const ownedIds=new Set(A.inventory.map(i=>i.id));
-app.innerHTML=`<div class="shop-screen"> <!-- Gold earned --> <div class="shop-window"> <div class="shop-titlebar">🪙 Floor ${10-(A.floor-1)} Cleared -- Gold Awarded</div> <div class="shop-body"> <div class="gold-breakdown"> ${breakdown.map(b=>`<div class="gold-stat">
+app.innerHTML=`<div class="shop-screen"> <!-- Time credits earned --> <div class="shop-window"> <div class="shop-titlebar">⏳ Floor ${10-(A.floor-1)} Cleared -- Time Credits Awarded</div> <div class="shop-body"> <div class="gold-breakdown"> ${breakdown.map(b=>`<div class="gold-stat">
 <span class="gold-stat-label">${b.label}</span>
-<span class="gold-stat-val ${b.earned?'earned':'locked'}">${b.earned?'+':''} ${b.amount>0?b.amount:'--'} 🪙</span>
-</div>`).join('')} <div class="gold-stat" style="border-color:#886600 #ffdd00 #ffdd00 #886600;background:#fffce0"> <span class="gold-stat-label">TOTAL EARNED</span> <span class="gold-stat-val total">+${total} 🪙</span> </div> <div class="gold-stat" style="border-color:#000080 #88aaff #88aaff #000080;background:#e8ecff"> <span class="gold-stat-label">YOUR BALANCE</span> <span class="gold-stat-val" style="color:#000080">${A.gold} 🪙</span> </div> </div> </div> </div> <!-- Item shop --> <div class="shop-window"> <div class="shop-titlebar">🏪 Item Shop -- 3 Items Available Today</div> <div class="shop-body"> <div class="shop-items-grid"> ${A.shopItems.map(item=>renderShopItemHTML(item,ownedIds)).join('')} </div> </div> </div> <!-- Inventory --> <div class="shop-window"> <div class="shop-titlebar">🎒 Your Inventory (${A.inventory.length}/3 slots)</div> <div class="shop-body"> <div class="shop-inv-grid"> ${A.inventory.map(it=>`<div class="shop-inv-card">${it.icon} <span style="font-family:var(--pixel);font-size:14px">${it.name}</span></div>`).join('')} ${Array.from({length:Math.max(0,3-A.inventory.length)},()=>`<div class="shop-inv-empty">[ empty ]</div>`).join('')} </div> ${A.inventory.length===3?`<div style="font-family:var(--pixel);font-size:14px;color:#800000;margin-top:8px">⚠ Inventory full! Use or drop items in-game.</div>`:''}
+<span class="gold-stat-val ${b.earned?'earned':'locked'}">${b.earned?'+':''} ${b.amount>0?b.amount:'--'} ⏳</span>
+</div>`).join('')} <div class="gold-stat" style="border-color:#886600 #ffdd00 #ffdd00 #886600;background:#fffce0"> <span class="gold-stat-label">TOTAL EARNED</span> <span class="gold-stat-val total">+${total} ⏳</span> </div> <div class="gold-stat" style="border-color:#000080 #88aaff #88aaff #000080;background:#e8ecff"> <span class="gold-stat-label">YOUR BALANCE</span> <span class="gold-stat-val" style="color:#000080">${A.gold} ⏳</span> </div> </div> </div> </div> <!-- Item shop --> <div class="shop-window"> <div class="shop-titlebar">🏪 John Dee's Cabinet of Curiosities -- 3 Items Available Today</div> <div class="shop-body"> <div class="shop-items-grid"> ${A.shopItems.map(item=>renderShopItemHTML(item,ownedIds)).join('')} </div> </div> </div> <!-- Inventory --> <div class="shop-window"> <div class="shop-titlebar">🎒 Your Inventory (${A.inventory.length}/3 slots)</div> <div class="shop-body"> <div class="shop-inv-grid"> ${A.inventory.map(it=>`<div class="shop-inv-card">${it.icon} <span style="font-family:var(--pixel);font-size:14px">${it.name}</span></div>`).join('')} ${Array.from({length:Math.max(0,3-A.inventory.length)},()=>`<div class="shop-inv-empty">[ empty ]</div>`).join('')} </div> ${A.inventory.length===3?`<div style="font-family:var(--pixel);font-size:14px;color:#800000;margin-top:8px">⚠ Inventory full! Use or drop items in-game.</div>`:''}
 </div>
 <div class="shop-continue-row">
 <button class="btn" style="font-size:20px;padding:6px 28px" onclick="leaveShop()">CONTINUE TO MAP →</button>
@@ -1987,7 +1987,7 @@ const full=A.inventory.length>=3;
 const disabled=owned||cantAfford||full;
 const tierClass=`t${item.tier}`;
 const tierName=TIER_NAMES[item.tier];
-return`<div class="shop-item-card ${owned?'already-owned':cantAfford?'cant-afford':''}"> <div class="shop-item-icon">${item.icon}</div> <div class="shop-item-name">${item.name}</div> <div class="shop-tier ${tierClass}">${tierName}</div> <div class="shop-item-price">${item.price} 🪙</div> <div class="shop-item-desc">${item.desc}</div> <div class="shop-item-use">📋 ${item.use}</div> <div style="font-family:var(--pixel);font-size:11px;color:#808080;text-align:center">Best for: ${item.bestFor}</div> <button class="shop-buy-btn" onclick="buyItem('${item.id}')" ${disabled?'disabled':''}> ${owned?'[ ALREADY OWNED ]':full?'[ INVENTORY FULL ]':cantAfford?`[ NEED ${item.price-A.gold} MORE 🪙 ]`:'[ BUY ]'}
+return`<div class="shop-item-card ${owned?'already-owned':cantAfford?'cant-afford':''}"> <div class="shop-item-icon">${item.icon}</div> <div class="shop-item-name">${item.name}</div> <div class="shop-tier ${tierClass}">${tierName}</div> <div class="shop-item-price">${item.price} ⏳</div> <div class="shop-item-desc">${item.desc}</div> <div class="shop-item-use">📋 ${item.use}</div> <div style="font-family:var(--pixel);font-size:11px;color:#808080;text-align:center">Best for: ${item.bestFor}</div> <button class="shop-buy-btn" onclick="buyItem('${item.id}')" ${disabled?'disabled':''}> ${owned?'[ ALREADY OWNED ]':full?'[ INVENTORY FULL ]':cantAfford?`[ NEED ${item.price-A.gold} MORE ⏳ ]`:'[ BUY ]'}
 </button>
 
   </div>`;
@@ -3308,7 +3308,7 @@ app.innerHTML=`<div class="end-screen ${isVictory?'':'lose-screen'}">
 <div class="ne-stats">
 <div class="ne-stat"><span class="ne-stat-lbl">SCORE</span><span class="ne-stat-val">${A.score.toLocaleString()}</span></div>
 <div class="ne-stat"><span class="ne-stat-lbl">TIME</span><span class="ne-stat-val">${fmtTime(elapsed)}</span></div>
-<div class="ne-stat"><span class="ne-stat-lbl">GOLD</span><span class="ne-stat-val" style="color:#886600">${A.gold}🪙</span></div>
+<div class="ne-stat"><span class="ne-stat-lbl">TIME CREDITS</span><span class="ne-stat-val" style="color:#886600">${A.gold}⏳</span></div>
 </div>
 <div class="ne-form">
 <label class="ne-label">ENTER YOUR NAME:</label>
