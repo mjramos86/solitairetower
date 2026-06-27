@@ -23,7 +23,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
-  import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, doc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, getDoc, setDoc, doc, query, orderBy, limit, increment } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
   import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
   const firebaseConfig = {
     apiKey:"AIzaSyD5WyhbaRz209eadnuIO_2piPr5WsLY0RE",authDomain:"solitaire-tower-9b415.firebaseapp.com",
@@ -58,7 +58,9 @@
     try{const snap=await getDoc(ref);return snap.exists()?snap.data():null;}catch(e){return null;}
   };
 
-  window._fbRecordGame=async(won,score,time)=>{
+  // A "run" is a full descent attempt: starts on floor 10, ends on game over
+  // or on clearing floor 1 (the final boss).
+  window._fbRecordRun=async(won,score,time)=>{
     const ref=playerRef();if(!ref)return;
     const u=auth.currentUser;
     try{
@@ -67,14 +69,30 @@
       const update={
         displayName:u.displayName||prev.displayName||'Guest',
         email:u.email||null,
-        gamesPlayed:(prev.gamesPlayed||0)+1,
-        gamesWon:(prev.gamesWon||0)+(won?1:0),
-        totalScore:(prev.totalScore||0)+(score||0),
+        runsPlayed:increment(1),
+        runsWon:increment(won?1:0),
+        totalScore:increment(score||0),
         bestScore:Math.max(prev.bestScore||0,score||0),
         bestTime:(won&&(!prev.bestTime||time<prev.bestTime))?time:(prev.bestTime??null),
         createdAt:prev.createdAt||Date.now(),
         lastPlayed:Date.now()
       };
+      await setDoc(ref,update,{merge:true});
+    }catch(e){console.error('Failed to record run stats:',e);}
+  };
+
+  // A "game" is a single shuffle of one solitaire variant: starts when a floor
+  // (or new shuffle) deals out, ends when it's won, abandoned, or re-shuffled.
+  window._fbRecordGameResult=async(type,won)=>{
+    const ref=playerRef();if(!ref)return;
+    try{
+      const update={
+        gamesPlayed:increment(1),
+        gamesWon:increment(won?1:0),
+        lastPlayed:Date.now()
+      };
+      update[`variantStats.${type}.played`]=increment(1);
+      if(won)update[`variantStats.${type}.won`]=increment(1);
       await setDoc(ref,update,{merge:true});
     }catch(e){console.error('Failed to record game stats:',e);}
   };
@@ -148,6 +166,23 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .score-hist-row.neg span:last-child{color:#cc0000;}
 .score-hist-total{padding:4px 8px;font-weight:bold;border-top:2px solid var(--w95-dark);}
 .score-hist-footer{padding:6px 8px;border-top:1px solid var(--w95-dark);display:flex;gap:6px;flex-wrap:wrap;}
+
+/* Account & stats panel */
+.account-panel{background:#16121e;border:2px solid var(--gold-dim);border-radius:6px;max-width:600px;width:94%;max-height:88vh;display:flex;flex-direction:column;font-family:'EB Garamond',serif;box-shadow:0 0 50px rgba(0,0,0,.6);}
+.account-title{background:linear-gradient(135deg,#2e2010,#1a1208);color:var(--gold);font-family:'Playfair Display',serif;font-size:1.4rem;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--gold-dim);flex-shrink:0;}
+.account-close{background:transparent;border:1.5px solid var(--gold-dim);color:var(--gold);width:34px;height:34px;border-radius:5px;cursor:pointer;font-size:18px;line-height:1;}
+.account-close:hover{border-color:var(--gold);background:rgba(212,168,75,.1);}
+.account-body{overflow-y:auto;flex:1;min-height:0;padding:22px 26px;color:#f0ede5;font-size:17px;line-height:1.55;}
+.account-section-title{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.2rem;margin:22px 0 12px;border-bottom:1.5px solid var(--gold-dim);padding-bottom:6px;}
+.account-section-title:first-of-type{margin-top:0;}
+.account-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:16px;}
+.account-stat-grid .lbl{color:#c4bfb4;}
+.account-stat-grid .val{color:#fff;font-weight:700;text-align:right;}
+.account-variant-table{width:100%;border-collapse:collapse;font-size:15px;margin-top:6px;}
+.account-variant-table th{text-align:left;color:var(--gold-dim);font-weight:700;padding:6px 10px;border-bottom:1.5px solid var(--gold-dim);}
+.account-variant-table th.num,.account-variant-table td.num{text-align:right;}
+.account-variant-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.08);color:#f0ede5;}
+@media(max-width:600px){.account-body{padding:16px 18px;font-size:15px;}.account-title{font-size:1.15rem;padding:12px 16px;}.account-stat-grid{font-size:14px;}.account-variant-table{font-size:13px;}}
 
 /* CRT glitch overlay */
 .crt-glitch-overlay{position:fixed;inset:0;z-index:800;pointer-events:none;overflow:hidden;}
@@ -1326,7 +1361,10 @@ let _statsRecorded=false;
 function recordRunEnd(won){
   if(_statsRecorded)return;
   _statsRecorded=true;
-  try{if(window._fbRecordGame)window._fbRecordGame(won,A.score||0,getElapsed());}catch(e){}
+  try{if(window._fbRecordRun)window._fbRecordRun(won,A.score||0,getElapsed());}catch(e){}
+}
+function recordGameEnd(type,won){
+  try{if(window._fbRecordGameResult)window._fbRecordGameResult(type,won);}catch(e){}
 }
 function loadGame(){
   try{
@@ -2087,7 +2125,7 @@ A.gs=s;consumeItem(invIdx);A.pickerOverlay=null;render();
 });break;}
 case 'no-life-abandon':{ // Fire Extinguisher
 if(!confirm('Use Fire Extinguisher? Abandon this floor with no life penalty!'))return;
-consumeItem(invIdx);A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.screen='map';render();break;}
+consumeItem(invIdx);recordGameEnd(A.gtype,false);A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.screen='map';render();break;}
 case 'skip-floor':{ // Executive Chair
 if(!confirm('Use Executive Chair? Auto-clear this floor!'))return;
 consumeItem(invIdx);A.itemMode=null;handleWin();render();break;}
@@ -3000,6 +3038,7 @@ function instaWin(){A.instaWin=true;A.instaWinScore=A.score;A.winOverlay=true;re
 
 function nextFloor(){
 A.done.add(A.floor);
+recordGameEnd(A.gtype,true);
 if(A.instaWin){A.score=A.instaWinScore;}else{addScore(100*(10-A.floor),'floor cleared');}
 A.instaWin=false;A.instaWinScore=0;
 A.tpStreak=0;
@@ -3018,10 +3057,12 @@ if(A.inventory.some(i=>i.effect==='no-life-abandon')){
 if(confirm('Use Fire Extinguisher? Abandon safely with no life penalty!')){
 const idx=A.inventory.findIndex(i=>i.effect==='no-life-abandon');
 A.inventory.splice(idx,1);
+recordGameEnd(A.gtype,false);
 A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;A.screen='map';render();return;
 }
 }
 if(!confirm('Abandon this floor? You will lose a life.'))return;
+recordGameEnd(A.gtype,false);
 A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;
 if(A.lives<=0){stopTimer();A.screen='gameover';recordRunEnd(false);render();return;}
 A.screen='map';render();
@@ -3029,6 +3070,7 @@ A.screen='map';render();
 
 function newShuffle(){
 if(!confirm('New Shuffle? Costs 1 life.'))return;
+recordGameEnd(A.gtype,false);
 A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;
 if(A.lives<=0){stopTimer();A.screen='gameover';recordRunEnd(false);render();return;}
 A.undoStack=[];A.moves=0;A.floorUndosUsed=0;A.floorStartTime=Date.now();A.floorStartScore=A.score;
@@ -3185,34 +3227,56 @@ return loadBoard();
 async function loadBoard(){try{if(window._fbLoad)return await window._fbLoad();return[];}catch(e){return[];}}
 
 // ── ACCOUNT PANEL ──────────────────────────────────────────
+function pct(won,played){return played>0?Math.round((won/played)*100):0;}
 async function openAccountPanel(){
   closeAccountPanel();
   const user=window._fbUser||null;
   const profile=user&&window._fbGetProfile?await window._fbGetProfile().catch(()=>null):null;
   const stats=profile||{};
+  const vs=stats.variantStats||{};
+  const runsPlayed=stats.runsPlayed||0,runsWon=stats.runsWon||0;
+  const gamesPlayed=stats.gamesPlayed||0,gamesWon=stats.gamesWon||0;
+  const variantRows=Object.keys(NAMES).map(t=>{
+    const v=vs[t]||{};const played=v.played||0,won=v.won||0;
+    return `<tr><td>${ICONS[t]} ${NAMES[t]}</td><td class="num">${played}</td><td class="num">${won}</td><td class="num">${pct(won,played)}%</td></tr>`;
+  }).join('');
   const overlay=document.createElement('div');
   overlay.id='account-overlay';
   overlay.className='score-hist-overlay';
   overlay.onclick=(e)=>{if(e.target===overlay)closeAccountPanel();};
   overlay.innerHTML=`
-    <div class="score-hist-panel" style="max-width:380px;">
-      <div class="score-hist-title"><span>👤 Account</span><button class="score-hist-close" onclick="closeAccountPanel()">✕</button></div>
-      <div class="score-hist-body">
+    <div class="account-panel">
+      <div class="account-title"><span>👤 Account &amp; Stats</span><button class="account-close" onclick="closeAccountPanel()">✕</button></div>
+      <div class="account-body">
         ${user?`
-          <div style="margin-bottom:10px;">
-            <div>Status: <strong>Signed in</strong></div>
+          <div style="margin-bottom:16px;">
+            <div>Status: <strong style="color:#7ee787;">Signed in</strong></div>
             <div>Email: ${user.email}</div>
           </div>
-          <div style="margin-bottom:14px;">
-            <div>Games Played: ${stats.gamesPlayed||0}</div>
-            <div>Games Won: ${stats.gamesWon||0}</div>
-            <div>Best Score: ${(stats.bestScore||0).toLocaleString()}</div>
-            <div>Best Time: ${stats.bestTime?fmtTime(stats.bestTime):'—'}</div>
+          <div class="account-section-title">🏰 Run Stats <span style="font-size:13px;color:#998;font-weight:normal;">(floor 10 → floor 1)</span></div>
+          <div class="account-stat-grid">
+            <div class="lbl">Runs Played</div><div class="val">${runsPlayed}</div>
+            <div class="lbl">Runs Won</div><div class="val">${runsWon}</div>
+            <div class="lbl">Win Rate</div><div class="val">${pct(runsWon,runsPlayed)}%</div>
+            <div class="lbl">Best Score</div><div class="val">${(stats.bestScore||0).toLocaleString()}</div>
+            <div class="lbl">Best Time</div><div class="val">${stats.bestTime?fmtTime(stats.bestTime):'—'}</div>
+            <div class="lbl">Total Score</div><div class="val">${(stats.totalScore||0).toLocaleString()}</div>
           </div>
-          <button class="btn" onclick="accountSignOut()">[ SIGN OUT ]</button>
+          <div class="account-section-title">🎮 Game Stats <span style="font-size:13px;color:#998;font-weight:normal;">(each shuffle)</span></div>
+          <div class="account-stat-grid">
+            <div class="lbl">Games Played</div><div class="val">${gamesPlayed}</div>
+            <div class="lbl">Games Won</div><div class="val">${gamesWon}</div>
+            <div class="lbl">Win Rate</div><div class="val">${pct(gamesWon,gamesPlayed)}%</div>
+          </div>
+          <div class="account-section-title">🃏 By Variant</div>
+          <table class="account-variant-table">
+            <thead><tr><th>Variant</th><th class="num">Played</th><th class="num">Won</th><th class="num">Win%</th></tr></thead>
+            <tbody>${variantRows}</tbody>
+          </table>
+          <button class="btn" style="margin-top:18px;" onclick="accountSignOut()">[ SIGN OUT ]</button>
         `:`
-          <div style="margin-bottom:10px;">Status: <strong>Guest</strong></div>
-          <div style="margin-bottom:12px;font-size:12px;color:#888;">Your progress is only saved on this device. Sign in or create an account to save your progress &amp; stats permanently.</div>
+          <div style="margin-bottom:12px;">Status: <strong style="color:#e3b341;">Guest</strong></div>
+          <div style="margin-bottom:16px;">Your progress is only saved on this device. Sign in or create an account to save your progress &amp; stats permanently.</div>
           <button class="btn" onclick="accountGoToGate()">[ SIGN IN / CREATE ACCOUNT ]</button>
         `}
       </div>
