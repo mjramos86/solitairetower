@@ -638,6 +638,10 @@ transition:opacity 0.6s ease, background 0.2s, color 0.2s;
 .patron-dialogue-skip:hover{color:var(--gold-dim);}
 .patron-dialogue-next{font-family:var(--pixel);font-size:15px;color:#000;background:var(--gold);border:none;border-radius:3px;padding:8px 22px;cursor:pointer;letter-spacing:.08em;}
 .patron-dialogue-next:hover{background:#e8c068;}
+.patron-dialogue-line.you{color:var(--gold-dim);}
+.patron-dialogue-choices{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.patron-dialogue-choice{font-family:'EB Garamond',serif;font-style:italic;font-size:1.05rem;color:var(--gold-dim);background:transparent;border:1px solid rgba(212,168,75,.4);border-radius:3px;padding:8px 16px;cursor:pointer;text-align:right;}
+.patron-dialogue-choice:hover{color:var(--gold);border-color:var(--gold);background:rgba(212,168,75,.08);}
 @media(max-width:680px){.patron-dialogue-box{flex-direction:column;align-items:center;}.patron-dialogue-portrait{width:140px;height:140px;}}
 
 /* ── TIME PATRON SELECTION ── */
@@ -1407,32 +1411,99 @@ const PATRONS=[
   {id:'unknown2',name:'???',unlocked:false},
 ];
 const DEE_DIALOGUE=[
-  {scene:true,text:"Screens, dozens of them, each running a different game of patience. Fluorescent light through closed blinds. Keyboards clattering somewhere that isn't quite this room. A voice arrives a half-second out of sync with itself."},
-  {text:"Don't try to remember how long you've been sitting there. Hours, days &mdash; it won't come to you, and it doesn't matter yet."},
-  {text:"I am John Dee. Astrologer, spy, mathematician. None of that matters yet either."},
-  {text:"Look around you. This is an office tower, and everyone in it is exactly where you are &mdash; chained to a screen, dealing cards they no longer remember choosing to deal. That isn't carelessness. It's a working."},
-  {text:"A Cult has taken this building, and through means I won't dignify by calling magic, they've bent every mind in it toward a single task: play, endlessly. Thousands of hands of solitaire at once, because somewhere in that flood, one shuffle will be the <em>true</em> one &mdash; the Sacred Shuffle, the one that hands them dominion over time itself. They mean to drown the secret out of hiding through sheer numbers."},
-  {text:"There is a way down through this building &mdash; floor by floor, deeper than the foundation has any right to go. Each landing wants a hand of patience cleared before it lets you pass. You may well reach the bottom today. The cards can be beaten &mdash; I won't pretend otherwise to make you grateful for my help."},
-  {text:"But the bottom of this Tower isn't the end of the Cult's working. The Sacred Shuffle isn't a prize waiting at the last floor; it's a key with many teeth, and I hold only one of them. You'll need the others &mdash; Marie, the King, the old Lion, and more besides &mdash; each carrying a piece of the same secret from a different age. Only once their strength is gathered alongside mine does what the Cult is building come apart."},
-  {text:"So descend. Reach the bottom, if your hand is good enough. Just don't mistake the floor for the end of this."},
-  {scene:true,text:"A single card waits, face down."},
-  {text:"Begin. I'll be watching for the others to find you."},
+  {speaker:'scene',text:"You’ve done it again."},
+  {speaker:'scene',text:"On your computer screen, the cards bounce, and bounce and bounce."},
+  {speaker:'scene',text:"You rub your office chair’s armrests with profound satisfaction."},
+  {speaker:'scene',text:"Another Solitaire game completed, and you’ve beaten your personal record score at that!"},
+  {speaker:'scene',text:"The screen flickers, not even for half a second."},
+  {speaker:'scene',text:"But just enough to catch a glimpse of your face."},
+  {speaker:'scene',text:"You’ve never seen eyes so dead."},
+  {speaker:'scene',text:"You feel strangely compelled to keep looking at your screen, but by the corner of your eye, you notice everyone on the office floor is also mindlessly playing Solitaire."},
+  {speaker:'scene',text:"Eyes so dead, skin so pale, lips so dry."},
+  {speaker:'scene',text:"Startled, you ask yourself…"},
+  {speaker:'you',choices:["How long have I been playing Solitaire?"]},
+  {speaker:'scene',text:"Before you can even think of an answer, your screen flickers again."},
+  {speaker:'scene',text:"This time, you’re not looking at your face."},
+  {speaker:'dee',scene:true,text:"It’s definitely a face, though. A bearded man with a look straight out of a 18th century painting."},
+  {speaker:'you',choices:["I have definitely been playing too long…","Is this a feature or a bug?"]},
+  {speaker:'dee',scene:true,text:"The face starts talking. It’s talking to you."},
+  {speaker:'dee',scene:true,text:"You wonder if you’re more startled by the fact that it’s talking to you or by the fact that it somehow knows what you were thinking."},
+  {speaker:'dee',text:"You have been playing a long time. But that is not important for now."},
+  {speaker:'you',text:"Who?"},
+  {speaker:'dee',text:"My name is John Dee. I was the astrologer of Queen Elizabeth the First. I will die in 1608. I am dead since 1608, from your point of view."},
+  {speaker:'you',text:"What?"},
+  {speaker:'dee',text:"Listen, carefully. For lack of a less dramatic way of putting things : the fate of human civilization is at stake."},
+  {speaker:'dee',text:"A Cult has taken control of the office building where you work, through means I won’t dignify to qualify as magic. They have been making you play Solitaire repeatedly, endlessly. Has it been days? Weeks? Months? I’m not sure myself."},
+  {speaker:'you',choices:["Let’s say I believe you. Why Solitaire?"]},
+  {speaker:'dee',text:"There are 52 cards in a standard deck in Solitaire. There are 80,658,175,170,943,878,571,660,636,856,403,766,975,289,505,440,883,277,824,000,000,000,000 possible arrangements."},
+  {speaker:'dee',text:"That’s more than the number of atoms on the Earth."},
+  {speaker:'dee',text:"There is one particular arrangement. The Sacred Shuffle… that does something extraordinary."},
+  {speaker:'dee',text:"It gives dominion over time, way beyond the dark arts the Cult currently dabbles in, and way beyond the simple time projection I am using to contact you."},
+  {speaker:'dee',text:"They have been trying to play the Sacred Shuffle for centuries. In the shadows."},
+  {speaker:'you',text:"What’s different now?"},
+  {speaker:'dee',text:"The Digital Age."},
+  {speaker:'dee',text:"A single Solitaire game with paper cards takes a relatively long time to set up and play. Now, hundreds, thousands shuffles can be generated and playing in mere seconds."},
+  {speaker:'you',text:"Makes sense. I still don’t understand…"},
+  {speaker:'dee',text:"Why you?"},
+  {speaker:'you',text:"Yeah. Why me?"},
+  {speaker:'dee',text:"You are destined to play the Sacred Shuffle."},
+  {speaker:'you',text:"Great, so we’ve already won?"},
+  {speaker:'dee',text:"No. Some things are written, others are in constant… shuffle."},
+  {speaker:'you',text:"Ha."},
+  {speaker:'dee',text:"You WILL play the Sacred Shuffle. But, who will profit from it? The Cult? You? Humanity?"},
+  {speaker:'you',text:"You?"},
+  {speaker:'dee',text:"I’m afraid you have no choice but to trust me."},
+  {speaker:'you',text:"…"},
+  {speaker:'dee',text:"We have one great advantage over the Cult : they don’t know that the Sacred Shuffle doesn’t choose a screen. It chooses a player. They don’t know you have been chosen. They can’t know."},
+  {speaker:'you',text:"Alright. How do I stop them?"},
+  {speaker:'dee',text:"By playing Solitaire. Repeatedly. Endlessly."},
+  {speaker:'you',text:"Great."},
+  {speaker:'dee',text:"More precisely, you have to beat a shuffle on every floor."},
+  {speaker:'you',text:"Ten floors. So ten games and that’s it?"},
+  {speaker:'dee',text:"No. When you leave the building, time will reset. You will have to do it again. To put it in simple terms : we can’t do it alone. You are performing a summoning ritual."},
+  {speaker:'you',text:"To summon who?"},
+  {speaker:'dee',text:"Your other patrons through the ages. People who by fate or by chance got close to the Sacred Shuffle and whose destinies were forever intertwined with the cosmic mathematics of Solitaire."},
+  {speaker:'dee',text:"Enough talk, you’ll understand as you go. Move through time, move through space, beat the odds, generate time energy."},
+  {speaker:'dee',text:"Play Solitaire."},
 ];
 let _patronDlgIdx=0;
+let _patronDlgChoice=null;
+function patronDlgFaceSeen(){
+  for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
+  return false;
+}
 function renderPatronDialogue(app){
   const beat=DEE_DIALOGUE[_patronDlgIdx];
   const isLast=_patronDlgIdx===DEE_DIALOGUE.length-1;
-  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-dialogue-box"> <div class="patron-dialogue-portrait-wrap"> <img class="patron-dialogue-portrait" src="JohnDee.jpg" alt="John Dee"> <div class="patron-dialogue-name">JOHN DEE</div> </div> <div class="patron-dialogue-text-wrap"> <div class="patron-dialogue-line ${beat.scene?'scene':''}">${beat.text}</div> <div class="patron-dialogue-actions"> <button class="patron-dialogue-skip" onclick="skipPatronDialogue()">Skip ▸▸</button> <button class="patron-dialogue-next" onclick="advancePatronDialogue()">${isLast?'Begin':'Continue ▸'}</button> </div> </div> </div>
+  const faceSeen=patronDlgFaceSeen();
+  const portraitHTML=faceSeen
+    ?`<img class="patron-dialogue-portrait" src="JohnDee.jpg" alt="John Dee"> <div class="patron-dialogue-name">JOHN DEE</div>`
+    :'';
+  let bodyHTML;
+  if(beat.choices&&_patronDlgChoice===null){
+    const opts=beat.choices.map((c,i)=>`<button class="patron-dialogue-choice" onclick="choosePatronDialogueOption(${i})">${c}</button>`).join('');
+    bodyHTML=`<div class="patron-dialogue-line you"></div> <div class="patron-dialogue-choices">${opts}</div>`;
+  }else{
+    const text=beat.choices?_patronDlgChoice:beat.text;
+    const lineClass=beat.speaker==='scene'?'scene':(beat.speaker==='you'?'you':'');
+    bodyHTML=`<div class="patron-dialogue-line ${lineClass}">${text}</div> <div class="patron-dialogue-actions"> <button class="patron-dialogue-skip" onclick="skipPatronDialogue()">Skip ▸▸</button> <button class="patron-dialogue-next" onclick="advancePatronDialogue()">${isLast?'Begin':'Continue ▸'}</button> </div>`;
+  }
+  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-dialogue-box"> <div class="patron-dialogue-portrait-wrap">${portraitHTML}</div> <div class="patron-dialogue-text-wrap">${bodyHTML}</div> </div>
   </div>`;
+}
+function choosePatronDialogueOption(i){
+  const beat=DEE_DIALOGUE[_patronDlgIdx];
+  _patronDlgChoice=beat.choices[i];
+  render();
 }
 function advancePatronDialogue(){
   if(_patronDlgIdx>=DEE_DIALOGUE.length-1){finishPatronDialogue();return;}
-  _patronDlgIdx++;render();
+  _patronDlgIdx++;_patronDlgChoice=null;render();
 }
 function skipPatronDialogue(){finishPatronDialogue();}
 function finishPatronDialogue(){
   try{localStorage.setItem(PATRON_INTRO_KEY,'1');}catch(e){}
-  _patronDlgIdx=0;
+  _patronDlgIdx=0;_patronDlgChoice=null;
   A.screen='patron-select';render();
 }
 function renderPatronSelect(app){
