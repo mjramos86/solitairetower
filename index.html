@@ -97,6 +97,11 @@
     }catch(e){console.error('Failed to record game stats:',e);}
   };
 
+  window._fbSaveProfile=async(data)=>{
+    const ref=playerRef();if(!ref)return;
+    try{await setDoc(ref,data,{merge:true});}catch(e){}
+  };
+
   window._fbSaveCloud=async(snap)=>{
     const ref=playerRef();if(!ref)return;
     try{await setDoc(ref,{save:snap,lastPlayed:Date.now()},{merge:true});}catch(e){}
@@ -197,9 +202,14 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .compendium-entry-name{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.2rem;}
 .compendium-entry.locked .compendium-entry-portrait{opacity:.45;}
 .compendium-entry-locked-note{color:var(--text-dim);font-style:italic;font-size:15px;}
+.compendium-dev-note{color:var(--gold-dim);font-style:italic;font-size:14px;margin-bottom:10px;}
+.compendium-banked-credits{font-family:var(--pixel);font-size:14px;color:var(--gold);text-align:center;padding:10px 20px;border-bottom:1px solid rgba(212,168,75,.18);flex-shrink:0;}
+.compendium-guest-note{color:var(--text-dim);font-size:12px;}
+.compendium-unlock-btn{flex-basis:100%;font-family:var(--pixel);font-size:13px;color:var(--gold);background:rgba(212,168,75,.1);border:1px solid rgba(212,168,75,.4);border-radius:4px;padding:8px 14px;cursor:pointer;transition:background .2s,border-color .2s;}
+.compendium-unlock-btn:hover{background:rgba(212,168,75,.2);border-color:var(--gold);}
 .compendium-entry p{margin:0 0 10px;}
 .compendium-section-title{font-family:'Cinzel',serif;color:var(--gold-dim);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;margin:16px 0 8px;}
-.compendium-locked-block{background:rgba(0,0,0,.25);border:1px dashed rgba(212,168,75,.3);border-radius:5px;padding:14px 18px;display:flex;align-items:center;gap:14px;color:var(--text-dim);font-style:italic;font-size:15px;}
+.compendium-locked-block{background:rgba(0,0,0,.25);border:1px dashed rgba(212,168,75,.3);border-radius:5px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;color:var(--text-dim);font-style:italic;font-size:15px;}
 .compendium-locked-icon{font-size:1.5rem;color:rgba(255,255,255,.25);flex-shrink:0;}
 @media(max-width:600px){.compendium-body{padding:16px 18px;font-size:14px;}.compendium-title{font-size:1.15rem;padding:12px 16px;}}
 
@@ -630,6 +640,8 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-card-locked-icon{font-size:2.2rem;color:rgba(255,255,255,.15);}
 .patron-card-name{font-family:'Cinzel',serif;font-size:.85rem;color:var(--text);}
 .patron-card.locked .patron-card-name{color:var(--text-dim);}
+.patron-card-dev-tag{font-family:var(--pixel);font-size:11px;color:var(--gold-dim);letter-spacing:.05em;}
+.patron-card.cardback-current .patron-card-portrait{border-color:var(--gold);box-shadow:0 0 18px var(--gold-glow);}
 .patron-select-confirm{font-family:var(--pixel);font-size:13px;color:var(--text-dim);}
 
 /* ── TIME PATRON BADGE (map + variant screens) ── */
@@ -1244,22 +1256,29 @@ A.screen='patron-dialogue';render();
 
 // ── TIME PATRONS ─────────────────────────────────────────────
 const PATRONS=[
-  {id:'johndee',name:'John Dee',img:'JohnDee.jpg',unlocked:true,
+  {id:'johndee',name:'John Dee',img:'JohnDee.jpg',unlocked:true,revealed:true,
     bio:[
       "John Dee was the most accomplished intellectual of Elizabethan England — a mathematician, cartographer, astronomer, and the personal astrologer of Queen Elizabeth I. It was Dee who calculated the most auspicious date for her coronation. His library at Mortlake was the largest private collection in England, until a mob ransacked it.",
       "He spent years trying to communicate with angels through a crystal ball and a medium named Edward Kelley, recording these conversations in an elaborate cipher. His notation system — Enochian, the supposed language of angels — became a cornerstone of Western occultism.",
       "Dee also traveled undercover as an intelligence agent for Elizabeth's court. He signed his correspondence to the queen \"007\" — the two zeros representing a spy's watching eyes, the seven a lucky number."
     ],
     loreUnlocked:false,
+    connectionCost:50,
     lore:[
       "Legend has it that Dee visited Mary, Queen of Scots during her captivity — perhaps at Chartley or Fotheringhay — and taught her a card layout he presented as a method of divination. The game was supposedly meant to occupy her mind through the long nights before her execution.",
       "More deeply, Dee believed the universe itself was encoded — that behind the apparent randomness of the cards lay a divine mathematical order. He was the first to suspect that the Sacred Shuffle was no accident, but a door."
     ]},
-  {id:'marie',name:'The Other Queen',unlocked:false},
-  {id:'king',name:'The Sun King',unlocked:false},
-  {id:'lion',name:'The Old Lion',unlocked:false},
-  {id:'unknown1',name:'The Emperor',unlocked:false},
-  {id:'unknown2',name:'The Prisoner',unlocked:false},
+  {id:'marie',name:'Mary, Queen of Scots',img:'MaryQueenofScots.png',unlocked:false,revealed:false,inDevelopment:true,
+    bio:[
+      "Mary became Queen of Scotland when she was just six days old, after her father, James V, died in 1542. Because she was an infant, Scotland was ruled by regents while Mary spent much of her childhood in France, where she was raised at the French court and eventually married the Dauphin, François. When he became King of France in 1559, Mary was briefly Queen of both Scotland and France — but François died only a year later, in 1560, leaving her a widow at eighteen.",
+      "Mary returned to Scotland in 1561 to rule in person, landing in a country deeply divided by the Protestant Reformation, while she herself remained Catholic. Her reign was turbulent: she married her cousin Henry Stuart, Lord Darnley, in 1565, and the marriage quickly soured amid political plotting and violence, including Darnley's involvement in the murder of Mary's secretary, David Rizzio. Darnley himself was murdered in 1567, and Mary's swift marriage afterward to James Hepburn, Earl of Bothwell — widely suspected in Darnley's death — scandalized the nobility and triggered a rebellion.",
+      "Forced to abdicate in favor of her infant son (who became James VI of Scotland, and later James I of England), Mary fled to England in 1568, seeking the protection of her cousin, Queen Elizabeth I. Instead, Elizabeth had her held in a long series of confinements lasting nearly two decades. Mary became a magnet for Catholic plots aiming to depose Elizabeth and place Mary on the English throne — most damningly the Babington Plot of 1586, in which intercepted letters appeared to show Mary endorsing Elizabeth's assassination. Tried and convicted of treason, Mary was executed at Fotheringhay Castle in February 1587.",
+      "Her son James VI later united the crowns of Scotland and England as James I, making Mary, in a sense, the ancestress of the joint British monarchy — a final ironic twist to a reign defined by intrigue, religious conflict, and tragedy."
+    ]},
+  {id:'king',name:'The Sun King',unlocked:false,revealed:false},
+  {id:'lion',name:'The Old Lion',unlocked:false,revealed:false},
+  {id:'unknown1',name:'The Emperor',unlocked:false,revealed:false},
+  {id:'unknown2',name:'The Prisoner',unlocked:false,revealed:false},
 ];
 const DEE_DIALOGUE=[
   {speaker:'scene',text:"You’ve done it again."},
@@ -1322,6 +1341,8 @@ const DEE_DIALOGUE=[
 ];
 let _patronDlgIdx=0;
 let _patronDlgReplay=false;
+let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic'};
+let _returnScreen=null;
 function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
   return false;
@@ -1374,10 +1395,11 @@ function finishPatronDialogue(){
   checkAuthAndStart();
 }
 function renderPatronSelect(app){
-  const cards=PATRONS.map(p=>p.unlocked
-    ?`<div class="patron-card" onclick="selectPatron('${p.id}')"> <img class="patron-card-portrait" src="${p.img}" alt="${p.name}"> <div class="patron-card-name">${p.name}</div> </div>`
-    :`<div class="patron-card locked"> <div class="patron-card-portrait"><span class="patron-card-locked-icon">🔒</span></div> <div class="patron-card-name">???</div> </div>`
-  ).join('');
+  const cards=PATRONS.map(p=>{
+    if(p.unlocked)return `<div class="patron-card" onclick="selectPatron('${p.id}')"> <img class="patron-card-portrait" src="${p.img}" alt="${p.name}"> <div class="patron-card-name">${p.name}</div> </div>`;
+    if(p.revealed)return `<div class="patron-card locked"> <img class="patron-card-portrait" src="${p.img}" alt="${p.name}"> <div class="patron-card-name">${p.name}</div> <div class="patron-card-dev-tag">In development</div> </div>`;
+    return `<div class="patron-card locked"> <div class="patron-card-portrait"><span class="patron-card-locked-icon">🔒</span></div> <div class="patron-card-name">???</div> </div>`;
+  }).join('');
   app.innerHTML=`<div class="patron-select-screen"> <div class="patron-select-title">Choose Your Time Patron</div> <div class="patron-select-sub">An ally for this descent, lending their nature to the wares you'll find along the way.</div> <div class="patron-select-grid">${cards}</div> <div class="patron-select-confirm">Select John Dee to begin your descent.</div>
   </div>`;
 }
@@ -1437,6 +1459,11 @@ let _statsRecorded=false;
 function recordRunEnd(won){
   if(_statsRecorded)return;
   _statsRecorded=true;
+  const leftover=A.gold||0;
+  if(leftover>0){
+    _profile.bankedCredits=(_profile.bankedCredits||0)+leftover;
+    saveProfile();
+  }
   try{if(window._fbRecordRun)window._fbRecordRun(won,A.score||0,getElapsed());}catch(e){}
 }
 function recordGameEnd(type,won){
@@ -1466,12 +1493,42 @@ function fillSaveDefaults(snap){
   if(typeof snap.patron==='undefined')snap.patron='johndee';
   return snap;
 }
-// ── RANDOM CARDBACK ──────────────────────────────────────
-const CARDBACKS=['cardbacks/CardBack2.jpg','cardbacks/CardBack3.jpg','cardbacks/OccultEye.png','cardbacks/TheKing.jpg'];
-function randomCardback(){
-  const src=CARDBACKS[Math.floor(Math.random()*CARDBACKS.length)];
-  document.documentElement.style.setProperty('--cardback-img',`url("${src}")`);
+// ── CARDBACKS ──────────────────────────────────────
+const CARDBACK_OPTIONS=[
+  {id:'classic',name:'The Solitaire Tower',img:'cardback.jpg',unlocked:true},
+  {id:'cult',name:'The Cult',img:'Cardback_cult.png',unlocked:true},
+  {id:'dee',name:"John Dee's Sigil",img:'cardback_Dee1.png',requiresConnection:'johndee'},
+];
+function cardbackUnlocked(cb){
+  if(cb.unlocked)return true;
+  if(cb.requiresConnection){const p=PATRONS.find(x=>x.id===cb.requiresConnection);return !!(p&&p.loreUnlocked);}
+  return false;
 }
+function applyCardback(id){
+  const cb=CARDBACK_OPTIONS.find(c=>c.id===id&&cardbackUnlocked(c))||CARDBACK_OPTIONS.find(c=>c.id==='classic');
+  _profile.cardback=cb.id;
+  document.documentElement.style.setProperty('--cardback-img',`url("${cb.img}")`);
+}
+function renderCardbackSelect(app){
+  const cards=CARDBACK_OPTIONS.map(cb=>{
+    const unlocked=cardbackUnlocked(cb);
+    const isCur=_profile.cardback===cb.id;
+    if(!unlocked){
+      return `<div class="patron-card locked"> <div class="patron-card-portrait"><span class="patron-card-locked-icon">🔒</span></div> <div class="patron-card-name">${cb.name}</div> </div>`;
+    }
+    return `<div class="patron-card${isCur?' cardback-current':''}" onclick="chooseCardback('${cb.id}')"> <img class="patron-card-portrait" src="${cb.img}" alt="${cb.name}"> <div class="patron-card-name">${cb.name}${isCur?' ✓':''}</div> </div>`;
+  }).join('');
+  app.innerHTML=`<div class="patron-select-screen"> <div class="patron-select-title">Choose Your Cardback</div> <div class="patron-select-sub">Locked designs are revealed by uncovering a Time Patron's connection to Solitaire in the Compendium.</div> <div class="patron-select-grid">${cards}</div> <button class="map-watch-intro-btn" style="max-width:240px;" onclick="closeCardbackSelect()">← Back to Tower</button>
+  </div>`;
+}
+function openCardbackSelect(){_returnScreen=A.screen;A.screen='cardback-select';render();}
+function closeCardbackSelect(){A.screen=_returnScreen||'map';render();}
+function chooseCardback(id){
+  applyCardback(id);
+  saveProfile();
+  renderCardbackSelect(document.getElementById('app'));
+}
+window.openCardbackSelect=openCardbackSelect;window.closeCardbackSelect=closeCardbackSelect;window.chooseCardback=chooseCardback;
 
 function render(){
 const app=document.getElementById('app');
@@ -1479,6 +1536,7 @@ const app=document.getElementById('app');
 if(A.screen!=='patron-dialogue')saveGame();
 if(A.screen==='patron-dialogue'){stopMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
 if(A.screen==='patron-select'){stopMusic();stopCrtGlitch();renderPatronSelect(app);return;}
+if(A.screen==='cardback-select'){stopMusic();stopCrtGlitch();renderCardbackSelect(app);return;}
 if(A.screen==='map'){playMusic('map');stopCrtGlitch();if(A.timerRunning)stopTimer();renderMap(app);return;}
 if(A.screen!=='map')stopAmbientAudio();
 if(A.screen==='shop'){stopMusic();stopCrtGlitch();renderShop(app);return;}
@@ -1537,6 +1595,10 @@ ${invSlots}
 <div class="map-side-section">
 <div class="map-side-label">Lore</div>
 <button class="map-watch-intro-btn" onclick="openCompendiumPanel()">📖 Compendium</button>
+</div>
+<div class="map-side-section">
+<div class="map-side-label">Customize</div>
+<button class="map-watch-intro-btn" onclick="openCardbackSelect()">🂠 Cardback</button>
 </div>
 <div class="map-side-section">
 <div class="map-side-label">Account</div>
@@ -2962,7 +3024,7 @@ A.itemMode=null;A.hints=[];A.hintTargets=[];A.hintUntil=0;A.revealAllUntil=0;A.r
 // Per-floor tracking
 A.floorStartLives=A.lives;A.floorUndosUsed=0;A.floorStartTime=Date.now();A.floorStartScore=A.score;
 A.toolboxCard=null;A.toolboxUses=0;A.extraFreecell=false;
-randomCardback();
+applyCardback(_profile.cardback);
 if(type==='klondike')A.gs=initKlondike(floor);
 else if(type==='spider')A.gs=initSpider(floor);
 else if(type==='tripeaks')A.gs=initTripeaks(floor);
@@ -3375,7 +3437,7 @@ function openCompendiumPanel(){
   overlay.className='score-hist-overlay';
   overlay.onclick=(e)=>{if(e.target===overlay)closeCompendiumPanel();};
   const entries=PATRONS.map(p=>{
-    if(!p.unlocked){
+    if(!p.revealed&&!p.unlocked){
       return `<div class="compendium-entry locked">
         <div class="compendium-entry-head">
           <div class="compendium-entry-portrait">🔒</div>
@@ -3385,15 +3447,18 @@ function openCompendiumPanel(){
       </div>`;
     }
     const bioHTML=(p.bio||[]).map(t=>`<p>${t}</p>`).join('');
-    const loreHTML=p.loreUnlocked
-      ?`<div class="compendium-section-title">Connection to Solitaire</div>${(p.lore||[]).map(t=>`<p>${t}</p>`).join('')}`
+    const devHTML=p.inDevelopment?`<div class="compendium-dev-note">⚙ This Time Patron is still in development and cannot yet be selected.</div>`:'';
+    const loreHTML=!p.lore?'':(p.loreUnlocked
+      ?`<div class="compendium-section-title">Connection to Solitaire</div>${p.lore.map(t=>`<p>${t}</p>`).join('')}`
       :`<div class="compendium-section-title">Connection to Solitaire</div>
-        <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>This Patron's link to the secret history of Solitaire has not yet been uncovered.</span></div>`;
+        <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>This Patron's link to the secret history of Solitaire has not yet been uncovered.</span>
+        <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⏳ Banked Time Credits</button></div>`);
     return `<div class="compendium-entry">
       <div class="compendium-entry-head">
         ${p.img?`<img class="compendium-entry-portrait" src="${p.img}" alt="${p.name}">`:`<div class="compendium-entry-portrait"></div>`}
         <div class="compendium-entry-name">${p.name}</div>
       </div>
+      ${devHTML}
       ${bioHTML}
       ${loreHTML}
     </div>`;
@@ -3401,12 +3466,40 @@ function openCompendiumPanel(){
   overlay.innerHTML=`
     <div class="compendium-panel">
       <div class="compendium-title"><span>📖 Compendium</span><button class="compendium-close" onclick="closeCompendiumPanel()">✕</button></div>
+      <div class="compendium-banked-credits">⏳ Banked Time Credits: ${_profile.bankedCredits}${window._fbUser?'':' <span class="compendium-guest-note">(sign in to keep these between runs)</span>'}</div>
       <div class="compendium-body">${entries}</div>
     </div>`;
   document.body.appendChild(overlay);
 }
 function closeCompendiumPanel(){const el=document.getElementById('compendium-overlay');if(el)el.remove();}
-window.openCompendiumPanel=openCompendiumPanel;window.closeCompendiumPanel=closeCompendiumPanel;
+function applyProfileToPatrons(){
+  PATRONS.forEach(p=>{
+    if(_profile.unlockedConnections.includes(p.id)){
+      p.loreUnlocked=true;
+      if(p.id==='johndee'){const mary=PATRONS.find(x=>x.id==='marie');if(mary)mary.revealed=true;}
+    }
+  });
+}
+function saveProfile(){
+  if(window._fbUser&&window._fbSaveProfile){
+    window._fbSaveProfile({
+      bankedCredits:_profile.bankedCredits,
+      unlockedConnections:PATRONS.filter(p=>p.loreUnlocked).map(p=>p.id),
+      cardback:_profile.cardback
+    }).catch(()=>{});
+  }
+}
+function unlockConnection(id){
+  const p=PATRONS.find(x=>x.id===id);
+  if(!p||p.loreUnlocked||!p.connectionCost)return;
+  if(_profile.bankedCredits<p.connectionCost){showToast('Not enough banked Time Credits.');return;}
+  _profile.bankedCredits-=p.connectionCost;
+  p.loreUnlocked=true;
+  if(id==='johndee'){const mary=PATRONS.find(x=>x.id==='marie');if(mary)mary.revealed=true;}
+  saveProfile();
+  openCompendiumPanel();
+}
+window.openCompendiumPanel=openCompendiumPanel;window.closeCompendiumPanel=closeCompendiumPanel;window.unlockConnection=unlockConnection;
 
 // ── END SCREENS ────────────────────────────────────────────
 function renderNameEntry(app,isVictory){
@@ -3536,12 +3629,22 @@ function startCloudFlow(){
     if(settled)return;settled=true;
     if(snap&&snap.screen&&snap.screen!=='intro')showCloudResumeDialog(snap);else startFresh();
   };
+  (window._fbGetProfile?window._fbGetProfile():Promise.resolve(null)).then(profile=>{
+    if(profile){
+      _profile.bankedCredits=profile.bankedCredits||0;
+      _profile.unlockedConnections=profile.unlockedConnections||[];
+      _profile.cardback=profile.cardback||'classic';
+      applyProfileToPatrons();
+    }
+    applyCardback(_profile.cardback);
+  }).catch(()=>{applyCardback(_profile.cardback);});
   setTimeout(()=>finish(null),4000);
   (window._fbLoadCloud?window._fbLoadCloud():Promise.resolve(null)).then(finish).catch(()=>finish(null));
 }
 
 function startGuestFlow(){
   window._guestMode=true;
+  applyCardback(_profile.cardback);
   startFresh();
 }
 
