@@ -624,25 +624,50 @@ transition:opacity 0.6s ease, background 0.2s, color 0.2s;
 .map-watch-intro-btn{display:block;width:100%;font-family:var(--pixel);font-size:12px;color:rgba(212,168,75,.65);background:transparent;border:1px solid rgba(212,168,75,.35);padding:8px 10px;cursor:pointer;letter-spacing:.08em;margin-top:10px;transition:color .2s,border-color .2s;}
 .map-watch-intro-btn:hover{color:rgba(212,168,75,1);border-color:rgba(212,168,75,.8);}
 
-/* ── TIME PATRON DIALOGUE ── */
-.patron-dialogue-screen{position:fixed;inset:0;background:#0a0610;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:'EB Garamond',serif;}
-.patron-dialogue-box{display:flex;gap:28px;max-width:900px;width:100%;align-items:flex-start;}
-.patron-dialogue-portrait-wrap{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:10px;}
-.patron-dialogue-portrait{width:200px;height:200px;border-radius:6px;border:2px solid var(--gold-dim);object-fit:cover;box-shadow:0 0 30px rgba(212,168,75,.15);}
-.patron-dialogue-name{font-family:'Cinzel',serif;color:var(--gold);font-size:1.1rem;letter-spacing:.08em;}
-.patron-dialogue-text-wrap{flex:1;min-width:0;background:rgba(15,10,30,.9);border:1px solid rgba(212,168,75,.25);border-radius:6px;padding:24px 28px;min-height:200px;display:flex;flex-direction:column;justify-content:space-between;gap:16px;}
-.patron-dialogue-line{color:var(--text);font-size:1.15rem;line-height:1.7;}
-.patron-dialogue-line.scene{color:var(--text-dim);font-style:italic;font-size:1rem;}
-.patron-dialogue-actions{display:flex;justify-content:flex-end;align-items:center;gap:14px;}
-.patron-dialogue-skip{background:transparent;border:none;color:var(--text-dim);font-family:var(--pixel);font-size:13px;cursor:pointer;letter-spacing:.05em;}
+/* ── TIME PATRON DIALOGUE (computer-screen / video-call framing) ── */
+.patron-dialogue-screen{position:fixed;inset:0;background:#050308;display:flex;align-items:center;justify-content:center;z-index:9999;padding:clamp(10px,3vw,28px);font-family:'EB Garamond',serif;}
+.patron-monitor{width:100%;max-width:980px;background:linear-gradient(155deg,#2a2118,#15110c);border:3px solid var(--gold-dim);border-radius:20px;padding:clamp(8px,1.6vw,18px);box-shadow:0 0 60px rgba(0,0,0,.6),0 0 30px rgba(212,168,75,.08);}
+.patron-screen-inner{position:relative;background:radial-gradient(ellipse at 50% 30%,#191320,#08060c 75%);border-radius:12px;overflow:hidden;min-height:clamp(420px,62vh,580px);display:flex;flex-direction:column;justify-content:space-between;gap:clamp(14px,2.4vw,22px);padding:clamp(18px,3.2vw,34px);}
+.patron-scanlines{position:absolute;inset:0;pointer-events:none;opacity:.12;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.5) 0px,rgba(255,255,255,.5) 1px,transparent 2px,transparent 4px);mix-blend-mode:overlay;}
+.patron-stage{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(14px,2.4vw,22px);}
+
+.patron-narration-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;}
+.patron-narration{align-self:center;max-width:94%;background:rgba(10,8,16,.85);border:2px solid var(--gold-dim);border-radius:10px;padding:clamp(16px,3vw,28px) clamp(20px,4vw,32px);font-style:italic;color:var(--text-dim);font-size:clamp(1.2rem,2.8vw,1.6rem);line-height:1.65;text-align:center;}
+
+.patron-exchange{display:flex;align-items:flex-end;gap:clamp(10px,2.4vw,20px);max-width:97%;flex-wrap:wrap;}
+.patron-exchange.dee{align-self:flex-start;}
+.patron-exchange.you{align-self:flex-end;flex-direction:row-reverse;justify-content:flex-end;}
+
+.patron-cam{flex-shrink:0;width:clamp(60px,13vw,100px);height:clamp(60px,13vw,100px);border-radius:10px;border:3px solid var(--gold-dim);background:#0c0a14;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(212,168,75,.18);position:relative;}
+.patron-cam.small{width:clamp(44px,8vw,68px);height:clamp(44px,8vw,68px);}
+.patron-cam img{width:100%;height:100%;object-fit:cover;}
+.patron-cam-icon{font-size:clamp(1.6rem,5vw,2.4rem);}
+.patron-cam-label{position:absolute;bottom:0;left:0;right:0;text-align:center;font-family:var(--pixel);font-size:clamp(8px,1.5vw,11px);color:var(--gold);background:rgba(0,0,0,.6);letter-spacing:.04em;padding:1px 0;}
+
+.patron-bubble{position:relative;background:#f7efd9;color:#1a1410;border:3px solid #2a1f12;border-radius:18px;padding:clamp(16px,2.8vw,24px) clamp(20px,3.6vw,30px);font-size:clamp(1.25rem,3vw,1.75rem);line-height:1.48;max-width:min(600px,68vw);box-shadow:3px 4px 0 rgba(0,0,0,.35);}
+.patron-bubble.dee::after,.patron-bubble.dee::before{content:'';position:absolute;width:0;height:0;border-style:solid;}
+.patron-bubble.dee::after{left:-14px;bottom:18px;border-width:10px 14px 10px 0;border-color:transparent #2a1f12 transparent transparent;}
+.patron-bubble.dee::before{left:-9px;bottom:20px;border-width:8px 11px 8px 0;border-color:transparent #f7efd9 transparent transparent;z-index:1;}
+.patron-bubble.you{background:#fff7e0;}
+.patron-bubble.you::after,.patron-bubble.you::before{content:'';position:absolute;width:0;height:0;border-style:solid;}
+.patron-bubble.you::after{right:-14px;bottom:18px;border-width:10px 0 10px 14px;border-color:transparent transparent transparent #2a1f12;}
+.patron-bubble.you::before{right:-9px;bottom:20px;border-width:8px 0 8px 11px;border-color:transparent transparent transparent #fff7e0;z-index:1;}
+
+.patron-choices{display:flex;flex-direction:column;align-items:flex-end;gap:10px;max-width:90%;}
+.patron-choice-bubble{cursor:pointer;font-style:italic;text-align:right;transition:background .15s,border-color .15s;}
+.patron-choice-bubble:hover{background:#fff2c2;border-color:var(--gold);}
+
+.patron-dialogue-actions{position:relative;display:flex;justify-content:space-between;align-items:center;gap:14px;padding-top:10px;border-top:1px solid rgba(212,168,75,.18);}
+.patron-dialogue-skip{background:transparent;border:none;color:var(--text-dim);font-family:var(--pixel);font-size:clamp(12px,2vw,14px);cursor:pointer;letter-spacing:.05em;}
 .patron-dialogue-skip:hover{color:var(--gold-dim);}
-.patron-dialogue-next{font-family:var(--pixel);font-size:15px;color:#000;background:var(--gold);border:none;border-radius:3px;padding:8px 22px;cursor:pointer;letter-spacing:.08em;}
+.patron-dialogue-next{font-family:var(--pixel);font-size:clamp(15px,2.6vw,19px);color:#000;background:var(--gold);border:none;border-radius:4px;padding:clamp(9px,1.8vw,13px) clamp(20px,4vw,30px);cursor:pointer;letter-spacing:.06em;}
 .patron-dialogue-next:hover{background:#e8c068;}
-.patron-dialogue-line.you{color:var(--gold-dim);}
-.patron-dialogue-choices{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
-.patron-dialogue-choice{font-family:'EB Garamond',serif;font-style:italic;font-size:1.05rem;color:var(--gold-dim);background:transparent;border:1px solid rgba(212,168,75,.4);border-radius:3px;padding:8px 16px;cursor:pointer;text-align:right;}
-.patron-dialogue-choice:hover{color:var(--gold);border-color:var(--gold);background:rgba(212,168,75,.08);}
-@media(max-width:680px){.patron-dialogue-box{flex-direction:column;align-items:center;}.patron-dialogue-portrait{width:140px;height:140px;}}
+
+@media(max-width:600px){
+  .patron-bubble{max-width:80vw;}
+  .patron-exchange.you{justify-content:flex-end;}
+  .patron-choices{max-width:80vw;}
+}
 
 /* ── TIME PATRON SELECTION ── */
 .patron-select-screen{position:fixed;inset:0;background:#0a0610;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;padding:24px;gap:22px;text-align:center;}
@@ -1421,7 +1446,7 @@ const DEE_DIALOGUE=[
   {speaker:'you',choices:["How long have I been playing Solitaire?"]},
   {speaker:'scene',text:"Before you can even think of an answer, your screen flickers again."},
   {speaker:'scene',text:"This time, you’re not looking at your face."},
-  {speaker:'dee',scene:true,text:"It’s definitely a face, though. A bearded man with a look straight out of a 18th century painting."},
+  {speaker:'dee',scene:true,text:"It’s definitely a face, though. A bearded man with a look straight out of an 18th century painting."},
   {speaker:'you',choices:["I have definitely been playing too long…","Is this a feature or a bug?"]},
   {speaker:'dee',scene:true,text:"The face starts talking. It’s talking to you."},
   {speaker:'dee',scene:true,text:"You wonder if you’re more startled by the fact that it’s talking to you or by the fact that it somehow knows what you were thinking."},
@@ -1439,7 +1464,7 @@ const DEE_DIALOGUE=[
   {speaker:'dee',text:"They have been trying to play the Sacred Shuffle for centuries. In the shadows."},
   {speaker:'you',text:"What’s different now?"},
   {speaker:'dee',text:"The Digital Age."},
-  {speaker:'dee',text:"A single Solitaire game with paper cards takes a relatively long time to set up and play. Now, hundreds, thousands shuffles can be generated and playing in mere seconds."},
+  {speaker:'dee',text:"A single Solitaire game with paper cards takes a relatively long time to set up and play. Now, hundreds, thousands of shuffles can be generated and played in mere seconds."},
   {speaker:'you',text:"Makes sense. I still don’t understand…"},
   {speaker:'dee',text:"Why you?"},
   {speaker:'you',text:"Yeah. Why me?"},
@@ -1469,23 +1494,28 @@ function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
   return false;
 }
+const PATRON_DEE_CAM='<div class="patron-cam dee"><img src="JohnDee.jpg" alt="John Dee"><div class="patron-cam-label">JOHN DEE</div></div>';
+const PATRON_YOU_CAM='<div class="patron-cam you"><span class="patron-cam-icon">🧑</span><div class="patron-cam-label">YOU</div></div>';
 function renderPatronDialogue(app){
   const beat=DEE_DIALOGUE[_patronDlgIdx];
   const isLast=_patronDlgIdx===DEE_DIALOGUE.length-1;
-  const faceSeen=patronDlgFaceSeen();
-  const portraitHTML=faceSeen
-    ?`<img class="patron-dialogue-portrait" src="JohnDee.jpg" alt="John Dee"> <div class="patron-dialogue-name">JOHN DEE</div>`
-    :'';
-  let bodyHTML;
-  if(beat.choices&&_patronDlgChoice===null){
-    const opts=beat.choices.map((c,i)=>`<button class="patron-dialogue-choice" onclick="choosePatronDialogueOption(${i})">${c}</button>`).join('');
-    bodyHTML=`<div class="patron-dialogue-line you"></div> <div class="patron-dialogue-choices">${opts}</div>`;
+  const isNarration=!!(beat.scene||beat.speaker==='scene');
+  const choosing=!!(beat.choices&&_patronDlgChoice===null);
+  let stageHTML;
+  if(isNarration){
+    const camHTML=patronDlgFaceSeen()?'<div class="patron-cam dee small"><img src="JohnDee.jpg" alt="John Dee"><div class="patron-cam-label">JOHN DEE</div></div>':'';
+    stageHTML=`<div class="patron-narration-wrap">${camHTML}<div class="patron-narration">${beat.text}</div></div>`;
+  }else if(choosing){
+    const opts=beat.choices.map((c,i)=>`<div class="patron-bubble you patron-choice-bubble" onclick="choosePatronDialogueOption(${i})">${c}</div>`).join('');
+    stageHTML=`<div class="patron-exchange you">${opts?`<div class="patron-choices">${opts}</div>`:''}${PATRON_YOU_CAM}</div>`;
   }else{
     const text=beat.choices?_patronDlgChoice:beat.text;
-    const lineClass=beat.speaker==='scene'?'scene':(beat.speaker==='you'?'you':'');
-    bodyHTML=`<div class="patron-dialogue-line ${lineClass}">${text}</div> <div class="patron-dialogue-actions"> <button class="patron-dialogue-skip" onclick="skipPatronDialogue()">Skip ▸▸</button> <button class="patron-dialogue-next" onclick="advancePatronDialogue()">${isLast?'Begin':'Continue ▸'}</button> </div>`;
+    stageHTML=beat.speaker==='dee'
+      ?`<div class="patron-exchange dee">${PATRON_DEE_CAM}<div class="patron-bubble dee">${text}</div></div>`
+      :`<div class="patron-exchange you"><div class="patron-bubble you">${text}</div>${PATRON_YOU_CAM}</div>`;
   }
-  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-dialogue-box"> <div class="patron-dialogue-portrait-wrap">${portraitHTML}</div> <div class="patron-dialogue-text-wrap">${bodyHTML}</div> </div>
+  const actionsHTML=choosing?'':`<div class="patron-dialogue-actions"> <button class="patron-dialogue-skip" onclick="skipPatronDialogue()">Skip ▸▸</button> <button class="patron-dialogue-next" onclick="advancePatronDialogue()">${isLast?'Begin':'Continue ▸'}</button> </div>`;
+  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-monitor"> <div class="patron-screen-inner"> <div class="patron-scanlines"></div> <div class="patron-stage">${stageHTML}</div> ${actionsHTML} </div> </div>
   </div>`;
 }
 function choosePatronDialogueOption(i){
