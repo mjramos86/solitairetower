@@ -1302,7 +1302,21 @@ const PATRONS=[
   {id:'unknown1',name:'The Emperor',unlocked:false,revealed:false,year:1804},
   {id:'unknown2',name:'The Prisoner',unlocked:false,revealed:false,year:1789},
 ];
+// ── COMPENDIUM-ONLY LORE ENTRIES ──────────────────────────────
+const LORE=[
+  {id:'cult',name:'The Cult of Solitaire',img:'Cardback_cult2.png',unlocked:true,revealed:true,year:1650,
+    bio:[
+      "The Cult of Solitaire is an organization whose origins date back at least to the 17th century — perhaps further. Its members share one core conviction: the Sacred Shuffle exists, it is attainable, and whoever possesses it possesses time itself.",
+      "Unlike the Historical Figures, who guard the secret out of caution and respect, the Cult wants it for domination. They do not seek to understand Solitaire — they seek to exploit it."
+    ],
+    strategyTitle:'The Digitization Strategy',
+    strategy:[
+      "The digitization of Solitaire in the 1990s was seen by the Cult as a historic windfall. For the first time, millions of games could be played simultaneously, by ordinary people, unaware of what they were searching for.",
+      "Their current plan is brutally simple: seize a building — an office tower, a building full of digital workers — and force its occupants to play Solitaire continuously, around the clock. By the sheer law of large numbers, the Sacred Shuffle will eventually appear on one of the screens."
+    ]}
+];
 function patronName(p){return p.revealed&&p.trueName?p.trueName:p.name;}
+function compendiumEntries(){return [...PATRONS,...LORE];}
 const DEE_DIALOGUE=[
   {speaker:'scene',text:"You’ve done it again."},
   {speaker:'scene',text:"On your computer screen, the cards bounce, and bounce and bounce."},
@@ -3468,8 +3482,9 @@ window.accountSignOut=accountSignOut;window.accountGoToGate=accountGoToGate;
 // ── COMPENDIUM PANEL ───────────────────────────────────────
 let _compendiumPage=0;
 function openCompendiumPanel(gotoId){
-  if(gotoId){const idx=PATRONS.findIndex(p=>p.id===gotoId);if(idx>=0)_compendiumPage=idx;}
-  if(_compendiumPage<0||_compendiumPage>=PATRONS.length)_compendiumPage=0;
+  const entries=compendiumEntries();
+  if(gotoId){const idx=entries.findIndex(p=>p.id===gotoId);if(idx>=0)_compendiumPage=idx;}
+  if(_compendiumPage<0||_compendiumPage>=entries.length)_compendiumPage=0;
   let overlay=document.getElementById('compendium-overlay');
   if(!overlay){
     overlay=document.createElement('div');
@@ -3481,22 +3496,23 @@ function openCompendiumPanel(gotoId){
   renderCompendiumOverlay(overlay);
 }
 function renderCompendiumOverlay(overlay){
-  const navHTML=PATRONS.map((p,i)=>{
+  const entries=compendiumEntries();
+  const navHTML=entries.map((p,i)=>{
     const visible=p.revealed||p.unlocked;
     const label=visible?patronName(p):'Unknown Patron';
     const icon=visible&&p.img?`<img class="compendium-nav-icon" src="${p.img}" alt="">`:`<span class="compendium-nav-icon">${visible?'':'🔒'}</span>`;
     return `<button class="compendium-nav-item ${i===_compendiumPage?'active':''} ${visible?'':'locked'}" ${visible?`onclick="compendiumGoto(${i})"`:'disabled'}>${icon}<span>${label}</span></button>`;
   }).join('');
-  const tlEntries=PATRONS.filter(p=>(p.revealed||p.unlocked)&&p.year!=null).slice().sort((a,b)=>a.year-b.year);
+  const tlEntries=entries.filter(p=>(p.revealed||p.unlocked)&&p.year!=null).slice().sort((a,b)=>a.year-b.year);
   const fmtYear=y=>y<0?`${Math.abs(y)} BC`:`${y}`;
   const tlHTML=tlEntries.length===0?`<div class="compendium-tl-empty">No connections to the historical record have been uncovered yet.</div>`
     :tlEntries.map((p,i)=>{
-      const idx=PATRONS.indexOf(p);
+      const idx=entries.indexOf(p);
       const linked=i>0&&((tlEntries[i-1].links||[]).includes(p.id)||(p.links||[]).includes(tlEntries[i-1].id));
       const lineHTML=i>0?`<div class="compendium-tl-line ${linked?'linked':''}"></div>`:'';
       return `${lineHTML}<div class="compendium-tl-node-wrap"><div class="compendium-tl-dot ${idx===_compendiumPage?'active':''}" onclick="compendiumGoto(${idx})" title="${patronName(p)} (${fmtYear(p.year)})"></div><div class="compendium-tl-label">${patronName(p)}<span class="compendium-tl-year">${fmtYear(p.year)}</span></div></div>`;
     }).join('');
-  const p=PATRONS[_compendiumPage];
+  const p=entries[_compendiumPage];
   let pageHTML;
   if(!p.revealed&&!p.unlocked){
     pageHTML=`<div class="compendium-entry locked">
@@ -3514,6 +3530,7 @@ function renderCompendiumOverlay(overlay){
       :`<div class="compendium-section-title">Connection to Solitaire</div>
         <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>This Patron's link to the secret history of Solitaire has not yet been uncovered.</span>
         <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⏳ Banked Time Credits</button></div>`);
+    const strategyHTML=!p.strategy?'':`<div class="compendium-section-title">${p.strategyTitle||'Strategy'}</div>${p.strategy.map(t=>`<p>${t}</p>`).join('')}`;
     pageHTML=`<div class="compendium-entry">
       <div class="compendium-entry-head">
         ${p.img?`<img class="compendium-entry-portrait" src="${p.img}" alt="${patronName(p)}">`:`<div class="compendium-entry-portrait"></div>`}
@@ -3522,6 +3539,7 @@ function renderCompendiumOverlay(overlay){
       ${devHTML}
       ${bioHTML}
       ${loreHTML}
+      ${strategyHTML}
     </div>`;
   }
   overlay.innerHTML=`
@@ -3545,8 +3563,8 @@ function renderCompendiumOverlay(overlay){
     </div>`;
 }
 function compendiumGoto(idx){_compendiumPage=idx;const el=document.getElementById('compendium-overlay');if(el)renderCompendiumOverlay(el);}
-function compendiumPrev(){_compendiumPage=(_compendiumPage-1+PATRONS.length)%PATRONS.length;const el=document.getElementById('compendium-overlay');if(el)renderCompendiumOverlay(el);}
-function compendiumNext(){_compendiumPage=(_compendiumPage+1)%PATRONS.length;const el=document.getElementById('compendium-overlay');if(el)renderCompendiumOverlay(el);}
+function compendiumPrev(){const n=compendiumEntries().length;_compendiumPage=(_compendiumPage-1+n)%n;const el=document.getElementById('compendium-overlay');if(el)renderCompendiumOverlay(el);}
+function compendiumNext(){const n=compendiumEntries().length;_compendiumPage=(_compendiumPage+1)%n;const el=document.getElementById('compendium-overlay');if(el)renderCompendiumOverlay(el);}
 function closeCompendiumPanel(){const el=document.getElementById('compendium-overlay');if(el)el.remove();}
 function applyProfileToPatrons(){
   PATRONS.forEach(p=>{
