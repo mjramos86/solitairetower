@@ -1446,25 +1446,36 @@ function patronToolbarHTML(){
   return`<img class="patron-toolbar-portrait" src="${p.img}" alt="${p.name}" title="${p.name} -- your Time Patron">`;
 }
 
-function playWinningCinematic(){
-const overlay=document.createElement('div');
-overlay.style.cssText='position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;';
-const video=document.createElement('video');
-video.src='winning cinematic.mp4';video.autoplay=true;video.playsInline=true;
-video.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;';
-let done=false;
-function finish(){
-  if(done)return;done=true;
-  overlay.style.transition='opacity 0.6s ease';overlay.style.opacity='0';
-  setTimeout(()=>{overlay.remove();A.screen='victory';recordRunEnd(true);render();},600);
+const VICTORY_LINES=[
+  "You have shown why you were the chosen by the Sacred Shuffle. I am afraid, though, this journey is only beginning.",
+  "Our victory over the Cult will only be complete when all Time Patrons are revealed."
+];
+const VICTORY_CHOICES=["Alright, reset time!","I just want to go home."];
+const VICTORY_RESPONSES=["That is the spirit!","Not until our work is done."];
+let _victoryDlgIdx=0;
+let _victoryChoice=null;
+function startVictoryDialogue(){_victoryDlgIdx=0;_victoryChoice=null;A.screen='victory-dialogue';render();}
+function renderVictoryDialogue(app){
+  let contentHTML,footerHTML;
+  if(_victoryDlgIdx<VICTORY_LINES.length){
+    contentHTML=`<div class="patron-bubble">${VICTORY_LINES[_victoryDlgIdx]}</div>`;
+    footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="advanceVictoryDialogue()">Continue ▸</button></div>`;
+  }else if(_victoryDlgIdx===VICTORY_LINES.length){
+    const opts=VICTORY_CHOICES.map((c,i)=>`<button class="patron-choice-btn" onclick="chooseVictoryOption(${i})">${c}</button>`).join('');
+    contentHTML=`<div class="patron-choices">${opts}</div>`;
+    footerHTML='';
+  }else{
+    contentHTML=`<div class="patron-bubble">${VICTORY_RESPONSES[_victoryChoice]}</div>`;
+    footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="finishVictoryDialogue()">Continue ▸</button></div>`;
+  }
+  const portraitHTML='<div class="patron-portrait-col"><div class="patron-portrait-label">JOHN DEE</div><img src="JohnDee.jpg" alt="John Dee"></div>';
+  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-call-window"> <div class="win95-title"> <span class="win95-title-icon">📞</span> <span class="win95-title-text">Incoming Transmission -- John Dee</span> <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div> </div> <div class="patron-call-area"> <div class="patron-call-body">${portraitHTML}<div class="patron-content-col">${contentHTML}</div></div> ${footerHTML} </div> </div>
+  </div>`;
 }
-overlay.onclick=finish;
-video.onended=finish;
-video.onerror=finish;
-overlay.appendChild(video);
-document.body.appendChild(overlay);
-video.play().catch(()=>finish());
-}
+function advanceVictoryDialogue(){_victoryDlgIdx++;render();}
+function chooseVictoryOption(i){_victoryChoice=i;_victoryDlgIdx++;render();}
+function finishVictoryDialogue(){A.screen='victory';recordRunEnd(true);render();}
+window.advanceVictoryDialogue=advanceVictoryDialogue;window.chooseVictoryOption=chooseVictoryOption;window.finishVictoryDialogue=finishVictoryDialogue;
 
 // ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
 let _lastCloudSave=0;
@@ -1565,6 +1576,7 @@ if(A.screen!=='map')stopAmbientAudio();
 if(A.screen==='shop'){stopMusic();stopCrtGlitch();renderShop(app);return;}
 if(A.screen==='gameover'){stopMusic();stopCrtGlitch();renderNameEntry(app,false);return;}
 if(A.screen==='victory'){stopMusic();stopCrtGlitch();renderNameEntry(app,true);return;}
+if(A.screen==='victory-dialogue'){stopMusic();stopCrtGlitch();renderVictoryDialogue(app);return;}
 const s=getS(A.gtype);applyS(s);
 playMusic('game');
 startCrtGlitch();
@@ -3197,7 +3209,7 @@ recordGameEnd(A.gtype,true);
 if(A.instaWin){A.score=A.instaWinScore;}else{addScore(100*(10-A.floor),'floor cleared');}
 A.instaWin=false;A.instaWinScore=0;
 A.tpStreak=0;
-if(A.floor>=9){stopTimer();playWinningCinematic();return;}
+if(A.floor>=9){stopTimer();startVictoryDialogue();return;}
 // Calculate gold and go to shop
 A.shopGoldBreakdown=calcFloorGoldBreakdown();
 A.shopGoldEarned=A.shopGoldBreakdown.reduce((a,b)=>a+(b.earned?b.amount:0),0);
