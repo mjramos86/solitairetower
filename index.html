@@ -1268,7 +1268,7 @@ const PATRONS=[
       "Legend has it that Dee visited Mary, Queen of Scots during her captivity — perhaps at Chartley or Fotheringhay — and taught her a card layout he presented as a method of divination. The game was supposedly meant to occupy her mind through the long nights before her execution.",
       "More deeply, Dee believed the universe itself was encoded — that behind the apparent randomness of the cards lay a divine mathematical order. He was the first to suspect that the Sacred Shuffle was no accident, but a door."
     ]},
-  {id:'marie',name:'Mary, Queen of Scots',img:'MaryQueenofScots.png',unlocked:false,revealed:false,inDevelopment:true,
+  {id:'marie',name:'The Other Queen',trueName:'Mary, Queen of Scots',img:'MaryQueenofScots.png',unlocked:false,revealed:false,inDevelopment:true,
     bio:[
       "Mary became Queen of Scotland when she was just six days old, after her father, James V, died in 1542. Because she was an infant, Scotland was ruled by regents while Mary spent much of her childhood in France, where she was raised at the French court and eventually married the Dauphin, François. When he became King of France in 1559, Mary was briefly Queen of both Scotland and France — but François died only a year later, in 1560, leaving her a widow at eighteen.",
       "Mary returned to Scotland in 1561 to rule in person, landing in a country deeply divided by the Protestant Reformation, while she herself remained Catholic. Her reign was turbulent: she married her cousin Henry Stuart, Lord Darnley, in 1565, and the marriage quickly soured amid political plotting and violence, including Darnley's involvement in the murder of Mary's secretary, David Rizzio. Darnley himself was murdered in 1567, and Mary's swift marriage afterward to James Hepburn, Earl of Bothwell — widely suspected in Darnley's death — scandalized the nobility and triggered a rebellion.",
@@ -1280,6 +1280,7 @@ const PATRONS=[
   {id:'unknown1',name:'The Emperor',unlocked:false,revealed:false},
   {id:'unknown2',name:'The Prisoner',unlocked:false,revealed:false},
 ];
+function patronName(p){return p.revealed&&p.trueName?p.trueName:p.name;}
 const DEE_DIALOGUE=[
   {speaker:'scene',text:"You’ve done it again."},
   {speaker:'scene',text:"On your computer screen, the cards bounce, and bounce and bounce."},
@@ -1393,8 +1394,8 @@ function finishPatronDialogue(){
 }
 function renderPatronSelect(app){
   const cards=PATRONS.map(p=>{
-    if(p.unlocked)return `<div class="patron-card" onclick="selectPatron('${p.id}')"> <img class="patron-card-portrait" src="${p.img}" alt="${p.name}"> <div class="patron-card-name">${p.name}</div> </div>`;
-    if(p.revealed)return `<div class="patron-card locked"> <img class="patron-card-portrait" src="${p.img}" alt="${p.name}"> <div class="patron-card-name">${p.name}</div> <div class="patron-card-dev-tag">In development</div> </div>`;
+    if(p.unlocked)return `<div class="patron-card" onclick="selectPatron('${p.id}')"> <img class="patron-card-portrait" src="${p.img}" alt="${patronName(p)}"> <div class="patron-card-name">${patronName(p)}</div> </div>`;
+    if(p.revealed)return `<div class="patron-card locked"> <img class="patron-card-portrait" src="${p.img}" alt="${patronName(p)}"> <div class="patron-card-name">${patronName(p)}</div> <div class="patron-card-dev-tag">In development</div> </div>`;
     return `<div class="patron-card locked"> <div class="patron-card-portrait"><span class="patron-card-locked-icon">🔒</span></div> <div class="patron-card-name">???</div> </div>`;
   }).join('');
   app.innerHTML=`<div class="patron-select-screen"> <div class="patron-select-title">Choose Your Time Patron</div> <div class="patron-select-sub">An ally for this descent, lending their nature to the wares you'll find along the way.</div> <div class="patron-select-grid">${cards}</div> <div class="patron-select-confirm">Select John Dee to begin your descent.</div>
@@ -3438,7 +3439,7 @@ function openCompendiumPanel(){
       return `<div class="compendium-entry locked">
         <div class="compendium-entry-head">
           <div class="compendium-entry-portrait">🔒</div>
-          <div class="compendium-entry-name">${p.name==='???'?'Unknown Patron':p.name}</div>
+          <div class="compendium-entry-name">${p.name==='???'?'Unknown Patron':patronName(p)}</div>
         </div>
         <div class="compendium-entry-locked-note">This Time Patron has not yet revealed themselves to you.</div>
       </div>`;
@@ -3452,8 +3453,8 @@ function openCompendiumPanel(){
         <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⏳ Banked Time Credits</button></div>`);
     return `<div class="compendium-entry">
       <div class="compendium-entry-head">
-        ${p.img?`<img class="compendium-entry-portrait" src="${p.img}" alt="${p.name}">`:`<div class="compendium-entry-portrait"></div>`}
-        <div class="compendium-entry-name">${p.name}</div>
+        ${p.img?`<img class="compendium-entry-portrait" src="${p.img}" alt="${patronName(p)}">`:`<div class="compendium-entry-portrait"></div>`}
+        <div class="compendium-entry-name">${patronName(p)}</div>
       </div>
       ${devHTML}
       ${bioHTML}
