@@ -574,53 +574,6 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 @media(max-width:600px){.map-title{font-size:1.2rem;}.map-sub{font-size:.85rem;}.tower-container{width:100%;}.f-level-label{font-size:.6rem;min-width:20px;}.cbtn{font-size:.55rem;min-width:72px;padding:4px 6px;}.cbtn.boss{min-width:120px;}.win95-title{font-size:14px;padding:2px 4px;}.win95-toolbar{padding:3px 4px;gap:3px;}.btn{font-size:14px;padding:3px 8px;}.win95-status-pane{font-size:13px;padding:2px 6px;}.win95-status-pane:nth-child(3),.win95-status-pane:last-child{display:none;}.win95-heart{font-size:16px;}}
 @media(max-width:400px){.cbtn{font-size:.5rem;min-width:60px;padding:3px 5px;}.btn{font-size:13px;padding:2px 6px;}}
 
-/* ── INTRO SCREEN ── */
-.intro-screen{
-position:fixed;inset:0;background:#000;
-display:flex;align-items:flex-start;justify-content:center;
-overflow-y:auto;overflow-x:hidden;
-z-index:9999;cursor:default;
-font-family:'Courier New',Courier,monospace;
--webkit-overflow-scrolling:touch;
-}
-.intro-inner{
-max-width:520px;width:90%;
-display:flex;flex-direction:column;align-items:center;
-gap:0;
-padding:max(5vh,24px) 0 max(8vh,40px);
-}
-.intro-line{
-color:#fff;font-size:clamp(.75rem,2.5vw,1rem);line-height:1.8;
-text-align:center;width:100%;
-opacity:0;
-transition:opacity 0.6s ease;
-}
-.intro-line.vis{opacity:1;}
-.intro-line.dim{color:#888;font-size:clamp(.7rem,2.2vw,.88rem);}
-.intro-line.click{color:#aaa;font-size:clamp(.7rem,2.2vw,.88rem);letter-spacing:.25em;}
-.intro-line.flicker{animation:txt-flicker 0.15s step-end 3;}
-@keyframes txt-flicker{0%,100%{opacity:1;}50%{opacity:0;}}
-.intro-line.wrong{color:#cc2222;font-style:italic;font-weight:700;font-size:clamp(.72rem,2.3vw,.95rem);}
-.intro-line.msg{
-color:#dd1111;font-weight:700;font-size:clamp(.78rem,2.4vw,1.05rem);letter-spacing:.04em;
-border:1px solid #661111;padding:10px 24px;margin-top:8px;
-text-shadow:0 0 12px rgba(200,30,30,.4);
-}
-.intro-play-btn{
-margin-top:clamp(16px,4vh,32px);
-font-family:'Courier New',Courier,monospace;
-font-size:clamp(1rem,4vw,1.4rem);letter-spacing:.3em;
-color:#000;background:#fff;
-border:none;padding:10px 40px;
-cursor:pointer;
-opacity:0;
-transition:opacity 0.6s ease, background 0.2s, color 0.2s;
-}
-.intro-play-btn.vis{opacity:1;}
-.intro-play-btn:hover{background:#000;color:#fff;outline:1px solid #fff;}
-.intro-watch-btn{display:block;font-family:var(--pixel);font-size:18px;color:rgba(212,168,75,.7);background:transparent;border:1px solid rgba(212,168,75,.4);padding:10px 28px;cursor:pointer;letter-spacing:.1em;opacity:0;transition:opacity 0.8s ease,color .2s,border-color .2s;margin-top:12px;}
-.intro-watch-btn.vis{opacity:1;}
-.intro-watch-btn:hover{color:rgba(212,168,75,1);border-color:rgba(212,168,75,.8);}
 .map-watch-intro-btn{display:block;width:100%;font-family:var(--pixel);font-size:12px;color:rgba(212,168,75,.65);background:transparent;border:1px solid rgba(212,168,75,.35);padding:8px 10px;cursor:pointer;letter-spacing:.08em;margin-top:10px;transition:color .2s,border-color .2s;}
 .map-watch-intro-btn:hover{color:rgba(212,168,75,1);border-color:rgba(212,168,75,.8);}
 
@@ -1283,130 +1236,10 @@ requestAnimationFrame(()=>requestAnimationFrame(()=>{d.style.transform=`translat
 setTimeout(()=>d.remove(),500);
 }
 
-// ── INTRO SCREEN ─────────────────────────────────────────
-function renderIntro(app){
-app.innerHTML=`<div class="intro-screen" id="intro-screen">
-<div class="intro-inner" id="intro-inner"></div>
-
-  </div>`;
-  const lines=[
-    {text:"It's 1995.",                                          cls:'',       delay:400},
-    {text:"20th floor.",                                          cls:'',       delay:900},
-    {text:"Grey cubicle.",                                        cls:'',       delay:1400},
-    {text:"You're playing Solitaire.",                            cls:'',       delay:2000},
-    {text:"Click.",                                               cls:'click',  delay:3200},
-    {text:"The floor goes dark.",                                 cls:'dim',    delay:4200},
-    {text:"Section by section &mdash;",                          cls:'dim',    delay:5000},
-    {text:"a strangely opaque darkness,",                        cls:'dim',    delay:5700},
-    {text:"closing in.",                                          cls:'dim',    delay:6300},
-    {text:"Click. Click. Click.",                                 cls:'click',  delay:7400},
-    {text:"You spin around.",                                     cls:'',       delay:8600},
-    {text:"Everyone is playing Solitaire.",                       cls:'',       delay:9400},
-    {text:"Click. Click. Click. Click.",                          cls:'click',  delay:10600},
-    {text:"Where did this fog come from?",                        cls:'dim',    delay:12000},
-    {text:"Your screen flickers.",                                cls:'flicker',delay:13400},
-    {text:"The Solitaire game remains &mdash;",                  cls:'',  delay:14400},
-    {text:"but wrong. Different.",                                cls:'',  delay:15100},
-    {text:"Ding!",                                                cls:'click',  delay:16400},
-    {text:"The elevator doors open into hell.",                   cls:'wrong',  delay:17200},
-    {text:"Animal men, bloody royal garments.",                   cls:'wrong',  delay:18100},
-    {text:"A beating human heart at the tip of a scepter.",      cls:'wrong',  delay:19100},
-    {text:"The Cult of Solitaire has come for the 9 to 5.",      cls:'wrong',  delay:20200},
-    {text:"&ldquo;PLAY SOLITAIRE OR DIE.&rdquo;",               cls:'msg',    delay:21600},
-  ];
-  const container=document.getElementById('intro-inner');
-  const timers=[];
-  lines.forEach(({text,cls,delay})=>{
-    const t=setTimeout(()=>{
-      const el=document.createElement('div');
-      el.className='intro-line '+cls;
-      el.innerHTML=text;
-      container.appendChild(el);
-      requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('vis')));
-    },delay);
-    timers.push(t);
-  });
-  // Show play button after last line
-  const btnTimer=setTimeout(()=>{
-    const btn=document.createElement('button');
-    btn.className='intro-play-btn';
-    btn.textContent='PLAY';
-    btn.onclick=startFromIntro;
-    container.appendChild(btn);
-    const wbtn=document.createElement('button');
-    wbtn.className='intro-watch-btn';
-    wbtn.textContent='▶ Watch Intro';
-    wbtn.onclick=watchTrailerVideo;
-    container.appendChild(wbtn);
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{btn.classList.add('vis');wbtn.classList.add('vis');btn.scrollIntoView({behavior:'smooth',block:'nearest'});}));
-  },23200);
-  timers.push(btnTimer);
-  // Also allow clicking anywhere on screen to skip to play button immediately
-  const screen=document.getElementById('intro-screen');
-  screen.addEventListener('click',function onSkip(e){
-    if(e.target.classList.contains('intro-play-btn')||e.target.classList.contains('intro-watch-btn'))return;
-    timers.forEach(clearTimeout);
-    // Render all remaining lines instantly
-    container.innerHTML='';
-    lines.forEach(({text,cls})=>{
-      const el=document.createElement('div');
-      el.className='intro-line vis '+cls;
-      el.innerHTML=text;
-      container.appendChild(el);
-    });
-    const btn=document.createElement('button');
-    btn.className='intro-play-btn vis';
-    btn.textContent='PLAY';
-    btn.onclick=startFromIntro;
-    container.appendChild(btn);
-    const wbtn=document.createElement('button');
-    wbtn.className='intro-watch-btn vis';
-    wbtn.textContent='▶ Watch Intro';
-    wbtn.onclick=watchTrailerVideo;
-    container.appendChild(wbtn);
-    btn.scrollIntoView({behavior:'instant',block:'nearest'});
-    screen.removeEventListener('click',onSkip);
-  });
-}
-
-function startFromIntro(){
-const screen=document.getElementById('intro-screen');
-const proceed=()=>{
-  A.screen='patron-dialogue';
-  render();
-};
-if(screen){
-  screen.style.transition='opacity 0.8s ease';
-  screen.style.opacity='0';
-  setTimeout(proceed,820);
-} else {
-  proceed();
-}
-}
-
-function watchTrailerVideo(){
-const overlay=document.createElement('div');
-overlay.id='trailer-overlay';
-overlay.style.cssText='position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;';
-const video=document.createElement('video');
-video.src='Solitaire Doom Trailer 1.mp4';video.autoplay=true;video.playsInline=true;
-video.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;';
-let done=false;
-function finish(){
-  if(done)return;done=true;
-  overlay.style.transition='opacity 0.6s ease';overlay.style.opacity='0';
-  setTimeout(()=>{overlay.remove();startFromIntro();},600);
-}
-overlay.onclick=finish;
-video.onended=finish;
-video.onerror=finish;
-overlay.appendChild(video);
-document.body.appendChild(overlay);
-video.play().catch(()=>finish());
-}
-
 function watchIntroFromMap(){
-A.screen='intro';render();
+_patronDlgIdx=0;
+_patronDlgReplay=true;
+A.screen='patron-dialogue';render();
 }
 
 // ── TIME PATRONS ─────────────────────────────────────────────
@@ -1485,6 +1318,7 @@ const DEE_DIALOGUE=[
   {speaker:'dee',text:"Play Solitaire."},
 ];
 let _patronDlgIdx=0;
+let _patronDlgReplay=false;
 function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
   return false;
@@ -1533,7 +1367,8 @@ function advancePatronDialogue(){
 function skipPatronDialogue(){finishPatronDialogue();}
 function finishPatronDialogue(){
   _patronDlgIdx=0;
-  A.screen='patron-select';render();
+  if(_patronDlgReplay){_patronDlgReplay=false;A.screen='map';render();return;}
+  checkAuthAndStart();
 }
 function renderPatronSelect(app){
   const cards=PATRONS.map(p=>p.unlocked
@@ -1637,9 +1472,8 @@ function randomCardback(){
 
 function render(){
 const app=document.getElementById('app');
-// Auto-save on every render (except intro)
-if(A.screen!=='intro')saveGame();
-if(A.screen==='intro'){stopMusic();stopCrtGlitch();renderIntro(app);return;}
+// Auto-save on every render (except dialogue)
+if(A.screen!=='patron-dialogue')saveGame();
 if(A.screen==='patron-dialogue'){stopMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
 if(A.screen==='patron-select'){stopMusic();stopCrtGlitch();renderPatronSelect(app);return;}
 if(A.screen==='map'){playMusic('map');stopCrtGlitch();if(A.timerRunning)stopTimer();renderMap(app);return;}
@@ -3625,6 +3459,13 @@ _scoreSubmitted=false;
 checkAuthAndStart();
 }
 
+function initialLoad(){
+_scoreSubmitted=false;
+_patronDlgIdx=0;
+A.screen='patron-dialogue';
+render();
+}
+
 async function checkAuthAndStart(){
   await Promise.race([window._fbAuthReady,new Promise(r=>setTimeout(r,3000))]);
   if(window._fbUser){startCloudFlow();}
@@ -3634,19 +3475,25 @@ async function checkAuthAndStart(){
 // ── AUTH GATE (first screen: sign in / create account / guest) ──
 function renderAuthGate(){
   const app=document.getElementById('app');
-  app.innerHTML=`<div class="end-screen">
-    <div class="ne-window" style="max-width:420px;">
-      <div class="ne-title">🃏 The Solitaire Tower of Doom</div>
-      <div class="ne-body" id="authgate-body">
-        <div style="font-family:var(--pixel);font-size:12px;color:var(--text-dim);margin-bottom:16px;text-align:center;">Sign in to save your progress &amp; stats across devices.</div>
-        <input id="ag-email" type="email" placeholder="Email" class="ne-input" style="width:100%;margin-bottom:8px;">
-        <input id="ag-pass" type="password" placeholder="Password (6+ chars)" class="ne-input" style="width:100%;margin-bottom:10px;">
-        <button class="btn" style="width:100%;margin-bottom:6px;" onclick="authGateSignIn()">[ SIGN IN ]</button>
-        <button class="btn" style="width:100%;margin-bottom:14px;" onclick="authGateSignUp()">[ CREATE ACCOUNT ]</button>
-        <div style="text-align:center;margin:10px 0;font-family:var(--pixel);font-size:11px;color:#666;">— or —</div>
-        <button class="btn" style="width:100%;" onclick="authGateGuest()">[ CONTINUE AS GUEST ]</button>
-        <div style="margin-top:8px;font-family:var(--pixel);font-size:11px;color:#a98;text-align:center;">⚠ Guest progress stays on this device only and won't be saved to an account — but you can still set a high score.</div>
-        <div id="ag-msg" style="margin-top:10px;font-family:var(--pixel);font-size:12px;text-align:center;"></div>
+  app.innerHTML=`<div class="patron-dialogue-screen">
+    <div class="patron-call-window" style="height:auto;max-height:94vh;">
+      <div class="win95-title">
+        <span class="win95-title-icon">🃏</span>
+        <span class="win95-title-text">The Solitaire Tower of Doom -- Sign In</span>
+        <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div>
+      </div>
+      <div class="patron-call-area" style="background:var(--w95-bg);">
+        <div class="patron-content-col" id="authgate-body" style="max-width:420px;margin:0 auto;width:100%;">
+          <div class="patron-narration-box">Sign in to save your progress &amp; stats across devices.</div>
+          <input id="ag-email" type="email" placeholder="Email" class="ne-input" style="width:100%;">
+          <input id="ag-pass" type="password" placeholder="Password (6+ chars)" class="ne-input" style="width:100%;">
+          <button class="btn" style="width:100%;" onclick="authGateSignIn()">[ SIGN IN ]</button>
+          <button class="btn" style="width:100%;" onclick="authGateSignUp()">[ CREATE ACCOUNT ]</button>
+          <div style="text-align:center;font-family:var(--pixel);font-size:14px;color:#666;">— or —</div>
+          <button class="btn" style="width:100%;" onclick="authGateGuest()">[ CONTINUE AS GUEST ]</button>
+          <div style="font-family:var(--pixel);font-size:13px;color:#a98;text-align:center;">⚠ Guest progress stays on this device only and won't be saved to an account — but you can still set a high score.</div>
+          <div id="ag-msg" style="font-family:var(--pixel);font-size:14px;text-align:center;"></div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -3733,7 +3580,7 @@ function loadCloudResume(){
 function startFresh(){
 _scoreSubmitted=false;
 _statsRecorded=false;
-A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'intro',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
+A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'patron-select',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
 patron:null,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
@@ -3754,9 +3601,7 @@ if(A.hintUntil&&Date.now()>A.hintUntil){A.hints=[];A.hintTargets=[];A.hintUntil=
 if(A.revealAllUntil&&Date.now()>A.revealAllUntil){A.revealAllUntil=0;document.querySelectorAll('.x-revealed').forEach(el=>el.classList.remove('x-revealed'));}
 },1000);
 
-window.startFromIntro=startFromIntro;
-window.watchTrailerVideo=watchTrailerVideo;
-window.addEventListener('DOMContentLoaded',init);
+window.addEventListener('DOMContentLoaded',initialLoad);
 window.addEventListener('resize',()=>{if(A.screen==='game'){const s=getS(A.gtype);applyS(s);}else render();});
 window.addEventListener('fb-ready',()=>{const el=document.getElementById('map-lb-body');if(el)loadBoard().then(board=>{const tmp=document.getElementById('map-lb-body');if(tmp)renderMapBoard(tmp,board);});});
 window.startGame=startGame;window.undoMove=undoMove;window.newShuffle=newShuffle;window.abandonGame=abandonGame;
