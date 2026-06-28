@@ -1285,7 +1285,7 @@ const PATRONS=[
       "Dee also traveled undercover as an intelligence agent for Elizabeth's court. He signed his correspondence to the queen \"007\" — the two zeros representing a spy's watching eyes, the seven a lucky number."
     ],
     loreUnlocked:false,
-    connectionCost:50,
+    connectionCost:500,
     lore:[
       "Legend has it that Dee visited Mary, Queen of Scots during her captivity — perhaps at Chartley or Fotheringhay — and taught her a card layout he presented as a method of divination. The game was supposedly meant to occupy her mind through the long nights before her execution.",
       "More deeply, Dee believed the universe itself was encoded — that behind the apparent randomness of the cards lay a divine mathematical order. He was the first to suspect that the Sacred Shuffle was no accident, but a door."
@@ -1546,6 +1546,7 @@ const CARDBACK_OPTIONS=[
   {id:'classic',name:'The Solitaire Tower',img:'cardback.jpg',unlocked:true},
   {id:'cult',name:'The Cult',img:'Cardback_cult2.png',unlocked:true},
   {id:'dee',name:"John Dee's Sigil",img:'Cardback_Dee1.png',requiresConnection:'johndee'},
+  {id:'marie',name:"Mary's Cipher",img:'Cardback_MaryQueen1.png',requiresConnection:'marie'},
 ];
 function cardbackUnlocked(cb){
   if(cb.unlocked)return true;
@@ -1634,9 +1635,13 @@ app.innerHTML=`<div class="map-wrap">
 <div class="map-side-label">Lives</div>
 <div class="map-side-hearts">${liv}</div>
 </div>
-<div class="map-side-section">
+<div class="map-side-section" title="Time Credits: spent during this run on shop items and upgrades. Lost when the run ends.">
 <div class="map-side-label">Time Credits</div>
 <div class="map-side-gold">⏳ ${A.gold}</div>
+</div>
+<div class="map-side-section" title="Time Energy: persists between runs and is spent in the Compendium to unlock a Time Patron's connection to Solitaire.">
+<div class="map-side-label">Time Energy</div>
+<div class="map-side-gold">⚡ ${_profile.bankedCredits}</div>
 </div>
 <div class="map-side-section">
 <div class="map-side-label">🎒 Inventory</div>
@@ -3529,7 +3534,7 @@ function renderCompendiumOverlay(overlay){
       ?`<div class="compendium-section-title">Connection to Solitaire</div>${p.lore.map(t=>`<p>${t}</p>`).join('')}`
       :`<div class="compendium-section-title">Connection to Solitaire</div>
         <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>This Patron's link to the secret history of Solitaire has not yet been uncovered.</span>
-        <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⏳ Banked Time Credits</button></div>`);
+        <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⚡ Time Energy</button></div>`);
     const strategyHTML=!p.strategy?'':`<div class="compendium-section-title">${p.strategyTitle||'Strategy'}</div>${p.strategy.map(t=>`<p>${t}</p>`).join('')}`;
     pageHTML=`<div class="compendium-entry">
       <div class="compendium-entry-head">
@@ -3545,7 +3550,7 @@ function renderCompendiumOverlay(overlay){
   overlay.innerHTML=`
     <div class="compendium-panel">
       <div class="compendium-title"><span>📖 Compendium</span><button class="compendium-close" onclick="closeCompendiumPanel()">✕</button></div>
-      <div class="compendium-banked-credits">⏳ Banked Time Credits: ${_profile.bankedCredits}${window._fbUser?'':' <span class="compendium-guest-note">(sign in to keep these between runs)</span>'}</div>
+      <div class="compendium-banked-credits">⚡ Time Energy: ${_profile.bankedCredits}${window._fbUser?'':' <span class="compendium-guest-note">(sign in to keep these between runs)</span>'}</div>
       <div class="compendium-layout">
         <div class="compendium-nav">
           ${navHTML}
@@ -3586,7 +3591,7 @@ function saveProfile(){
 function unlockConnection(id){
   const p=PATRONS.find(x=>x.id===id);
   if(!p||p.loreUnlocked||!p.connectionCost)return;
-  if(_profile.bankedCredits<p.connectionCost){showToast('Not enough banked Time Credits.');return;}
+  if(_profile.bankedCredits<p.connectionCost){showToast('Not enough Time Energy.');return;}
   _profile.bankedCredits-=p.connectionCost;
   p.loreUnlocked=true;
   if(id==='johndee'){const mary=PATRONS.find(x=>x.id==='marie');if(mary)mary.revealed=true;}
