@@ -587,11 +587,11 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-portrait-label{position:absolute;top:8px;left:8px;font-family:var(--pixel);font-size:clamp(12px,2vw,15px);color:#39ff6a;background:rgba(0,0,0,.75);padding:2px 8px;letter-spacing:.05em;}
 .patron-content-col{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(10px,2vw,18px);padding:clamp(14px,3.2vw,30px);min-width:0;overflow:auto;}
 
-.patron-narration-box{background:var(--w95-bg);border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);padding:clamp(14px,2.6vw,24px);font-family:var(--pixel);font-style:italic;color:var(--w95-darker);font-size:clamp(1.15rem,2.8vw,1.6rem);line-height:1.5;}
+.patron-narration-box{background:var(--w95-bg);border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);padding:clamp(14px,2.6vw,24px);font-family:var(--pixel);font-style:italic;color:var(--w95-darker);font-size:clamp(1.15rem,2.8vw,1.6rem);line-height:1.5;overflow-wrap:break-word;word-break:break-word;}
 
 .patron-you-line{font-family:var(--pixel);color:#fff;font-size:clamp(1.2rem,2.8vw,1.65rem);line-height:1.5;}
 
-.patron-bubble{position:relative;background:#fff;color:#000;border:3px solid #000;padding:clamp(14px,2.6vw,24px) clamp(16px,3.2vw,28px);font-family:var(--pixel);font-size:clamp(1.25rem,2.9vw,1.75rem);line-height:1.45;box-shadow:5px 5px 0 #000;margin-left:18px;}
+.patron-bubble{position:relative;background:#fff;color:#000;border:3px solid #000;padding:clamp(14px,2.6vw,24px) clamp(16px,3.2vw,28px);font-family:var(--pixel);font-size:clamp(1.25rem,2.9vw,1.75rem);line-height:1.45;box-shadow:5px 5px 0 #000;margin-left:18px;overflow-wrap:break-word;word-break:break-word;}
 .patron-bubble::after{content:'';position:absolute;left:-12px;top:24px;width:9px;height:16px;background:#fff;border:3px solid #000;border-right:none;}
 .patron-bubble::before{content:'';position:absolute;left:-20px;top:32px;width:8px;height:9px;background:#fff;border:3px solid #000;border-right:none;z-index:1;}
 
@@ -1255,11 +1255,11 @@ const PATRONS=[
       "Legend has it that Dee visited Mary, Queen of Scots during her captivity — perhaps at Chartley or Fotheringhay — and taught her a card layout he presented as a method of divination. The game was supposedly meant to occupy her mind through the long nights before her execution.",
       "More deeply, Dee believed the universe itself was encoded — that behind the apparent randomness of the cards lay a divine mathematical order. He was the first to suspect that the Sacred Shuffle was no accident, but a door."
     ]},
-  {id:'marie',name:'Marie',unlocked:false},
-  {id:'king',name:'The King',unlocked:false},
-  {id:'lion',name:'The Lion',unlocked:false},
-  {id:'unknown1',name:'???',unlocked:false},
-  {id:'unknown2',name:'???',unlocked:false},
+  {id:'marie',name:'The Other Queen',unlocked:false},
+  {id:'king',name:'The Sun King',unlocked:false},
+  {id:'lion',name:'The Old Lion',unlocked:false},
+  {id:'unknown1',name:'The Emperor',unlocked:false},
+  {id:'unknown2',name:'The Prisoner',unlocked:false},
 ];
 const DEE_DIALOGUE=[
   {speaker:'scene',text:"You’ve done it again."},
@@ -1286,7 +1286,7 @@ const DEE_DIALOGUE=[
   {speaker:'dee',text:"Listen, carefully. For lack of a less dramatic way of putting things : the fate of human civilization is at stake."},
   {speaker:'dee',text:"A Cult has taken control of the office building where you work, through means I won’t dignify to qualify as magic. They have been making you play Solitaire repeatedly, endlessly. Has it been days? Weeks? Months? I’m not sure myself."},
   {speaker:'you',choices:["Let’s say I believe you. Why Solitaire?"]},
-  {speaker:'dee',text:"There are 52 cards in a standard deck in Solitaire. There are 80,658,175,170,943,878,571,660,636,856,403,766,975,289,505,440,883,277,824,000,000,000,000 possible arrangements."},
+  {speaker:'dee',text:"There are 52 cards in a standard deck in Solitaire. There are 80,658,175,170,943,878,571,660,636,856,403,<br>766,975,289,505,440,883,277,824,000,000,000,000 possible arrangements."},
   {speaker:'dee',text:"That’s more than the number of atoms on the Earth."},
   {speaker:'dee',text:"There is one particular arrangement. The Sacred Shuffle… that does something extraordinary."},
   {speaker:'dee',text:"It gives dominion over time, way beyond the dark arts the Cult currently dabbles in, and way beyond the simple time projection I am using to contact you."},
