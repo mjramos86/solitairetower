@@ -118,9 +118,10 @@
     try{await setDoc(ref,{save:null},{merge:true});}catch(e){}
   };
 
-  window._fbSignUp=async(email,password,displayName)=>{
+  window._fbSignUp=async(email,password,displayName,acceptsNewsletter)=>{
     const result=await createUserWithEmailAndPassword(auth,email,password);
     if(displayName)await updateProfile(result.user,{displayName});
+    await setDoc(doc(db,'players',result.user.uid),{acceptsNewsletter:!!acceptsNewsletter},{merge:true});
     return result.user;
   };
 
@@ -3684,6 +3685,10 @@ function renderAuthGate(){
           <div class="patron-narration-box">Sign in to save your progress &amp; stats across devices.</div>
           <input id="ag-email" type="email" placeholder="Email" class="ne-input" style="width:100%;">
           <input id="ag-pass" type="password" placeholder="Password (6+ chars)" class="ne-input" style="width:100%;">
+          <label style="display:flex;align-items:center;gap:8px;font-family:var(--pixel);font-size:13px;color:#ccc;cursor:pointer;">
+            <input id="ag-newsletter" type="checkbox" style="width:auto;margin:0;">
+            Send me newsletters and promotional emails
+          </label>
           <button class="btn" style="width:100%;" onclick="authGateSignIn()">[ SIGN IN ]</button>
           <button class="btn" style="width:100%;" onclick="authGateSignUp()">[ CREATE ACCOUNT ]</button>
           <div style="text-align:center;font-family:var(--pixel);font-size:14px;color:#666;">— or —</div>
@@ -3709,11 +3714,12 @@ async function authGateSignIn(){
 async function authGateSignUp(){
   const email=document.getElementById('ag-email').value.trim();
   const pass=document.getElementById('ag-pass').value;
+  const acceptsNewsletter=document.getElementById('ag-newsletter').checked;
   const msg=document.getElementById('ag-msg');
   if(!email||pass.length<6){msg.textContent='Enter a valid email and a 6+ character password.';msg.style.color='#ff4d4d';return;}
   msg.textContent='Creating account...';msg.style.color='#aaa';
   try{
-    await window._fbSignUp(email,pass);
+    await window._fbSignUp(email,pass,null,acceptsNewsletter);
     startCloudFlow();
   }catch(e){msg.textContent='Error: '+(e.message||'failed to create account');msg.style.color='#ff4d4d';}
 }
