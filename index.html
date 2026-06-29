@@ -86,13 +86,14 @@
   window._fbRecordGameResult=async(type,won)=>{
     const ref=playerRef();if(!ref)return;
     try{
+      const variant={played:increment(1)};
+      if(won)variant.won=increment(1);
       const update={
         gamesPlayed:increment(1),
         gamesWon:increment(won?1:0),
-        lastPlayed:Date.now()
+        lastPlayed:Date.now(),
+        variantStats:{[type]:variant}
       };
-      update[`variantStats.${type}.played`]=increment(1);
-      if(won)update[`variantStats.${type}.won`]=increment(1);
       await setDoc(ref,update,{merge:true});
     }catch(e){console.error('Failed to record game stats:',e);}
   };
