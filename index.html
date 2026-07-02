@@ -1496,6 +1496,7 @@ window.advanceVictoryDialogue=advanceVictoryDialogue;window.chooseVictoryOption=
 // ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
 let _lastCloudSave=0;
 function saveGame(){
+  if(_scoreSubmitted)return;
   try{
     const snap=Object.assign({},A);
     snap.done=[...A.done];
