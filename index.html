@@ -1544,17 +1544,12 @@ function renderDeeCheckinDialogue(app){
     footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="advanceDeeCheckinIntro()">Continue ▸</button></div>`;
   }else if(_deeCheckin.phase==='menu'){
     const remaining=DEE_CHECKIN_TOPICS.filter(t=>!_deeCheckin.answered.includes(t.id));
-    if(remaining.length===0){
-      contentHTML=`<div class="patron-bubble">That is all I have for now. Stay sharp.</div>`;
-      footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="finishDeeCheckinDialogue()">Continue ▸</button></div>`;
-    }else{
-      let opts=remaining.map(t=>`<button class="patron-choice-btn" onclick="chooseDeeCheckinTopic('${t.id}')">${t.question}</button>`).join('');
-      if(_profile.deeCheckinDone){
-        opts+=`<button class="patron-choice-btn patron-choice-btn-skip" onclick="skipDeeCheckinDialogue()">It’s not my first run. We already have the conversation.</button>`;
-      }
-      contentHTML=`<div class="patron-choices">${opts}</div>`;
-      footerHTML='';
+    let opts=remaining.map(t=>`<button class="patron-choice-btn" onclick="chooseDeeCheckinTopic('${t.id}')">${t.question}</button>`).join('');
+    if(_profile.deeCheckinDone){
+      opts+=`<button class="patron-choice-btn patron-choice-btn-skip" onclick="skipDeeCheckinDialogue()">It’s not my first run. We already have the conversation.</button>`;
     }
+    contentHTML=`<div class="patron-choices">${opts}</div>`;
+    footerHTML='';
   }else{
     const topic=DEE_CHECKIN_TOPICS.find(t=>t.id===_deeCheckin.topicId);
     const beat=topic.beats[_deeCheckin.beatIdx];
@@ -1577,7 +1572,9 @@ function advanceDeeCheckinTopic(){
   const topic=DEE_CHECKIN_TOPICS.find(t=>t.id===_deeCheckin.topicId);
   if(_deeCheckin.beatIdx>=topic.beats.length-1){
     _deeCheckin.answered.push(_deeCheckin.topicId);
-    _deeCheckin.phase='menu';_deeCheckin.topicId=null;_deeCheckin.beatIdx=0;render();return;
+    _deeCheckin.topicId=null;_deeCheckin.beatIdx=0;
+    if(_deeCheckin.answered.length>=DEE_CHECKIN_TOPICS.length){finishDeeCheckinDialogue();return;}
+    _deeCheckin.phase='menu';render();return;
   }
   _deeCheckin.beatIdx++;render();
 }
