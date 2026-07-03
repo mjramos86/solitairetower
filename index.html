@@ -633,6 +633,8 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-choice-btn{display:block;width:100%;text-align:left;font-family:var(--pixel);font-size:clamp(1.1rem,2.6vw,1.5rem);padding:10px 16px;background:var(--w95-bg);border:2px solid;border-color:var(--w95-white) var(--w95-darker) var(--w95-darker) var(--w95-white);box-shadow:1px 1px 0 var(--w95-dark),inset 1px 1px 0 rgba(255,255,255,0.8);cursor:pointer;color:var(--w95-text);letter-spacing:.01em;}
 .patron-choice-btn:hover{background:#d4d0c8;}
 .patron-choice-btn:active{border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);}
+.patron-choice-btn-skip{margin-top:6px;background:#2e2010;color:var(--gold);border-color:var(--gold) var(--gold-dim) var(--gold-dim) var(--gold);box-shadow:1px 1px 0 var(--gold-dim),0 0 10px var(--gold-glow);}
+.patron-choice-btn-skip:hover{background:#3a2814;}
 
 .patron-dialogue-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px;border-top:1px solid var(--w95-dark);background:var(--w95-bg);flex-shrink:0;}
 
@@ -1380,7 +1382,7 @@ const DEE_DIALOGUE=[
 ];
 let _patronDlgIdx=0;
 let _patronDlgReplay=false;
-let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic'};
+let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false};
 let _returnScreen=null;
 function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
@@ -1546,7 +1548,10 @@ function renderDeeCheckinDialogue(app){
       contentHTML=`<div class="patron-bubble">That is all I have for now. Stay sharp.</div>`;
       footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="finishDeeCheckinDialogue()">Continue ▸</button></div>`;
     }else{
-      const opts=remaining.map(t=>`<button class="patron-choice-btn" onclick="chooseDeeCheckinTopic('${t.id}')">${t.question}</button>`).join('');
+      let opts=remaining.map(t=>`<button class="patron-choice-btn" onclick="chooseDeeCheckinTopic('${t.id}')">${t.question}</button>`).join('');
+      if(_profile.deeCheckinDone){
+        opts+=`<button class="patron-choice-btn patron-choice-btn-skip" onclick="skipDeeCheckinDialogue()">It’s not my first run. We already have the conversation.</button>`;
+      }
       contentHTML=`<div class="patron-choices">${opts}</div>`;
       footerHTML='';
     }
@@ -1577,9 +1582,13 @@ function advanceDeeCheckinTopic(){
   _deeCheckin.beatIdx++;render();
 }
 function finishDeeCheckinDialogue(){
+  _profile.deeCheckinDone=true;saveProfile();
   proceedToShop();
 }
-window.advanceDeeCheckinIntro=advanceDeeCheckinIntro;window.chooseDeeCheckinTopic=chooseDeeCheckinTopic;window.advanceDeeCheckinTopic=advanceDeeCheckinTopic;window.finishDeeCheckinDialogue=finishDeeCheckinDialogue;
+function skipDeeCheckinDialogue(){
+  proceedToShop();
+}
+window.advanceDeeCheckinIntro=advanceDeeCheckinIntro;window.chooseDeeCheckinTopic=chooseDeeCheckinTopic;window.advanceDeeCheckinTopic=advanceDeeCheckinTopic;window.finishDeeCheckinDialogue=finishDeeCheckinDialogue;window.skipDeeCheckinDialogue=skipDeeCheckinDialogue;
 
 // ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
 let _lastCloudSave=0;
@@ -3686,7 +3695,8 @@ function saveProfile(){
     window._fbSaveProfile({
       bankedCredits:_profile.bankedCredits,
       unlockedConnections:PATRONS.filter(p=>p.loreUnlocked).map(p=>p.id),
-      cardback:_profile.cardback
+      cardback:_profile.cardback,
+      deeCheckinDone:_profile.deeCheckinDone
     }).catch(()=>{});
   }
 }
@@ -3841,6 +3851,7 @@ function startCloudFlow(){
       _profile.bankedCredits=profile.bankedCredits||0;
       _profile.unlockedConnections=profile.unlockedConnections||[];
       _profile.cardback=profile.cardback||'classic';
+      _profile.deeCheckinDone=!!profile.deeCheckinDone;
       applyProfileToPatrons();
     }
     applyCardback(_profile.cardback);
