@@ -864,7 +864,7 @@ let A={
 lives:3,floor:0,choices:[],done:new Set(),screen:'map',
 gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
-patron:null,
+patron:null,deeCheckinSeen:false,
 // Shop / gold / inventory
 gold:0,inventory:[],
 shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
@@ -1493,6 +1493,94 @@ function chooseVictoryOption(i){_victoryChoice=i;_victoryDlgIdx++;render();}
 function finishVictoryDialogue(){A.screen='victory';recordRunEnd(true);render();}
 window.advanceVictoryDialogue=advanceVictoryDialogue;window.chooseVictoryOption=chooseVictoryOption;window.finishVictoryDialogue=finishVictoryDialogue;
 
+// ── DEE CHECK-IN DIALOGUE (after floor 8, non-linear question menu) ──
+const DEE_CHECKIN_INTRO=[
+  {speaker:'dee',text:"You are doing well. You have a moment’s respite. If you have any questions, I will answer them to the extent of my knowledge."}
+];
+const DEE_CHECKIN_TOPICS=[
+  {id:'who',question:"Who are these guys, anyway?",beats:[
+    {speaker:'dee',text:"They call themselves the Cult of Patience. I call them the Cult of Doom."},
+    {speaker:'dee',text:"The earlier traces of their existence date back to the 17th century, but they may have existed even before then."},
+    {speaker:'you',text:"Who’s behind the masks?"},
+    {speaker:'dee',text:"Nobility rejects, revolution survivors, ex-political prisoners. People who fell from high, in terms of their position in society. Their obsessive need for wealth, power and stature has twisted their minds beyond recognition."},
+    {speaker:'dee',text:"They have extended their lives with dangerous dark arts. The longer they live, the less human they become. Only the obsession remains."},
+    {speaker:'dee',text:"Their masks are not meant to hide their identity, they’re meant to hide from themselves their own hideous faces."}
+  ]},
+  {id:'why',question:"Why do they want the Sacred Shuffle?",beats:[
+    {speaker:'dee',text:"Time and change are their enemies. They believe the Sacred Shuffle can take them back to a time where they were at the height of their power, and keep them there, forever."},
+    {speaker:'you',text:"They want to make everything great again, huh."},
+    {speaker:'dee',text:"Hardly. Time would be broken. It would no longer pass. They would be princes, kings, emperors, in their own individual timeloops. At least, that’s my theory. It’s better to not find out."},
+    {speaker:'you',text:"I get the picture; everyone else would be their NPCs."},
+    {speaker:'dee',text:"NPC?"},
+    {speaker:'you',text:"Never mind."}
+  ]},
+  {id:'involved',question:"Why are you involved in all this?",beats:[
+    {speaker:'dee',text:"I have been studying the history of and variants of the game you call Solitaire since my years spent in Rudolf II’s court in Prague, the center of Kabbalistic scholarship."},
+    {speaker:'dee',text:"Another name Solitaire goes by is Patience. The Scandinavian word for patience is kabale."},
+    {speaker:'dee',text:"While it did become a game of patience for the impatient, it’s roots lie in divination. You could say I have a passion for ciphers, secret languages, the mathematical codes that rule the cosmos."},
+    {speaker:'dee',text:"As I came to understand the powers of a deck of cards, I managed to establish connections through time with other souls who became aware of the existence of the Sacred Shuffle, and shared my concern about the Cult of Doom."},
+    {speaker:'you',text:"Like a group of super good guys."},
+    {speaker:'dee',text:"Good? Don’t fool yourself into thinking I operate in the name of good, or that any other of the Time Patrons have good intentions. We each have our own incentives."},
+    {speaker:'you',text:"Like what?"},
+    {speaker:'dee',text:"Wealth, power and stature."},
+    {speaker:'you',text:"…"},
+    {speaker:'dee',text:"The only difference between the Time Patrons and the Cult of Doom is that we accept time and change, and rather achieve wealth, power and stature by the natural order of things."},
+    {speaker:'you',text:"And by NOT destroying human civilization as we know it."},
+    {speaker:'dee',text:"You can trust that, but don’t trust anybody."}
+  ]}
+];
+let _deeCheckin={phase:'intro',introIdx:0,topicId:null,beatIdx:0,answered:[]};
+function startDeeCheckinDialogue(){
+  _deeCheckin={phase:'intro',introIdx:0,topicId:null,beatIdx:0,answered:[]};
+  A.screen='dee-checkin-dialogue';render();
+}
+function renderDeeCheckinDialogue(app){
+  let contentHTML,footerHTML;
+  if(_deeCheckin.phase==='intro'){
+    const beat=DEE_CHECKIN_INTRO[_deeCheckin.introIdx];
+    contentHTML=`<div class="patron-bubble">${beat.text}</div>`;
+    footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="advanceDeeCheckinIntro()">Continue ▸</button></div>`;
+  }else if(_deeCheckin.phase==='menu'){
+    const remaining=DEE_CHECKIN_TOPICS.filter(t=>!_deeCheckin.answered.includes(t.id));
+    if(remaining.length===0){
+      contentHTML=`<div class="patron-bubble">That is all I have for now. Stay sharp.</div>`;
+      footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="finishDeeCheckinDialogue()">Continue ▸</button></div>`;
+    }else{
+      const opts=remaining.map(t=>`<button class="patron-choice-btn" onclick="chooseDeeCheckinTopic('${t.id}')">${t.question}</button>`).join('');
+      contentHTML=`<div class="patron-choices">${opts}</div>`;
+      footerHTML='';
+    }
+  }else{
+    const topic=DEE_CHECKIN_TOPICS.find(t=>t.id===_deeCheckin.topicId);
+    const beat=topic.beats[_deeCheckin.beatIdx];
+    const cls=beat.speaker==='dee'?'patron-bubble':'patron-you-line';
+    contentHTML=`<div class="${cls}">${beat.text}</div>`;
+    footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="advanceDeeCheckinTopic()">Continue ▸</button></div>`;
+  }
+  const portraitHTML='<div class="patron-portrait-col"><div class="patron-portrait-label">JOHN DEE</div><img src="JohnDee.jpg" alt="John Dee"></div>';
+  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-call-window"> <div class="win95-title"> <span class="win95-title-icon">📞</span> <span class="win95-title-text">Incoming Transmission -- John Dee</span> <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div> </div> <div class="patron-call-area"> <div class="patron-call-body">${portraitHTML}<div class="patron-content-col">${contentHTML}</div></div> ${footerHTML} </div> </div>
+  </div>`;
+}
+function advanceDeeCheckinIntro(){
+  if(_deeCheckin.introIdx>=DEE_CHECKIN_INTRO.length-1){_deeCheckin.phase='menu';render();return;}
+  _deeCheckin.introIdx++;render();
+}
+function chooseDeeCheckinTopic(id){
+  _deeCheckin.phase='topic';_deeCheckin.topicId=id;_deeCheckin.beatIdx=0;render();
+}
+function advanceDeeCheckinTopic(){
+  const topic=DEE_CHECKIN_TOPICS.find(t=>t.id===_deeCheckin.topicId);
+  if(_deeCheckin.beatIdx>=topic.beats.length-1){
+    _deeCheckin.answered.push(_deeCheckin.topicId);
+    _deeCheckin.phase='menu';_deeCheckin.topicId=null;_deeCheckin.beatIdx=0;render();return;
+  }
+  _deeCheckin.beatIdx++;render();
+}
+function finishDeeCheckinDialogue(){
+  proceedToShop();
+}
+window.advanceDeeCheckinIntro=advanceDeeCheckinIntro;window.chooseDeeCheckinTopic=chooseDeeCheckinTopic;window.advanceDeeCheckinTopic=advanceDeeCheckinTopic;window.finishDeeCheckinDialogue=finishDeeCheckinDialogue;
+
 // ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
 let _lastCloudSave=0;
 function saveGame(){
@@ -1542,6 +1630,7 @@ function fillSaveDefaults(snap){
   if(typeof snap.floorStartScore!=='number')snap.floorStartScore=0;
   if(typeof snap.scoreHistOverlay!=='boolean')snap.scoreHistOverlay=false;
   if(typeof snap.patron==='undefined')snap.patron='johndee';
+  if(typeof snap.deeCheckinSeen!=='boolean')snap.deeCheckinSeen=false;
   return snap;
 }
 // ── CARDBACKS ──────────────────────────────────────
@@ -1595,6 +1684,7 @@ if(A.screen==='shop'){stopMusic();stopCrtGlitch();renderShop(app);return;}
 if(A.screen==='gameover'){stopMusic();stopCrtGlitch();renderNameEntry(app,false);return;}
 if(A.screen==='victory'){stopMusic();stopCrtGlitch();renderNameEntry(app,true);return;}
 if(A.screen==='victory-dialogue'){stopMusic();stopCrtGlitch();renderVictoryDialogue(app);return;}
+if(A.screen==='dee-checkin-dialogue'){stopMusic();stopCrtGlitch();renderDeeCheckinDialogue(app);return;}
 const s=getS(A.gtype);applyS(s);
 playMusic('game');
 startCrtGlitch();
@@ -3232,6 +3322,15 @@ if(A.instaWin){A.score=A.instaWinScore;}else{addScore(100*(10-A.floor),'floor cl
 A.instaWin=false;A.instaWinScore=0;
 A.tpStreak=0;
 if(A.floor>=9){stopTimer();startVictoryDialogue();return;}
+if(A.patron==='johndee'&&A.floor===2&&!A.deeCheckinSeen){
+  A.deeCheckinSeen=true;
+  stopTimer();
+  startDeeCheckinDialogue();
+  return;
+}
+proceedToShop();
+}
+function proceedToShop(){
 // Calculate gold and go to shop
 A.shopGoldBreakdown=calcFloorGoldBreakdown();
 A.shopGoldEarned=A.shopGoldBreakdown.reduce((a,b)=>a+(b.earned?b.amount:0),0);
@@ -3796,7 +3895,7 @@ _scoreSubmitted=false;
 _statsRecorded=false;
 A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'patron-select',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
-patron:null,
+patron:null,deeCheckinSeen:false,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
 floorStartLives:3,floorUndosUsed:0,floorStartTime:0,floorStartScore:0,
 itemMode:null,bonusUndos:0,revealAllUntil:0,revealSnapshot:null,hintUntil:0,hints:[],hintTargets:[],
