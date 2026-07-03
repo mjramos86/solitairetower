@@ -1550,7 +1550,7 @@ function renderDeeCheckinDialogue(app){
     }else{
       let opts=remaining.map(t=>`<button class="patron-choice-btn" onclick="chooseDeeCheckinTopic('${t.id}')">${t.question}</button>`).join('');
       if(_profile.deeCheckinDone){
-        opts+=`<button class="patron-choice-btn patron-choice-btn-skip" onclick="skipDeeCheckinDialogue()">It’s not my first run. We already have the conversation.</button>`;
+        opts+=`<button class="patron-choice-btn patron-choice-btn-skip" onclick="skipDeeCheckinDialogue()">It’s not my first run. We already had this conversation.</button>`;
       }
       contentHTML=`<div class="patron-choices">${opts}</div>`;
       footerHTML='';
