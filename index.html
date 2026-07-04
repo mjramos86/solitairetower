@@ -1674,11 +1674,12 @@ const CARDBACK_OPTIONS=[
   {id:'classic',name:'The Solitaire Tower',img:'cardback.jpg',unlocked:true},
   {id:'cult',name:'The Cult',img:'Cardback_cult2.png',unlocked:true},
   {id:'dee',name:"John Dee's Sigil",img:'Cardback_Dee1.png',requiresConnection:'johndee'},
-  {id:'marie',name:"Mary's Cipher",img:'Cardback_MaryQueen1.png',requiresConnection:'marie'},
+  {id:'marie',name:"Mary's Cipher",img:'Cardback_MaryQueen1.png',requiresReveal:'marie'},
 ];
 function cardbackUnlocked(cb){
   if(cb.unlocked)return true;
   if(cb.requiresConnection){const p=PATRONS.find(x=>x.id===cb.requiresConnection);return !!(p&&p.loreUnlocked);}
+  if(cb.requiresReveal){const p=PATRONS.find(x=>x.id===cb.requiresReveal);return !!(p&&p.revealed);}
   return false;
 }
 function applyCardback(id){
