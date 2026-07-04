@@ -3971,6 +3971,8 @@ window.startGame=startGame;window.undoMove=undoMove;window.newShuffle=newShuffle
 window.startFresh=startFresh;window.loadCloudResume=loadCloudResume;
 // ── SECRET INSTAWIN (developer only): type M J R ──────────
 (()=>{const SEQ=['m','j','r'];let pos=0;document.addEventListener('keydown',e=>{if(A.screen!=='game')return;if(e.key.toLowerCase()==='g'){fireCrtGlitch();return;}if(e.key.toLowerCase()===SEQ[pos]){pos++;if(pos===SEQ.length){pos=0;instaWin();}}else{pos=e.key.toLowerCase()===SEQ[0]?1:0;}});})();
+// ── SECRET INSTAWIN (mobile): tap 5x in a row in the bottom-left corner ──
+(()=>{const ZONE=64,MAX_GAP=900;let count=0,lastTime=0;document.addEventListener('pointerdown',e=>{if(A.screen!=='game')return;const inZone=e.clientX<=ZONE&&e.clientY>=window.innerHeight-ZONE;if(inZone){count=(Date.now()-lastTime<=MAX_GAP)?count+1:1;}else{count=0;}lastTime=Date.now();if(inZone&&count>=5){count=0;instaWin();}});})();
 window.nextFloor=nextFloor;window.init=init;window.submitScore=submitScore;
 window.togglePause=togglePause;window.buyItem=buyItem;window.leaveShop=leaveShop;
 window.activateItem=activateItem;window.cancelItemMode=cancelItemMode;
