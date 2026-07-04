@@ -643,6 +643,9 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-choice-btn-skip:hover{background:#3a2814;}
 
 .patron-dialogue-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px;border-top:1px solid var(--w95-dark);background:var(--w95-bg);flex-shrink:0;}
+.patron-dialogue-footer-intro{flex-direction:column;justify-content:center;gap:6px;}
+.patron-skip-btn{font-size:13px;padding:3px 10px;opacity:.75;}
+.patron-skip-btn:hover{opacity:1;}
 
 .patron-plain-screen{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;z-index:9999;padding:24px;font-family:var(--pixel);}
 .patron-plain-line{color:#ccc;font-size:clamp(1.3rem,3.2vw,2rem);line-height:1.6;text-align:center;max-width:800px;}
@@ -651,8 +654,10 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-plain-choice-btn:hover{color:#fff;border-color:#aaa;background:rgba(255,255,255,.06);}
 .patron-plain-next{font-family:var(--pixel);font-size:clamp(1.1rem,2.6vw,1.4rem);color:#000;background:#ccc;border:none;padding:10px 30px;cursor:pointer;letter-spacing:.05em;}
 .patron-plain-next:hover{background:#fff;}
-.patron-plain-skip{position:absolute;bottom:18px;right:24px;font-family:var(--pixel);background:transparent;border:none;color:#666;font-size:clamp(12px,2vw,15px);cursor:pointer;}
+.patron-plain-footer{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.patron-plain-skip{font-family:var(--pixel);background:transparent;border:none;color:#666;font-size:clamp(11px,1.6vw,13px);cursor:pointer;}
 .patron-plain-skip:hover{color:#aaa;}
+.patron-plain-skip-float{position:absolute;bottom:18px;right:24px;}
 
 @media(max-width:680px){
   .patron-call-body{flex-direction:column;}
@@ -1407,8 +1412,10 @@ function renderPatronDialogue(app){
     }else{
       bodyHTML=`<div class="patron-plain-line">${beat.text}</div>`;
     }
-    const nextHTML=choosing?'':`<button class="patron-plain-next" onclick="advancePatronDialogue()">Continue ▸</button>`;
-    app.innerHTML=`<div class="patron-plain-screen">${bodyHTML}${nextHTML}<button class="patron-plain-skip" onclick="skipPatronDialogue()">Skip ▸▸</button></div>`;
+    const footerHTML=choosing
+      ?`<button class="patron-plain-skip patron-plain-skip-float" onclick="skipPatronDialogue()">Skip ▸▸</button>`
+      :`<div class="patron-plain-footer"><button class="patron-plain-next" onclick="advancePatronDialogue()">Continue ▸</button><button class="patron-plain-skip" onclick="skipPatronDialogue()">Skip ▸▸</button></div>`;
+    app.innerHTML=`<div class="patron-plain-screen">${bodyHTML}${footerHTML}</div>`;
     return;
   }
   const isNarration=!!(beat.scene||beat.speaker==='scene');
@@ -1424,7 +1431,7 @@ function renderPatronDialogue(app){
     contentHTML=`<div class="patron-you-line">${beat.text}</div>`;
   }
   const portraitHTML='<div class="patron-portrait-col"><div class="patron-portrait-label">JOHN DEE</div><img src="JohnDee.jpg" alt="John Dee"></div>';
-  const footerHTML=choosing?'':`<div class="patron-dialogue-footer"> <button class="btn" onclick="skipPatronDialogue()">Skip ▸▸</button> <button class="btn" onclick="advancePatronDialogue()">${isLast?'Begin':'Continue ▸'}</button> </div>`;
+  const footerHTML=choosing?'':`<div class="patron-dialogue-footer patron-dialogue-footer-intro"> <button class="btn" onclick="advancePatronDialogue()">${isLast?'Begin':'Continue ▸'}</button> <button class="btn patron-skip-btn" onclick="skipPatronDialogue()">Skip ▸▸</button> </div>`;
   app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-call-window"> <div class="win95-title"> <span class="win95-title-icon">📞</span> <span class="win95-title-text">Incoming Transmission -- John Dee</span> <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div> </div> <div class="patron-call-area"> <div class="patron-call-body">${portraitHTML}<div class="patron-content-col">${contentHTML}</div></div> ${footerHTML} </div> </div>
   </div>`;
 }
