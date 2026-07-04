@@ -218,6 +218,12 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
 .compendium-section-title{font-family:'Cinzel',serif;color:var(--gold);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;margin:16px 0 8px;}
 .compendium-locked-block{background:rgba(0,0,0,.25);border:1px dashed rgba(212,168,75,.3);border-radius:5px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;color:var(--text);font-style:italic;font-size:15px;}
 .compendium-locked-icon{font-size:1.5rem;color:rgba(255,255,255,.25);flex-shrink:0;}
+.compendium-subsection-title{font-family:'Playfair Display',serif;font-style:italic;color:var(--gold);font-size:1rem;margin:14px 0 8px;}
+.compendium-dlg-block{background:rgba(0,0,0,.22);border:1px solid rgba(212,168,75,.18);border-radius:5px;padding:12px 16px;margin-bottom:14px;}
+.compendium-dlg-line{margin:0 0 8px;}
+.compendium-dlg-line strong{color:var(--gold);}
+.compendium-dlg-narration{margin:0 0 8px;font-style:italic;color:var(--text);opacity:.85;}
+.compendium-dlg-question{font-family:var(--pixel);font-size:13px;color:var(--gold);margin:0 0 8px;}
 .compendium-page-nav{display:flex;justify-content:space-between;padding:10px 16px;border-top:1px solid rgba(212,168,75,.18);flex-shrink:0;}
 .compendium-page-btn{font-family:var(--pixel);font-size:12px;color:var(--gold);background:transparent;border:1px solid rgba(212,168,75,.4);border-radius:4px;padding:6px 12px;cursor:pointer;}
 .compendium-page-btn:hover{background:rgba(212,168,75,.12);}
@@ -1382,7 +1388,7 @@ const DEE_DIALOGUE=[
 ];
 let _patronDlgIdx=0;
 let _patronDlgReplay=false;
-let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false};
+let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false,seenDeeTopics:[]};
 let _returnScreen=null;
 function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
@@ -1566,7 +1572,9 @@ function advanceDeeCheckinIntro(){
   _deeCheckin.introIdx++;render();
 }
 function chooseDeeCheckinTopic(id){
-  _deeCheckin.phase='topic';_deeCheckin.topicId=id;_deeCheckin.beatIdx=0;render();
+  _deeCheckin.phase='topic';_deeCheckin.topicId=id;_deeCheckin.beatIdx=0;
+  if(!_profile.seenDeeTopics.includes(id)){_profile.seenDeeTopics.push(id);saveProfile();}
+  render();
 }
 function advanceDeeCheckinTopic(){
   const topic=DEE_CHECKIN_TOPICS.find(t=>t.id===_deeCheckin.topicId);
@@ -1586,6 +1594,28 @@ function skipDeeCheckinDialogue(){
   proceedToShop();
 }
 window.advanceDeeCheckinIntro=advanceDeeCheckinIntro;window.chooseDeeCheckinTopic=chooseDeeCheckinTopic;window.advanceDeeCheckinTopic=advanceDeeCheckinTopic;window.finishDeeCheckinDialogue=finishDeeCheckinDialogue;window.skipDeeCheckinDialogue=skipDeeCheckinDialogue;
+
+// ── COMPENDIUM: recorded transmission transcripts ──────────
+function dialogueTranscriptHTML(beats){
+  return beats.map(b=>{
+    const isNarration=!!(b.scene||b.speaker==='scene');
+    if(isNarration)return `<p class="compendium-dlg-narration">${b.text}</p>`;
+    if(b.choices)return `<p class="compendium-dlg-line"><strong>You:</strong> ${b.choices.join(' / ')}</p>`;
+    const label=b.speaker==='dee'?'Dee':'You';
+    return `<p class="compendium-dlg-line"><strong>${label}:</strong> ${b.text}</p>`;
+  }).join('');
+}
+function deeCompendiumDialogueHTML(){
+  const introHTML=`<div class="compendium-subsection-title">The First Contact</div><div class="compendium-dlg-block">${dialogueTranscriptHTML(DEE_DIALOGUE)}</div>`;
+  const seenTopics=DEE_CHECKIN_TOPICS.filter(t=>(_profile.seenDeeTopics||[]).includes(t.id));
+  let checkinHTML=`<div class="compendium-subsection-title">A Moment's Respite</div>`;
+  if(seenTopics.length===0){
+    checkinHTML+=`<div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>You have not yet reached this moment in your journey.</span></div>`;
+  }else{
+    checkinHTML+=seenTopics.map(t=>`<div class="compendium-dlg-question">${t.question}</div><div class="compendium-dlg-block">${dialogueTranscriptHTML(t.beats)}</div>`).join('');
+  }
+  return `<div class="compendium-section-title">Recorded Transmissions</div>${introHTML}${checkinHTML}`;
+}
 
 // ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
 let _lastCloudSave=0;
@@ -3644,6 +3674,7 @@ function renderCompendiumOverlay(overlay){
         <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>This Patron's link to the secret history of Solitaire has not yet been uncovered.</span>
         <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⚡ Time Energy</button></div>`);
     const strategyHTML=!p.strategy?'':`<div class="compendium-section-title">${p.strategyTitle||'Strategy'}</div>${p.strategy.map(t=>`<p>${t}</p>`).join('')}`;
+    const dialogueHTML=p.id==='johndee'?deeCompendiumDialogueHTML():'';
     pageHTML=`<div class="compendium-entry">
       <div class="compendium-entry-head">
         ${p.img?`<img class="compendium-entry-portrait" src="${p.img}" alt="${patronName(p)}">`:`<div class="compendium-entry-portrait"></div>`}
@@ -3652,6 +3683,7 @@ function renderCompendiumOverlay(overlay){
       ${devHTML}
       ${bioHTML}
       ${loreHTML}
+      ${dialogueHTML}
       ${strategyHTML}
     </div>`;
   }
@@ -3693,7 +3725,8 @@ function saveProfile(){
       bankedCredits:_profile.bankedCredits,
       unlockedConnections:PATRONS.filter(p=>p.loreUnlocked).map(p=>p.id),
       cardback:_profile.cardback,
-      deeCheckinDone:_profile.deeCheckinDone
+      deeCheckinDone:_profile.deeCheckinDone,
+      seenDeeTopics:_profile.seenDeeTopics
     }).catch(()=>{});
   }
 }
@@ -3849,6 +3882,7 @@ function startCloudFlow(){
       _profile.unlockedConnections=profile.unlockedConnections||[];
       _profile.cardback=profile.cardback||'classic';
       _profile.deeCheckinDone=!!profile.deeCheckinDone;
+      _profile.seenDeeTopics=profile.seenDeeTopics||[];
       applyProfileToPatrons();
     }
     applyCardback(_profile.cardback);
