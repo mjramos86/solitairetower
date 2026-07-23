@@ -254,13 +254,6 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   66%{clip-path:inset(10% 0 80% 0);transform:translateX(2px);opacity:.3;}
   100%{opacity:0;}}
 
-/* Music toggle */
-#music-toggle{position:fixed;bottom:12px;right:12px;z-index:600;width:36px;height:36px;
-  background:rgba(10,6,22,.85);border:2px solid;border-color:rgba(212,168,75,.4) rgba(212,168,75,.15) rgba(212,168,75,.15) rgba(212,168,75,.4);
-  border-radius:4px;cursor:pointer;font-size:18px;line-height:32px;text-align:center;
-  color:var(--gold);transition:opacity .2s,background .2s;opacity:.6;}
-#music-toggle:hover{opacity:1;background:rgba(20,12,40,.95);}
-
 /* ── MAP ── */
 .map-wrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;
 background:#050508;padding:16px 16px 32px;
@@ -2079,7 +2072,8 @@ const GAME_TRACKS=[
 let _bgMusic=null, _bgMusicTrack=null;
 
 function playMusic(trackKey){
-  if(_musicMuted)return;
+  // Background music removed — tracks to be replaced. Remove this early return to re-enable.
+  return;
   let src=MUSIC_TRACKS[trackKey];
   if(!src&&trackKey==='game'){
     src=GAME_TRACKS[Math.floor(Math.random()*GAME_TRACKS.length)];
@@ -4125,16 +4119,6 @@ window.togglePause=togglePause;window.buyItem=buyItem;window.leaveShop=leaveShop
 window.activateItem=activateItem;window.cancelItemMode=cancelItemMode;
 window.watchIntroFromMap=watchIntroFromMap;
 
-// ── MUSIC MUTE TOGGLE ──────────────────────────────────────
-let _musicMuted=false;
-function toggleMusicMute(){
-  _musicMuted=!_musicMuted;
-  const btn=document.getElementById('music-toggle');
-  if(btn)btn.textContent=_musicMuted?'🔇':'🔊';
-  if(_musicMuted){stopMusic();}else{if(A.screen==='map')playMusic('map');else if(A.screen==='game')playMusic('game');}
-}
-window.toggleMusicMute=toggleMusicMute;
 </script>
-<div id="music-toggle" title="Toggle Music" onclick="toggleMusicMute()">🔊</div>
 </body>
 </html>
