@@ -894,7 +894,7 @@ let A={
 lives:3,floor:0,choices:[],done:new Set(),screen:'map',
 gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
-patron:null,deeCheckinSeen:false,
+patron:null,deeCheckinSeen:false,deeDialogue3Seen:false,
 // Shop / gold / inventory
 gold:0,inventory:[],
 shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
@@ -1411,7 +1411,7 @@ const DEE_DIALOGUE=[
 ];
 let _patronDlgIdx=0;
 let _patronDlgReplay=false;
-let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false,seenDeeTopics:[]};
+let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false,seenDeeTopics:[],deeDialogue3Done:false,seenDee3Topics:[]};
 let _returnScreen=null;
 function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
@@ -1630,6 +1630,106 @@ function skipDeeCheckinDialogue(){
 }
 window.advanceDeeCheckinIntro=advanceDeeCheckinIntro;window.chooseDeeCheckinTopic=chooseDeeCheckinTopic;window.advanceDeeCheckinTopic=advanceDeeCheckinTopic;window.finishDeeCheckinDialogue=finishDeeCheckinDialogue;window.skipDeeCheckinDialogue=skipDeeCheckinDialogue;
 
+// ── DEE DIALOGUE 3 (after floor 5, "more than halfway" — non-linear question menu) ──
+const DEE_DIALOGUE3_INTRO=[
+  {speaker:'dee',text:"You are now more than halfway through. Take a break. Go drink some water."},
+  {speaker:'you',text:"I don’t think The Cult of Doom brought any water bottles."},
+  {speaker:'dee',text:"Oh, I wasn’t talking to you."},
+  {speaker:'you',text:"Huh?"},
+  {speaker:'dee',text:"Never mind. Do you have any other questions? The other Time Patrons might not be as helpful as I."},
+  {speaker:'you',text:"You keep mentioning other Time Patrons…"}
+];
+const DEE_DIALOGUE3_TOPICS=[
+  {id:'who',question:"Who are they?",beats:[
+    {speaker:'dee',text:"Mostly nobles, kings, princesses, lords…"},
+    {speaker:'you',text:"Great, I’m caught between two groups of rich people fighting for more power."},
+    {speaker:'dee',text:"I’m afraid that’s how human history goes. I presume it’s still the case in your time."},
+    {speaker:'you',text:"…pretty much."},
+    {speaker:'dee',text:"A lot of them also fell from high, found hardship, exile, captivity, and in duress, almost touched the Sacred Shuffle."},
+    {speaker:'you',text:"What do you mean « almost »?"},
+    {speaker:'dee',text:"They got close to the Sacred Shuffle by helping you find it."},
+    {speaker:'you',text:"I’m confused."},
+    {speaker:'dee',text:"Time paradoxes tend to do that."}
+  ]},
+  {id:'connection',question:"What is their connection to Solitaire?",beats:[
+    {speaker:'dee',text:"You are."},
+    {speaker:'you',text:"…"},
+    {speaker:'dee',text:"Through Solitaire, they will talk to you from their time period, as I am doing. Through you, they are connected to the Sacred Shuffle."},
+    {speaker:'you',text:"Which I haven’t found yet."},
+    {speaker:'dee',text:"Our crude human senses can only perceive time as linear, but it is not. All of this has happened before…"},
+    {speaker:'you',text:"…all of this will happen again. How did I know that?"},
+    {speaker:'dee',text:"Your memory is starting to leak through time. Even if you think this is the first we’re having this conversation, it could be the millionth time."},
+    {speaker:'you',text:"That’s encouraging."}
+  ]},
+  {id:'when',question:"When will I meet them?",beats:[
+    {speaker:'dee',text:"You have to contact them."},
+    {speaker:'you',text:"How?"},
+    {speaker:'dee',text:"You need to generate time mana, but also you need to weave the threads of time, find the connections between the Time Patrons. Even I do not know their identities, except one."},
+    {speaker:'you',text:"Who?"},
+    {speaker:'dee',text:"Mary Stuart, Queen of the Scots."},
+    {speaker:'you',text:"Who?"},
+    {speaker:'dee',text:"Don’t they teach history in your time? Never mind. Just remember her name."}
+  ]}
+];
+let _deeDialogue3={phase:'intro',introIdx:0,topicId:null,beatIdx:0,answered:[]};
+function startDeeDialogue3(){
+  _deeDialogue3={phase:'intro',introIdx:0,topicId:null,beatIdx:0,answered:[]};
+  A.screen='dee-dialogue3';render();
+}
+function renderDeeDialogue3(app){
+  let contentHTML,footerHTML;
+  if(_deeDialogue3.phase==='intro'){
+    const beat=DEE_DIALOGUE3_INTRO[_deeDialogue3.introIdx];
+    const cls=beat.speaker==='dee'?'patron-bubble':'patron-you-line';
+    contentHTML=`<div class="${cls}">${beat.text}</div>`;
+    footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="advanceDeeDialogue3Intro()">Continue ▸</button></div>`;
+  }else if(_deeDialogue3.phase==='menu'){
+    const remaining=DEE_DIALOGUE3_TOPICS.filter(t=>!_deeDialogue3.answered.includes(t.id));
+    let opts=remaining.map(t=>`<button class="patron-choice-btn" onclick="chooseDeeDialogue3Topic('${t.id}')">${t.question}</button>`).join('');
+    if(_profile.deeDialogue3Done){
+      opts+=`<button class="patron-choice-btn patron-choice-btn-skip" onclick="skipDeeDialogue3()">It’s not my first run. We already had this conversation.</button>`;
+    }
+    contentHTML=`<div class="patron-choices">${opts}</div>`;
+    footerHTML='';
+  }else{
+    const topic=DEE_DIALOGUE3_TOPICS.find(t=>t.id===_deeDialogue3.topicId);
+    const beat=topic.beats[_deeDialogue3.beatIdx];
+    const cls=beat.speaker==='dee'?'patron-bubble':'patron-you-line';
+    contentHTML=`<div class="${cls}">${beat.text}</div>`;
+    footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="advanceDeeDialogue3Topic()">Continue ▸</button></div>`;
+  }
+  const portraitHTML='<div class="patron-portrait-col"><div class="patron-portrait-label">JOHN DEE</div><img src="JohnDee.jpg" alt="John Dee"></div>';
+  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-call-window"> <div class="win95-title"> <span class="win95-title-icon">📞</span> <span class="win95-title-text">Incoming Transmission -- John Dee</span> <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div> </div> <div class="patron-call-area"> <div class="patron-call-body">${portraitHTML}<div class="patron-content-col">${contentHTML}</div></div> ${footerHTML} </div> </div>
+  </div>`;
+}
+function advanceDeeDialogue3Intro(){
+  if(_deeDialogue3.introIdx>=DEE_DIALOGUE3_INTRO.length-1){_deeDialogue3.phase='menu';render();return;}
+  _deeDialogue3.introIdx++;render();
+}
+function chooseDeeDialogue3Topic(id){
+  _deeDialogue3.phase='topic';_deeDialogue3.topicId=id;_deeDialogue3.beatIdx=0;
+  if(!_profile.seenDee3Topics.includes(id)){_profile.seenDee3Topics.push(id);saveProfile();}
+  render();
+}
+function advanceDeeDialogue3Topic(){
+  const topic=DEE_DIALOGUE3_TOPICS.find(t=>t.id===_deeDialogue3.topicId);
+  if(_deeDialogue3.beatIdx>=topic.beats.length-1){
+    _deeDialogue3.answered.push(_deeDialogue3.topicId);
+    _deeDialogue3.topicId=null;_deeDialogue3.beatIdx=0;
+    if(_deeDialogue3.answered.length>=DEE_DIALOGUE3_TOPICS.length){finishDeeDialogue3();return;}
+    _deeDialogue3.phase='menu';render();return;
+  }
+  _deeDialogue3.beatIdx++;render();
+}
+function finishDeeDialogue3(){
+  _profile.deeDialogue3Done=true;saveProfile();
+  proceedToShop();
+}
+function skipDeeDialogue3(){
+  proceedToShop();
+}
+window.advanceDeeDialogue3Intro=advanceDeeDialogue3Intro;window.chooseDeeDialogue3Topic=chooseDeeDialogue3Topic;window.advanceDeeDialogue3Topic=advanceDeeDialogue3Topic;window.finishDeeDialogue3=finishDeeDialogue3;window.skipDeeDialogue3=skipDeeDialogue3;
+
 // ── COMPENDIUM: recorded transmission transcripts ──────────
 function dialogueTranscriptHTML(beats){
   return beats.map(b=>{
@@ -1649,7 +1749,14 @@ function deeCompendiumDialogueHTML(){
   }else{
     checkinHTML+=seenTopics.map(t=>`<div class="compendium-dlg-question">${t.question}</div><div class="compendium-dlg-block">${dialogueTranscriptHTML(t.beats)}</div>`).join('');
   }
-  return `<div class="compendium-section-title">Recorded Transmissions</div>${introHTML}${checkinHTML}`;
+  const seen3Topics=DEE_DIALOGUE3_TOPICS.filter(t=>(_profile.seenDee3Topics||[]).includes(t.id));
+  let dlg3HTML=`<div class="compendium-subsection-title">More Than Halfway</div>`;
+  if(seen3Topics.length===0){
+    dlg3HTML+=`<div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>You have not yet reached this moment in your journey.</span></div>`;
+  }else{
+    dlg3HTML+=seen3Topics.map(t=>`<div class="compendium-dlg-question">${t.question}</div><div class="compendium-dlg-block">${dialogueTranscriptHTML(t.beats)}</div>`).join('');
+  }
+  return `<div class="compendium-section-title">Recorded Transmissions</div>${introHTML}${checkinHTML}${dlg3HTML}`;
 }
 
 // ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
@@ -1702,6 +1809,7 @@ function fillSaveDefaults(snap){
   if(typeof snap.scoreHistOverlay!=='boolean')snap.scoreHistOverlay=false;
   if(typeof snap.patron==='undefined')snap.patron='johndee';
   if(typeof snap.deeCheckinSeen!=='boolean')snap.deeCheckinSeen=false;
+  if(typeof snap.deeDialogue3Seen!=='boolean')snap.deeDialogue3Seen=false;
   return snap;
 }
 // ── CARDBACKS ──────────────────────────────────────
@@ -1757,6 +1865,7 @@ if(A.screen==='gameover'){stopMusic();stopCrtGlitch();renderNameEntry(app,false)
 if(A.screen==='victory'){stopMusic();stopCrtGlitch();renderNameEntry(app,true);return;}
 if(A.screen==='victory-dialogue'){stopMusic();stopCrtGlitch();renderVictoryDialogue(app);return;}
 if(A.screen==='dee-checkin-dialogue'){stopMusic();stopCrtGlitch();renderDeeCheckinDialogue(app);return;}
+if(A.screen==='dee-dialogue3'){stopMusic();stopCrtGlitch();renderDeeDialogue3(app);return;}
 const s=getS(A.gtype);applyS(s);
 playMusic('game');
 startCrtGlitch();
@@ -3400,6 +3509,12 @@ if(A.patron==='johndee'&&A.floor===2&&!A.deeCheckinSeen){
   startDeeCheckinDialogue();
   return;
 }
+if(A.patron==='johndee'&&A.floor===5&&!A.deeDialogue3Seen){
+  A.deeDialogue3Seen=true;
+  stopTimer();
+  startDeeDialogue3();
+  return;
+}
 proceedToShop();
 }
 function proceedToShop(){
@@ -3762,7 +3877,9 @@ function saveProfile(){
       unlockedConnections:PATRONS.filter(p=>p.loreUnlocked).map(p=>p.id),
       cardback:_profile.cardback,
       deeCheckinDone:_profile.deeCheckinDone,
-      seenDeeTopics:_profile.seenDeeTopics
+      seenDeeTopics:_profile.seenDeeTopics,
+      deeDialogue3Done:_profile.deeDialogue3Done,
+      seenDee3Topics:_profile.seenDee3Topics
     }).catch(()=>{});
   }
 }
@@ -3919,6 +4036,8 @@ function startCloudFlow(){
       _profile.cardback=profile.cardback||'classic';
       _profile.deeCheckinDone=!!profile.deeCheckinDone;
       _profile.seenDeeTopics=profile.seenDeeTopics||[];
+      _profile.deeDialogue3Done=!!profile.deeDialogue3Done;
+      _profile.seenDee3Topics=profile.seenDee3Topics||[];
       applyProfileToPatrons();
     }
     applyCardback(_profile.cardback);
@@ -3973,7 +4092,7 @@ _scoreSubmitted=false;
 _statsRecorded=false;
 A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'patron-select',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
-patron:null,deeCheckinSeen:false,
+patron:null,deeCheckinSeen:false,deeDialogue3Seen:false,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
 floorStartLives:3,floorUndosUsed:0,floorStartTime:0,floorStartScore:0,
 itemMode:null,bonusUndos:0,revealAllUntil:0,revealSnapshot:null,hintUntil:0,hints:[],hintTargets:[],
