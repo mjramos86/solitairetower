@@ -254,13 +254,6 @@ body{font-family:'EB Garamond',serif;background:var(--bg);color:var(--text);min-
   66%{clip-path:inset(10% 0 80% 0);transform:translateX(2px);opacity:.3;}
   100%{opacity:0;}}
 
-/* Music toggle */
-#music-toggle{position:fixed;bottom:12px;right:12px;z-index:600;width:36px;height:36px;
-  background:rgba(10,6,22,.85);border:2px solid;border-color:rgba(212,168,75,.4) rgba(212,168,75,.15) rgba(212,168,75,.15) rgba(212,168,75,.4);
-  border-radius:4px;cursor:pointer;font-size:18px;line-height:32px;text-align:center;
-  color:var(--gold);transition:opacity .2s,background .2s;opacity:.6;}
-#music-toggle:hover{opacity:1;background:rgba(20,12,40,.95);}
-
 /* ── MAP ── */
 .map-wrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;
 background:#050508;padding:16px 16px 32px;
@@ -695,6 +688,8 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-card-name{font-family:'Cinzel',serif;font-size:.9rem;color:var(--text);}
 .patron-card.locked .patron-card-name{color:var(--text);}
 .patron-card-dev-tag{font-family:var(--pixel);font-size:12px;color:var(--gold);letter-spacing:.05em;}
+.patron-card-cost{font-family:var(--pixel);font-size:11px;color:var(--gold);letter-spacing:.03em;opacity:.85;}
+.patron-card.locked[onclick]{cursor:pointer;}
 .patron-card.cardback-current .patron-card-portrait{border-color:var(--gold);box-shadow:0 0 18px var(--gold-glow);}
 .patron-select-confirm{font-family:var(--pixel);font-size:14px;color:var(--text);}
 
@@ -1322,7 +1317,7 @@ const PATRONS=[
       "Legend has it that Dee visited Mary, Queen of Scots during her captivity — perhaps at Chartley or Fotheringhay — and taught her a card layout he presented as a method of divination. The game was supposedly meant to occupy her mind through the long nights before her execution.",
       "More deeply, Dee believed the universe itself was encoded — that behind the apparent randomness of the cards lay a divine mathematical order. He was the first to suspect that the Sacred Shuffle was no accident, but a door."
     ]},
-  {id:'marie',name:'The Other Queen',trueName:'Mary, Queen of Scots',img:'MaryQueenofScots.png',unlocked:false,revealed:false,inDevelopment:true,year:1567,links:['johndee'],
+  {id:'marie',name:'The Other Queen',trueName:'Mary, Queen of Scots',img:'MaryQueenofScots.png',unlocked:false,revealed:false,inDevelopment:true,patronUnlockCost:1000,year:1567,links:['johndee'],
     bio:[
       "Mary became Queen of Scotland when she was just six days old, after her father, James V, died in 1542. Because she was an infant, Scotland was ruled by regents while Mary spent much of her childhood in France, where she was raised at the French court and eventually married the Dauphin, François. When he became King of France in 1559, Mary was briefly Queen of both Scotland and France — but François died only a year later, in 1560, leaving her a widow at eighteen.",
       "Mary returned to Scotland in 1561 to rule in person, landing in a country deeply divided by the Protestant Reformation, while she herself remained Catholic. Her reign was turbulent: she married her cousin Henry Stuart, Lord Darnley, in 1565, and the marriage quickly soured amid political plotting and violence, including Darnley's involvement in the murder of Mary's secretary, David Rizzio. Darnley himself was murdered in 1567, and Mary's swift marriage afterward to James Hepburn, Earl of Bothwell — widely suspected in Darnley's death — scandalized the nobility and triggered a rebellion.",
@@ -1479,7 +1474,10 @@ function finishPatronDialogue(){
 function renderPatronSelect(app){
   const cards=PATRONS.map(p=>{
     if(p.unlocked)return `<div class="patron-card" onclick="selectPatron('${p.id}')"> <img class="patron-card-portrait" src="${p.img}" alt="${patronName(p)}"> <div class="patron-card-name">${patronName(p)}</div> </div>`;
-    if(p.revealed)return `<div class="patron-card locked"> <img class="patron-card-portrait" src="${p.img}" alt="${patronName(p)}"> <div class="patron-card-name">${patronName(p)}</div> <div class="patron-card-dev-tag">In development</div> </div>`;
+    if(p.revealed){
+      const costHTML=p.patronUnlockCost?`<div class="patron-card-cost">Unlock for ${p.patronUnlockCost} ⚡ Time Energy</div>`:'';
+      return `<div class="patron-card locked" onclick="tryUnlockPatron('${p.id}')"> <img class="patron-card-portrait" src="${p.img}" alt="${patronName(p)}"> <div class="patron-card-name">${patronName(p)}</div> ${costHTML} <div class="patron-card-dev-tag">In development</div> </div>`;
+    }
     return `<div class="patron-card locked"> <div class="patron-card-portrait"><span class="patron-card-locked-icon">🔒</span></div> <div class="patron-card-name">???</div> </div>`;
   }).join('');
   app.innerHTML=`<div class="patron-select-screen"> <div class="patron-select-title">Choose Your Time Patron</div> <div class="patron-select-sub">An ally for this descent, lending their nature to the wares you'll find along the way.</div> <div class="patron-select-grid">${cards}</div> <div class="patron-select-confirm">Select John Dee to begin your descent.</div>
@@ -1492,6 +1490,15 @@ function selectPatron(id){
   A.screen='map';
   render();
 }
+function tryUnlockPatron(id){
+  const p=PATRONS.find(x=>x.id===id);
+  if(!p||p.unlocked)return;
+  if(p.inDevelopment){showToast('This Time Patron is still in development.');return;}
+  if(!p.patronUnlockCost)return;
+  if(_profile.bankedCredits<p.patronUnlockCost){showToast('Not enough Time Energy.');return;}
+  // Purchase flow to be implemented once this patron leaves development.
+}
+window.tryUnlockPatron=tryUnlockPatron;
 function patronBadgeHTML(){
   if(!A.patron)return'';
   const p=PATRONS.find(x=>x.id===A.patron);
@@ -1664,7 +1671,7 @@ const DEE_DIALOGUE3_TOPICS=[
   {id:'when',question:"When will I meet them?",beats:[
     {speaker:'dee',text:"You have to contact them."},
     {speaker:'you',text:"How?"},
-    {speaker:'dee',text:"You need to generate time mana, but also you need to weave the threads of time, find the connections between the Time Patrons. Even I do not know their identities, except one."},
+    {speaker:'dee',text:"You need to generate Time Energy, but also you need to weave the threads of time, find the connections between the Time Patrons. Even I do not know their identities, except one."},
     {speaker:'you',text:"Who?"},
     {speaker:'dee',text:"Mary Stuart, Queen of the Scots."},
     {speaker:'you',text:"Who?"},
@@ -2079,7 +2086,8 @@ const GAME_TRACKS=[
 let _bgMusic=null, _bgMusicTrack=null;
 
 function playMusic(trackKey){
-  if(_musicMuted)return;
+  // Background music removed — tracks to be replaced. Remove this early return to re-enable.
+  return;
   let src=MUSIC_TRACKS[trackKey];
   if(!src&&trackKey==='game'){
     src=GAME_TRACKS[Math.floor(Math.random()*GAME_TRACKS.length)];
@@ -3821,9 +3829,12 @@ function renderCompendiumOverlay(overlay){
     const devHTML=p.inDevelopment?`<div class="compendium-dev-note">⚙ This Time Patron is still in development and cannot yet be selected.</div>`:'';
     const loreHTML=!p.lore?'':(p.loreUnlocked
       ?`<div class="compendium-section-title">Connection to Solitaire</div>${p.lore.map(t=>`<p>${t}</p>`).join('')}`
-      :`<div class="compendium-section-title">Connection to Solitaire</div>
+      :(connectionAvailable(p)
+        ?`<div class="compendium-section-title">Connection to Solitaire</div>
         <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>This Patron's link to the secret history of Solitaire has not yet been uncovered.</span>
-        <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⚡ Time Energy</button></div>`);
+        <button class="compendium-unlock-btn" onclick="unlockConnection('${p.id}')">Unlock for ${p.connectionCost} ⚡ Time Energy</button></div>`
+        :`<div class="compendium-section-title">Connection to Solitaire</div>
+        <div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>Missing information.</span></div>`));
     const strategyHTML=!p.strategy?'':`<div class="compendium-section-title">${p.strategyTitle||'Strategy'}</div>${p.strategy.map(t=>`<p>${t}</p>`).join('')}`;
     const dialogueHTML=p.id==='johndee'?deeCompendiumDialogueHTML():'';
     pageHTML=`<div class="compendium-entry">
@@ -3883,9 +3894,15 @@ function saveProfile(){
     }).catch(()=>{});
   }
 }
+function connectionAvailable(p){
+  // John Dee's connection to Solitaire can only be uncovered after his third transmission (Dialogue 3).
+  if(p.id==='johndee')return !!_profile.deeDialogue3Done;
+  return true;
+}
 function unlockConnection(id){
   const p=PATRONS.find(x=>x.id===id);
   if(!p||p.loreUnlocked||!p.connectionCost)return;
+  if(!connectionAvailable(p))return;
   if(_profile.bankedCredits<p.connectionCost){showToast('Not enough Time Energy.');return;}
   _profile.bankedCredits-=p.connectionCost;
   p.loreUnlocked=true;
@@ -4125,16 +4142,6 @@ window.togglePause=togglePause;window.buyItem=buyItem;window.leaveShop=leaveShop
 window.activateItem=activateItem;window.cancelItemMode=cancelItemMode;
 window.watchIntroFromMap=watchIntroFromMap;
 
-// ── MUSIC MUTE TOGGLE ──────────────────────────────────────
-let _musicMuted=false;
-function toggleMusicMute(){
-  _musicMuted=!_musicMuted;
-  const btn=document.getElementById('music-toggle');
-  if(btn)btn.textContent=_musicMuted?'🔇':'🔊';
-  if(_musicMuted){stopMusic();}else{if(A.screen==='map')playMusic('map');else if(A.screen==='game')playMusic('game');}
-}
-window.toggleMusicMute=toggleMusicMute;
 </script>
-<div id="music-toggle" title="Toggle Music" onclick="toggleMusicMute()">🔊</div>
 </body>
 </html>
