@@ -609,6 +609,8 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 
 .map-watch-intro-btn{display:block;width:100%;font-family:var(--pixel);font-size:13px;color:rgba(212,168,75,.85);background:transparent;border:1px solid rgba(212,168,75,.35);padding:8px 10px;cursor:pointer;letter-spacing:.08em;margin-top:10px;transition:color .2s,border-color .2s;}
 .map-watch-intro-btn:hover{color:rgba(212,168,75,1);border-color:rgba(212,168,75,.8);}
+.compendium-badge{display:inline-block;margin-left:8px;min-width:18px;height:18px;padding:0 5px;background:#c0392b;color:#fff;border-radius:9px;font-family:var(--pixel);font-size:11px;line-height:18px;text-align:center;vertical-align:middle;box-sizing:border-box;animation:compBadgePulse 1.6s ease-in-out infinite;}
+@keyframes compBadgePulse{0%,100%{box-shadow:0 0 4px rgba(192,57,43,.55);}50%{box-shadow:0 0 11px rgba(192,57,43,1);}}
 
 /* ── TIME PATRON DIALOGUE (Win95 incoming-transmission window) ── */
 .patron-dialogue-screen{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999;padding:clamp(6px,2vw,24px);}
@@ -1406,7 +1408,7 @@ const DEE_DIALOGUE=[
 ];
 let _patronDlgIdx=0;
 let _patronDlgReplay=false;
-let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false,seenDeeTopics:[],deeDialogue3Done:false,seenDee3Topics:[]};
+let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false,seenDeeTopics:[],deeDialogue3Done:false,seenDee3Topics:[],seenCompendium:null};
 let _returnScreen=null;
 function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
@@ -1884,6 +1886,7 @@ if(A.pickerOverlay)renderPickerOverlay();
 // ── MAP ────────────────────────────────────────────────────
 function renderMap(app){
 const liv=Array.from({length:A.lives},()=>`<span class="lheart">♥</span>`).join('');
+const cbUnseen=compendiumUnseenCount();
 let floorNodes='';
 for(let f=0;f<10;f++){
 const ch=A.choices[f];const isCur=f===A.floor;const isDone=A.done.has(f);const isFuture=f>A.floor;const displayNum=10-f;const isLast=f===9;
@@ -1930,7 +1933,7 @@ ${invSlots}
 </div>
 <div class="map-side-section">
 <div class="map-side-label">Lore</div>
-<button class="map-watch-intro-btn" onclick="openCompendiumPanel()">📖 Compendium</button>
+<button class="map-watch-intro-btn compendium-btn" onclick="openCompendiumPanel()">📖 Compendium<span class="compendium-badge" id="compendium-badge" title="New in the Compendium"${cbUnseen>0?'':' style="display:none"'}>${cbUnseen>0?cbUnseen:''}</span></button>
 </div>
 <div class="map-side-section">
 <div class="map-side-label">Customize</div>
@@ -3783,6 +3786,37 @@ window.accountSignOut=accountSignOut;window.accountGoToGate=accountGoToGate;
 
 // ── COMPENDIUM PANEL ───────────────────────────────────────
 let _compendiumPage=0;
+// ── COMPENDIUM NOTIFICATIONS ──
+// A signature of everything currently discoverable in the Compendium. When a
+// key appears that the player hasn't seen yet, the Compendium button badges it.
+function compendiumSignature(){
+  const keys=[];
+  compendiumEntries().forEach(p=>{
+    if(p.revealed||p.unlocked)keys.push('entry:'+p.id);
+    if(p.lore){
+      if(p.loreUnlocked)keys.push('conn:'+p.id);
+      else if(connectionAvailable(p))keys.push('conn-ready:'+p.id);
+    }
+  });
+  (_profile.seenDeeTopics||[]).forEach(t=>keys.push('dlg-checkin:'+t));
+  (_profile.seenDee3Topics||[]).forEach(t=>keys.push('dlg-d3:'+t));
+  return keys;
+}
+function compendiumUnseenCount(){
+  const seen=_profile.seenCompendium||[];
+  return compendiumSignature().filter(k=>!seen.includes(k)).length;
+}
+function markCompendiumSeen(){
+  _profile.seenCompendium=compendiumSignature();
+  saveProfile();
+  updateCompendiumBadge();
+}
+function updateCompendiumBadge(){
+  const b=document.getElementById('compendium-badge');
+  if(!b)return;
+  const n=compendiumUnseenCount();
+  if(n>0){b.textContent=n;b.style.display='';}else{b.style.display='none';}
+}
 function openCompendiumPanel(gotoId){
   const entries=compendiumEntries();
   if(gotoId){const idx=entries.findIndex(p=>p.id===gotoId);if(idx>=0)_compendiumPage=idx;}
@@ -3796,6 +3830,7 @@ function openCompendiumPanel(gotoId){
     document.body.appendChild(overlay);
   }
   renderCompendiumOverlay(overlay);
+  markCompendiumSeen();
 }
 function renderCompendiumOverlay(overlay){
   const entries=compendiumEntries();
@@ -3890,7 +3925,8 @@ function saveProfile(){
       deeCheckinDone:_profile.deeCheckinDone,
       seenDeeTopics:_profile.seenDeeTopics,
       deeDialogue3Done:_profile.deeDialogue3Done,
-      seenDee3Topics:_profile.seenDee3Topics
+      seenDee3Topics:_profile.seenDee3Topics,
+      seenCompendium:_profile.seenCompendium||[]
     }).catch(()=>{});
   }
 }
@@ -4055,6 +4091,7 @@ function startCloudFlow(){
       _profile.seenDeeTopics=profile.seenDeeTopics||[];
       _profile.deeDialogue3Done=!!profile.deeDialogue3Done;
       _profile.seenDee3Topics=profile.seenDee3Topics||[];
+      _profile.seenCompendium=Array.isArray(profile.seenCompendium)?profile.seenCompendium:null;
       applyProfileToPatrons();
     }
     applyCardback(_profile.cardback);
