@@ -650,6 +650,19 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-plain-img{width:min(640px,92vw);height:100%;object-fit:contain;}
 .patron-plain-imgzone-multi{flex-direction:column;gap:12px;}
 .patron-plain-imgzone-multi .patron-plain-img{width:min(640px,92vw);height:auto;flex:1;min-height:0;object-fit:contain;}
+/* Haphazard scatter: fragmented glimpses of details, varied position/size/tilt */
+.patron-plain-imgzone-scatter{display:block;overflow:visible;margin-top:4vh;}
+.patron-plain-imgzone-scatter .patron-plain-img{position:absolute;width:auto;height:auto;object-fit:contain;box-shadow:0 6px 22px rgba(0,0,0,.7);}
+.patron-plain-imgzone-scatter .patron-plain-img:nth-child(1){width:33%;max-height:46%;top:1%;left:5%;transform:rotate(-8deg);}
+.patron-plain-imgzone-scatter .patron-plain-img:nth-child(2){width:29%;max-height:42%;top:11%;right:6%;transform:rotate(7deg);}
+.patron-plain-imgzone-scatter .patron-plain-img:nth-child(3){width:31%;max-height:44%;bottom:3%;left:11%;transform:rotate(6deg);}
+.patron-plain-imgzone-scatter .patron-plain-img:nth-child(4){width:26%;max-height:40%;bottom:14%;right:13%;transform:rotate(-6deg);}
+@media(max-width:600px){
+  .patron-plain-imgzone-scatter .patron-plain-img:nth-child(1){width:44%;left:2%;}
+  .patron-plain-imgzone-scatter .patron-plain-img:nth-child(2){width:40%;right:2%;}
+  .patron-plain-imgzone-scatter .patron-plain-img:nth-child(3){width:42%;left:4%;}
+  .patron-plain-imgzone-scatter .patron-plain-img:nth-child(4){width:38%;right:4%;}
+}
 .patron-plain-img-flicker{position:absolute;inset:0;margin:auto;animation:patron-img-flicker 1.1s steps(1,end) infinite;}
 @keyframes patron-img-flicker{
   0%,100%{opacity:0}
@@ -1356,7 +1369,7 @@ const DEE_DIALOGUE=[
   {speaker:'scene',img:'IntroFaceGlimpse.jpg',text:"You catch a glimpse of your face."},
   {speaker:'scene',img:'IntroEyesZoom.jpg',text:"You’ve never seen eyes so dead."},
   {speaker:'scene',text:"You feel strangely compelled to keep looking at your screen, but by the corner of your eye, you notice everyone on the office floor is also mindlessly playing Solitaire."},
-  {speaker:'scene',imgs:['officer_worker1.png','office_worker2.png','IntroEyesPixel.png','IntroMouthPixel.png'],text:"Eyes so dead, skin so pale, lips so dry."},
+  {speaker:'scene',imgs:['officer_worker1.png','office_worker2.png','IntroEyesPixel.png','IntroMouthPixel.png'],scatter:true,text:"Eyes so dead, skin so pale, lips so dry."},
   {speaker:'scene',img:'Cult_intro.jpg',text:"And then you see them.<br>Who, or what, are they?<br>How long have they been here?"},
   {speaker:'scene',text:"Startled, you ask yourself…"},
   {speaker:'you',choices:["How long have I been playing Solitaire?"]},
@@ -1433,7 +1446,8 @@ function renderPatronDialogue(app){
       :`<div class="patron-plain-footer"><button class="patron-plain-next" onclick="advancePatronDialogue()">${beat.nextLabel||'Continue ▸'}</button><button class="patron-plain-skip" onclick="skipPatronDialogue()">Skip ▸▸</button></div>`;
     if(beat.imgs){
       const imgsHTML=beat.imgs.map(src=>`<img class="patron-plain-img" src="${src}" alt="">`).join('');
-      const imgZoneHTML=`<div class="patron-plain-imgzone patron-plain-imgzone-multi">${imgsHTML}</div>`;
+      const zoneCls=beat.scatter?'patron-plain-imgzone patron-plain-imgzone-scatter':'patron-plain-imgzone patron-plain-imgzone-multi';
+      const imgZoneHTML=`<div class="${zoneCls}">${imgsHTML}</div>`;
       app.innerHTML=`<div class="patron-plain-screen patron-plain-screen-img">${imgZoneHTML}<div class="patron-plain-lower">${bodyHTML}${footerHTML}</div></div>`;
     }else if(beat.img){
       const overlayHTML=beat.flickerImg?`<img class="patron-plain-img patron-plain-img-flicker" src="${beat.flickerImg}" alt="">`:'';
