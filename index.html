@@ -1356,7 +1356,8 @@ const DEE_DIALOGUE=[
   {speaker:'scene',img:'IntroFaceGlimpse.jpg',text:"You catch a glimpse of your face."},
   {speaker:'scene',img:'IntroEyesZoom.jpg',text:"You’ve never seen eyes so dead."},
   {speaker:'scene',text:"You feel strangely compelled to keep looking at your screen, but by the corner of your eye, you notice everyone on the office floor is also mindlessly playing Solitaire."},
-  {speaker:'scene',imgs:['IntroEyesPixel.png','IntroMouthPixel.png'],text:"Eyes so dead, skin so pale, lips so dry."},
+  {speaker:'scene',imgs:['officer_worker1.png','office_worker2.png','IntroEyesPixel.png','IntroMouthPixel.png'],text:"Eyes so dead, skin so pale, lips so dry."},
+  {speaker:'scene',img:'Cult_intro.jpg',text:"And then you see them.<br>Who, or what, are they?<br>How long have they been here?"},
   {speaker:'scene',text:"Startled, you ask yourself…"},
   {speaker:'you',choices:["How long have I been playing Solitaire?"]},
   {speaker:'scene',text:"Before you can even think of an answer, your screen flickers again."},
@@ -2085,6 +2086,9 @@ function startTowerAtmosphere(){
 // ── AMBIENT AUDIO (Web Audio API - thunder only) ──────────
 let _ambientCtx=null;
 function startAmbientAudio(){
+  // Tower-menu audio removed — thunder is silenced (lightning visual is kept).
+  // Remove this early return to re-enable the ambient audio context.
+  return;
   if(_ambientCtx)return;
   try{
     _ambientCtx=new (window.AudioContext||window.webkitAudioContext)();
