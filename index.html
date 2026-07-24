@@ -2085,6 +2085,9 @@ function startTowerAtmosphere(){
 // ── AMBIENT AUDIO (Web Audio API - thunder only) ──────────
 let _ambientCtx=null;
 function startAmbientAudio(){
+  // Tower-menu audio removed — thunder is silenced (lightning visual is kept).
+  // Remove this early return to re-enable the ambient audio context.
+  return;
   if(_ambientCtx)return;
   try{
     _ambientCtx=new (window.AudioContext||window.webkitAudioContext)();
