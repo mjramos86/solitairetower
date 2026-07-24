@@ -891,7 +891,7 @@ let A={
 lives:3,floor:0,choices:[],done:new Set(),screen:'map',
 gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
-patron:null,deeCheckinSeen:false,deeDialogue3Seen:false,
+patron:null,deeCheckinSeen:false,deeDialogue3Seen:false,deeFinalSeen:false,
 // Shop / gold / inventory
 gold:0,inventory:[],
 shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
@@ -1408,7 +1408,7 @@ const DEE_DIALOGUE=[
 ];
 let _patronDlgIdx=0;
 let _patronDlgReplay=false;
-let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false,seenDeeTopics:[],deeDialogue3Done:false,seenDee3Topics:[],seenCompendium:null};
+let _profile={bankedCredits:0,unlockedConnections:[],cardback:'classic',deeCheckinDone:false,seenDeeTopics:[],deeDialogue3Done:false,seenDee3Topics:[],deeFinalDone:false,seenCompendium:null};
 let _returnScreen=null;
 function patronDlgFaceSeen(){
   for(let i=0;i<=_patronDlgIdx;i++){if(DEE_DIALOGUE[i].speaker==='dee')return true;}
@@ -1739,6 +1739,43 @@ function skipDeeDialogue3(){
 }
 window.advanceDeeDialogue3Intro=advanceDeeDialogue3Intro;window.chooseDeeDialogue3Topic=chooseDeeDialogue3Topic;window.advanceDeeDialogue3Topic=advanceDeeDialogue3Topic;window.finishDeeDialogue3=finishDeeDialogue3;window.skipDeeDialogue3=skipDeeDialogue3;
 
+// ── DEE FINAL DIALOGUE (after floor 2 / level 9, before the final boss — linear) ──
+const DEE_FINAL=[
+  {speaker:'dee',text:"You’re almost at the end of the loop. You’re about to face your greatest challenge yet."},
+  {speaker:'you',text:"Any advice?"},
+  {speaker:'dee',text:"Yes. Patience."},
+  {speaker:'you',text:"Another pun?"},
+  {speaker:'dee',text:"No. All you need to win is patience."},
+  {speaker:'you',text:"What if I win?"},
+  {speaker:'dee',text:"Go through the challenges of the Cult of Doom again, keep weaving the threads of the secret history of Solitaire and find the Sacred Shuffle!"}
+];
+let _deeFinalIdx=0;
+function startDeeFinalDialogue(){_deeFinalIdx=0;A.screen='dee-final-dialogue';render();}
+function renderDeeFinalDialogue(app){
+  const beat=DEE_FINAL[_deeFinalIdx];
+  const cls=beat.speaker==='dee'?'patron-bubble':'patron-you-line';
+  const contentHTML=`<div class="${cls}">${beat.text}</div>`;
+  const isLast=_deeFinalIdx>=DEE_FINAL.length-1;
+  let footerHTML;
+  if(_profile.deeFinalDone){
+    footerHTML=`<div class="patron-dialogue-footer patron-dialogue-footer-intro"> <button class="btn" onclick="advanceDeeFinalDialogue()">${isLast?'Descend ▸':'Continue ▸'}</button> <button class="btn patron-skip-btn" onclick="finishDeeFinalDialogue()">It’s not my first run. We already had this conversation.</button> </div>`;
+  }else{
+    footerHTML=`<div class="patron-dialogue-footer"><button class="btn" onclick="advanceDeeFinalDialogue()">${isLast?'Descend ▸':'Continue ▸'}</button></div>`;
+  }
+  const portraitHTML='<div class="patron-portrait-col"><div class="patron-portrait-label">JOHN DEE</div><img src="JohnDee.jpg" alt="John Dee"></div>';
+  app.innerHTML=`<div class="patron-dialogue-screen"> <div class="patron-call-window"> <div class="win95-title"> <span class="win95-title-icon">📞</span> <span class="win95-title-text">Incoming Transmission -- John Dee</span> <div class="win95-winbtns"><div class="win95-wbtn">_</div><div class="win95-wbtn">□</div><div class="win95-wbtn" style="font-weight:bold">✕</div></div> </div> <div class="patron-call-area"> <div class="patron-call-body">${portraitHTML}<div class="patron-content-col">${contentHTML}</div></div> ${footerHTML} </div> </div>
+  </div>`;
+}
+function advanceDeeFinalDialogue(){
+  if(_deeFinalIdx>=DEE_FINAL.length-1){finishDeeFinalDialogue();return;}
+  _deeFinalIdx++;render();
+}
+function finishDeeFinalDialogue(){
+  _profile.deeFinalDone=true;saveProfile();
+  proceedToShop();
+}
+window.advanceDeeFinalDialogue=advanceDeeFinalDialogue;window.finishDeeFinalDialogue=finishDeeFinalDialogue;
+
 // ── COMPENDIUM: recorded transmission transcripts ──────────
 function dialogueTranscriptHTML(beats){
   return beats.map(b=>{
@@ -1765,7 +1802,13 @@ function deeCompendiumDialogueHTML(){
   }else{
     dlg3HTML+=seen3Topics.map(t=>`<div class="compendium-dlg-question">${t.question}</div><div class="compendium-dlg-block">${dialogueTranscriptHTML(t.beats)}</div>`).join('');
   }
-  return `<div class="compendium-section-title">Recorded Transmissions</div>${introHTML}${checkinHTML}${dlg3HTML}`;
+  let finalHTML=`<div class="compendium-subsection-title">The Final Threshold</div>`;
+  if(_profile.deeFinalDone){
+    finalHTML+=`<div class="compendium-dlg-block">${dialogueTranscriptHTML(DEE_FINAL)}</div>`;
+  }else{
+    finalHTML+=`<div class="compendium-locked-block"><span class="compendium-locked-icon">🔒</span><span>You have not yet reached this moment in your journey.</span></div>`;
+  }
+  return `<div class="compendium-section-title">Recorded Transmissions</div>${introHTML}${checkinHTML}${dlg3HTML}${finalHTML}`;
 }
 
 // ── AUTO-SAVE SYSTEM (cloud only, no local persistence) ──
@@ -1819,6 +1862,7 @@ function fillSaveDefaults(snap){
   if(typeof snap.patron==='undefined')snap.patron='johndee';
   if(typeof snap.deeCheckinSeen!=='boolean')snap.deeCheckinSeen=false;
   if(typeof snap.deeDialogue3Seen!=='boolean')snap.deeDialogue3Seen=false;
+  if(typeof snap.deeFinalSeen!=='boolean')snap.deeFinalSeen=false;
   return snap;
 }
 // ── CARDBACKS ──────────────────────────────────────
@@ -1875,6 +1919,7 @@ if(A.screen==='victory'){stopMusic();stopCrtGlitch();renderNameEntry(app,true);r
 if(A.screen==='victory-dialogue'){stopMusic();stopCrtGlitch();renderVictoryDialogue(app);return;}
 if(A.screen==='dee-checkin-dialogue'){stopMusic();stopCrtGlitch();renderDeeCheckinDialogue(app);return;}
 if(A.screen==='dee-dialogue3'){stopMusic();stopCrtGlitch();renderDeeDialogue3(app);return;}
+if(A.screen==='dee-final-dialogue'){stopMusic();stopCrtGlitch();renderDeeFinalDialogue(app);return;}
 const s=getS(A.gtype);applyS(s);
 playMusic('game');
 startCrtGlitch();
@@ -3526,6 +3571,12 @@ if(A.patron==='johndee'&&A.floor===5&&!A.deeDialogue3Seen){
   startDeeDialogue3();
   return;
 }
+if(A.patron==='johndee'&&A.floor===8&&!A.deeFinalSeen){
+  A.deeFinalSeen=true;
+  stopTimer();
+  startDeeFinalDialogue();
+  return;
+}
 proceedToShop();
 }
 function proceedToShop(){
@@ -3800,6 +3851,7 @@ function compendiumSignature(){
   });
   (_profile.seenDeeTopics||[]).forEach(t=>keys.push('dlg-checkin:'+t));
   (_profile.seenDee3Topics||[]).forEach(t=>keys.push('dlg-d3:'+t));
+  if(_profile.deeFinalDone)keys.push('dlg-final');
   return keys;
 }
 function compendiumUnseenCount(){
@@ -3926,6 +3978,7 @@ function saveProfile(){
       seenDeeTopics:_profile.seenDeeTopics,
       deeDialogue3Done:_profile.deeDialogue3Done,
       seenDee3Topics:_profile.seenDee3Topics,
+      deeFinalDone:_profile.deeFinalDone,
       seenCompendium:_profile.seenCompendium||[]
     }).catch(()=>{});
   }
@@ -4091,6 +4144,7 @@ function startCloudFlow(){
       _profile.seenDeeTopics=profile.seenDeeTopics||[];
       _profile.deeDialogue3Done=!!profile.deeDialogue3Done;
       _profile.seenDee3Topics=profile.seenDee3Topics||[];
+      _profile.deeFinalDone=!!profile.deeFinalDone;
       _profile.seenCompendium=Array.isArray(profile.seenCompendium)?profile.seenCompendium:null;
       applyProfileToPatrons();
     }
@@ -4146,7 +4200,7 @@ _scoreSubmitted=false;
 _statsRecorded=false;
 A={lives:3,floor:0,choices:genChoices(),done:new Set(),screen:'patron-select',gtype:null,gs:null,undoStack:[],moves:0,sel:null,winOverlay:false,
 score:0,scoreLog:[],scoreHistOverlay:false,timerStart:null,timerElapsed:0,timerRunning:false,tpStreak:0,paused:false,
-patron:null,deeCheckinSeen:false,deeDialogue3Seen:false,
+patron:null,deeCheckinSeen:false,deeDialogue3Seen:false,deeFinalSeen:false,
 gold:0,inventory:[],shopItems:[],shopGoldEarned:0,shopGoldBreakdown:[],
 floorStartLives:3,floorUndosUsed:0,floorStartTime:0,floorStartScore:0,
 itemMode:null,bonusUndos:0,revealAllUntil:0,revealSnapshot:null,hintUntil:0,hints:[],hintTargets:[],
