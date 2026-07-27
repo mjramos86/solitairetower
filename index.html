@@ -1927,7 +1927,8 @@ function render(){
 const app=document.getElementById('app');
 // Auto-save on every render (except dialogue)
 if(A.screen!=='patron-dialogue')saveGame();
-if(A.screen==='patron-dialogue'){stopMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
+if(A.screen!=='patron-dialogue')stopIntroMusic();
+if(A.screen==='patron-dialogue'){stopMusic();startIntroMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
 if(A.screen==='patron-select'){stopMusic();stopCrtGlitch();renderPatronSelect(app);return;}
 if(A.screen==='cardback-select'){stopMusic();stopCrtGlitch();renderCardbackSelect(app);return;}
 if(A.screen==='map'){playMusic('map');stopCrtGlitch();if(A.timerRunning)stopTimer();renderMap(app);return;}
@@ -2193,6 +2194,43 @@ function stopMusic(){
     audio.volume=vol;
     if(vol<=0){clearInterval(fadeOut);audio.pause();audio.src='';}
   },30);
+}
+
+// ── INTRO SEQUENCE MUSIC ───────────────────────────────────
+// Background music for the John Dee intro / "Watch Intro" sequence.
+const INTRO_MUSIC_SRC='music/universfield-creepy-dark-atmosphere-174807.mp3';
+const INTRO_MUSIC_VOLUME=0.4;
+let _introMusic=null;
+function _introMusicFadeIn(audio){
+  const fadeIn=setInterval(()=>{
+    if(_introMusic!==audio||audio.paused){clearInterval(fadeIn);return;}
+    audio.volume=Math.min(INTRO_MUSIC_VOLUME,audio.volume+0.016);
+    if(audio.volume>=INTRO_MUSIC_VOLUME)clearInterval(fadeIn);
+  },60);
+}
+function startIntroMusic(){
+  // Autoplay is typically blocked until a user gesture; render() re-runs when
+  // the player clicks "Continue", so a paused instance is retried then.
+  if(_introMusic){
+    if(_introMusic.paused){_introMusic.play().then(()=>_introMusicFadeIn(_introMusic)).catch(()=>{});}
+    return;
+  }
+  const audio=new Audio(INTRO_MUSIC_SRC);
+  audio.loop=true;
+  audio.volume=0;
+  _introMusic=audio;
+  audio.play().then(()=>_introMusicFadeIn(audio)).catch(()=>{});
+}
+function stopIntroMusic(){
+  if(!_introMusic)return;
+  const audio=_introMusic;
+  _introMusic=null;
+  let vol=audio.volume;
+  const fadeOut=setInterval(()=>{
+    vol=Math.max(0,vol-0.05);
+    audio.volume=vol;
+    if(vol<=0){clearInterval(fadeOut);audio.pause();audio.src='';}
+  },40);
 }
 
 function renderMapBoard(el,board){
