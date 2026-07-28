@@ -644,9 +644,9 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 
 .patron-plain-screen{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;z-index:9999;padding:24px;font-family:var(--pixel);}
 .patron-plain-line{color:#ccc;font-size:clamp(1.3rem,3.2vw,2rem);line-height:1.6;text-align:center;max-width:800px;}
-.patron-plain-screen-img{justify-content:flex-start;gap:0;}
+.patron-plain-screen-img{justify-content:flex-start;gap:0;overflow-y:auto;}
 .patron-plain-imgzone{position:relative;flex:1 1 0%;min-height:15vh;max-height:64vh;width:100%;display:flex;align-items:center;justify-content:center;margin-top:6vh;}
-.patron-plain-lower{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;width:100%;}
+.patron-plain-lower{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:28px;width:100%;padding-top:22px;padding-bottom:24px;}
 .patron-plain-img{width:min(640px,92vw);height:100%;object-fit:contain;}
 .patron-plain-imgzone-multi{flex-direction:column;gap:12px;}
 .patron-plain-imgzone-multi .patron-plain-img{width:min(640px,92vw);height:auto;flex:1;min-height:0;object-fit:contain;}
@@ -668,11 +668,13 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
   .patron-plain-imgzone-arranged .patron-plain-img:nth-child(4){width:24%;right:1%;}
 }
 .patron-plain-img-flicker{position:absolute;inset:0;margin:auto;animation:patron-img-flicker 1.1s steps(1,end) infinite;}
-/* Single-image intro beats: pin every image (and the flicker overlay) to one
-   identical fixed-aspect box with object-fit:cover, so the frame stays put
-   instead of jumping/resizing between beats when source images differ in
-   aspect ratio (the main intro frames are 260x220). */
-.patron-plain-imgzone-single{flex:0 1 auto;width:min(640px,92vw);aspect-ratio:260/220;height:auto;max-height:64vh;}
+/* Shared fixed frame for every intro beat: one identical fixed-aspect box at
+   the same top level, that never grows or shrinks — so images sit at the same
+   level and the text below always starts at the same level, regardless of the
+   image used or the text length. Empty (text-only) beats reserve the same slot
+   (invisible, since the background is black). Main intro frames are 260x220. */
+.patron-plain-imgframe{flex:0 0 auto;width:min(640px,92vw);aspect-ratio:260/220;height:auto;max-height:64vh;margin-top:6vh;}
+/* Single-image beats fill the frame with object-fit:cover for an in-place look. */
 .patron-plain-imgzone-single .patron-plain-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 @keyframes patron-img-flicker{
   0%,100%{opacity:0}
@@ -1490,18 +1492,22 @@ function renderPatronDialogue(app){
     const footerHTML=choosing
       ?`<button class="patron-plain-skip patron-plain-skip-float" onclick="skipPatronDialogue()">Skip ▸▸</button>`
       :`<div class="patron-plain-footer"><button class="patron-plain-next" onclick="advancePatronDialogue()">${beat.nextLabel||'Continue ▸'}</button><button class="patron-plain-skip" onclick="skipPatronDialogue()">Skip ▸▸</button></div>`;
+    // Every non-dialogue beat uses the same frame: a fixed-size image slot at
+    // the same top level (empty is just black), with the text always directly
+    // below it. This keeps images and text at a consistent level regardless of
+    // the image used or the text length.
+    let imgZoneHTML;
     if(beat.imgs){
       const imgsHTML=beat.imgs.map(src=>`<img class="patron-plain-img" src="${src}" alt="">`).join('');
-      const zoneCls=beat.arranged?'patron-plain-imgzone patron-plain-imgzone-arranged':'patron-plain-imgzone patron-plain-imgzone-multi';
-      const imgZoneHTML=`<div class="${zoneCls}">${imgsHTML}</div>`;
-      app.innerHTML=`<div class="patron-plain-screen patron-plain-screen-img">${imgZoneHTML}<div class="patron-plain-lower">${bodyHTML}${footerHTML}</div></div>`;
+      const zoneMod=beat.arranged?'patron-plain-imgzone-arranged':'patron-plain-imgzone-multi';
+      imgZoneHTML=`<div class="patron-plain-imgzone patron-plain-imgframe ${zoneMod}">${imgsHTML}</div>`;
     }else if(beat.img){
       const overlayHTML=beat.flickerImg?`<img class="patron-plain-img patron-plain-img-flicker" src="${beat.flickerImg}" alt="">`:'';
-      const imgZoneHTML=`<div class="patron-plain-imgzone patron-plain-imgzone-single"><img class="patron-plain-img" src="${beat.img}" alt="">${overlayHTML}</div>`;
-      app.innerHTML=`<div class="patron-plain-screen patron-plain-screen-img">${imgZoneHTML}<div class="patron-plain-lower">${bodyHTML}${footerHTML}</div></div>`;
+      imgZoneHTML=`<div class="patron-plain-imgzone patron-plain-imgframe patron-plain-imgzone-single"><img class="patron-plain-img" src="${beat.img}" alt="">${overlayHTML}</div>`;
     }else{
-      app.innerHTML=`<div class="patron-plain-screen">${bodyHTML}${footerHTML}</div>`;
+      imgZoneHTML=`<div class="patron-plain-imgzone patron-plain-imgframe patron-plain-imgzone-empty" aria-hidden="true"></div>`;
     }
+    app.innerHTML=`<div class="patron-plain-screen patron-plain-screen-img">${imgZoneHTML}<div class="patron-plain-lower">${bodyHTML}${footerHTML}</div></div>`;
     return;
   }
   const isNarration=!!(beat.scene||beat.speaker==='scene');
