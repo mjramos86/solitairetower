@@ -668,11 +668,12 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
   .patron-plain-imgzone-arranged .patron-plain-img:nth-child(4){width:24%;right:1%;}
 }
 .patron-plain-img-flicker{position:absolute;inset:0;margin:auto;animation:patron-img-flicker 1.1s steps(1,end) infinite;}
-/* Flicker beat: pin both images to one identical box so the swap happens
-   in place (the two source images differ in aspect ratio, which otherwise
-   makes the frame appear to shift/resize during the flicker). */
-.patron-plain-imgzone-flicker{flex:0 1 auto;width:min(640px,92vw);aspect-ratio:260/220;height:auto;max-height:64vh;}
-.patron-plain-imgzone-flicker .patron-plain-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+/* Single-image intro beats: pin every image (and the flicker overlay) to one
+   identical fixed-aspect box with object-fit:cover, so the frame stays put
+   instead of jumping/resizing between beats when source images differ in
+   aspect ratio (the main intro frames are 260x220). */
+.patron-plain-imgzone-single{flex:0 1 auto;width:min(640px,92vw);aspect-ratio:260/220;height:auto;max-height:64vh;}
+.patron-plain-imgzone-single .patron-plain-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 @keyframes patron-img-flicker{
   0%,100%{opacity:0}
   8%{opacity:1}
@@ -1496,8 +1497,7 @@ function renderPatronDialogue(app){
       app.innerHTML=`<div class="patron-plain-screen patron-plain-screen-img">${imgZoneHTML}<div class="patron-plain-lower">${bodyHTML}${footerHTML}</div></div>`;
     }else if(beat.img){
       const overlayHTML=beat.flickerImg?`<img class="patron-plain-img patron-plain-img-flicker" src="${beat.flickerImg}" alt="">`:'';
-      const zoneCls=beat.flickerImg?'patron-plain-imgzone patron-plain-imgzone-flicker':'patron-plain-imgzone';
-      const imgZoneHTML=`<div class="${zoneCls}"><img class="patron-plain-img" src="${beat.img}" alt="">${overlayHTML}</div>`;
+      const imgZoneHTML=`<div class="patron-plain-imgzone patron-plain-imgzone-single"><img class="patron-plain-img" src="${beat.img}" alt="">${overlayHTML}</div>`;
       app.innerHTML=`<div class="patron-plain-screen patron-plain-screen-img">${imgZoneHTML}<div class="patron-plain-lower">${bodyHTML}${footerHTML}</div></div>`;
     }else{
       app.innerHTML=`<div class="patron-plain-screen">${bodyHTML}${footerHTML}</div>`;
