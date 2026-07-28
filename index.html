@@ -2208,13 +2208,26 @@ function _introMusicFadeIn(audio){
     if(audio.volume>=INTRO_MUSIC_VOLUME)clearInterval(fadeIn);
   },60);
 }
+let _introAudioUnlockArmed=false;
+function _armIntroAudioUnlock(){
+  // On first page load there has been no user gesture, so the initial
+  // audio.play() is blocked by the browser's autoplay policy. Start the music
+  // on the earliest possible gesture (capture phase = fires on the press,
+  // before the intro's own click handler advances the screen) so it begins
+  // while the very first intro screen is still showing.
+  if(_introAudioUnlockArmed)return;
+  _introAudioUnlockArmed=true;
+  const unlock=()=>{if(A&&A.screen==='patron-dialogue')startIntroMusic();};
+  document.addEventListener('pointerdown',unlock,{capture:true});
+  document.addEventListener('keydown',unlock,{capture:true});
+}
 function startIntroMusic(){
-  // Autoplay is typically blocked until a user gesture; render() re-runs when
-  // the player clicks "Continue", so a paused instance is retried then.
+  // Retry a blocked instance on later gestures; render() re-runs on advance.
   if(_introMusic){
     if(_introMusic.paused){_introMusic.play().then(()=>_introMusicFadeIn(_introMusic)).catch(()=>{});}
     return;
   }
+  _armIntroAudioUnlock();
   const audio=new Audio(INTRO_MUSIC_SRC);
   audio.loop=true;
   audio.volume=0;
