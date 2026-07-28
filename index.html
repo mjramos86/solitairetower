@@ -9,13 +9,13 @@
 
 <meta property="og:title" content="The Solitaire Tower of Doom">
 <meta property="og:description" content="A roguelike solitaire descent through 10 floors of card chaos.">
-<meta property="og:image" content="SolitaireDoom_Keyart_socialsharing.jpg">
+<meta property="og:image" content="Solitaire%20Tower%20of%20Doom%20Key%20art%20-%201.png.png">
 <meta property="og:type" content="website">
 
 <!-- Twitter card (optional but good to have) -->
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="SolitaireDoom_Keyart_socialsharing.jpg">
+<meta name="twitter:image" content="Solitaire%20Tower%20of%20Doom%20Key%20art%20-%201.png.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Solitaire Tower of Doom</title>
@@ -712,6 +712,18 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .patron-card.cardback-current .patron-card-portrait{border-color:var(--gold);box-shadow:0 0 18px var(--gold-glow);}
 .patron-select-confirm{font-family:var(--pixel);font-size:14px;color:var(--text);}
 
+/* ── TITLE SCREEN (before intro) ── */
+.title-screen{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 30%,#140a1c 0%,#0a0610 60%,#000 100%);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;z-index:9999;padding:24px 20px 32px;gap:22px;text-align:center;overflow-y:auto;}
+.title-keyart-wrap{width:100%;max-width:900px;flex-shrink:0;}
+.title-keyart{width:100%;height:auto;border-radius:8px;border:1px solid var(--gold-dim);box-shadow:0 0 34px rgba(212,168,75,.22),0 10px 40px rgba(0,0,0,.6);display:block;}
+.title-copy{max-width:640px;display:flex;flex-direction:column;gap:16px;margin-top:4px;}
+.title-hook{font-family:'EB Garamond',serif;font-style:italic;font-size:clamp(1.05rem,2.4vw,1.35rem);color:var(--text);line-height:1.55;text-shadow:0 0 12px rgba(212,168,75,.25);}
+.title-everything{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(1.6rem,4.4vw,2.4rem);color:var(--gold);letter-spacing:.04em;text-shadow:0 0 26px var(--gold-glow);}
+.title-line{font-family:'Cinzel',serif;font-size:clamp(1rem,2.2vw,1.2rem);color:var(--text);line-height:1.5;letter-spacing:.02em;}
+.title-line strong{color:#bb3333;}
+.title-play-btn{margin-top:8px;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:.06em;color:var(--gold);background:linear-gradient(#241018,#160a10);border:2px solid var(--gold);border-radius:6px;padding:14px 34px;cursor:pointer;text-shadow:0 0 14px var(--gold-glow);box-shadow:0 0 22px rgba(212,168,75,.25);transition:color .2s,background .2s,box-shadow .2s,border-color .2s;}
+.title-play-btn:hover{color:#fff;background:linear-gradient(#7a1616,#3a0c0c);border-color:var(--red-suit);box-shadow:0 0 30px rgba(192,50,42,.6);text-shadow:0 0 16px rgba(192,50,42,.9);}
+
 /* ── TIME PATRON BADGE (map + variant screens) ── */
 .patron-badge{display:flex;flex-direction:column;align-items:center;gap:4px;}
 .patron-badge-portrait{width:54px;height:54px;border-radius:4px;border:2px solid var(--gold-dim);object-fit:cover;background:#15101e;display:block;}
@@ -1322,6 +1334,30 @@ _patronDlgReplay=true;
 A.screen='patron-dialogue';render();
 }
 
+// ── TITLE SCREEN (shown before the intro on load) ──────────────
+const TITLE_KEYART='Solitaire Tower of Doom Key art - 1.png.png';
+function renderTitleScreen(app){
+  app.innerHTML=`<div class="title-screen">
+    <div class="title-keyart-wrap"><img class="title-keyart" src="${TITLE_KEYART}" alt="The Solitaire Tower of Doom"></div>
+    <div class="title-copy">
+      <div class="title-hook">What do Louis XIV, Napoleon, Winston Churchill and Mary Stuart, Queen of Scots have to do with Solitaire?</div>
+      <div class="title-everything">Everything!</div>
+      <div class="title-line">Uncover the secret occult history of Solitaire that spans centuries!</div>
+      <div class="title-line">Defeat <strong>The Cult of Patience</strong> in this roguelike horror Solitaire game!</div>
+      <button class="title-play-btn" onclick="startIntroFromTitle()">Play Solitaire or die!</button>
+    </div>
+  </div>`;
+}
+function startIntroFromTitle(){
+  // This click is a user gesture, so intro music can start immediately when the
+  // intro renders (avoids the autoplay block on first load).
+  _patronDlgIdx=0;
+  _patronDlgReplay=false;
+  A.screen='patron-dialogue';
+  render();
+}
+window.startIntroFromTitle=startIntroFromTitle;
+
 // ── TIME PATRONS ─────────────────────────────────────────────
 const PATRONS=[
   {id:'johndee',name:'John Dee',img:'JohnDee.jpg',unlocked:true,revealed:true,year:1564,links:['marie'],
@@ -1925,9 +1961,10 @@ window.openCardbackSelect=openCardbackSelect;window.closeCardbackSelect=closeCar
 
 function render(){
 const app=document.getElementById('app');
-// Auto-save on every render (except dialogue)
-if(A.screen!=='patron-dialogue')saveGame();
+// Auto-save on every render (except dialogue / title)
+if(A.screen!=='patron-dialogue'&&A.screen!=='title')saveGame();
 if(A.screen!=='patron-dialogue')stopIntroMusic();
+if(A.screen==='title'){stopMusic();stopCrtGlitch();renderTitleScreen(app);return;}
 if(A.screen==='patron-dialogue'){stopMusic();startIntroMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
 if(A.screen==='patron-select'){stopMusic();stopCrtGlitch();renderPatronSelect(app);return;}
 if(A.screen==='cardback-select'){stopMusic();stopCrtGlitch();renderCardbackSelect(app);return;}
@@ -4132,7 +4169,7 @@ checkAuthAndStart();
 function initialLoad(){
 _scoreSubmitted=false;
 _patronDlgIdx=0;
-A.screen='patron-dialogue';
+A.screen='title';
 render();
 }
 
