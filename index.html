@@ -273,7 +273,7 @@ text-shadow:0 0 24px var(--gold-glow);letter-spacing:.08em;line-height:1;}
 .lheart.losing{animation:heartpop .4s ease forwards;}
 @keyframes heartpop{0%{transform:scale(1.4);opacity:1;}100%{transform:scale(0);opacity:0;width:0;margin:0;}}
 .map-body{display:flex;flex-direction:row;align-items:flex-start;gap:20px;width:100%;max-width:1100px;}
-.tower-container{position:relative;width:700px;flex-shrink:0;max-width:100%;overflow:hidden;}
+.tower-container{position:relative;width:700px;flex-shrink:0;max-width:100%;overflow:visible;}
 .tower-svg{width:100%;display:block;}
 .floors-overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;padding:26% 0 4% 0;}
 
@@ -339,6 +339,39 @@ text-shadow:0 0 24px var(--gold-glow);letter-spacing:.08em;line-height:1;}
 @keyframes pgold{0%,100%{box-shadow:0 0 6px rgba(180,120,40,.3);}50%{box-shadow:0 0 14px rgba(180,120,40,.5);}}
 @keyframes pred{0%,100%{box-shadow:0 0 6px rgba(160,40,40,.3);}50%{box-shadow:0 0 14px rgba(200,50,50,.6);}}
 .f-mystery{font-size:1.1rem;opacity:.35;letter-spacing:.1em;}
+
+/* ── TOWER CLIMB PATH (floor selector) ── */
+/* Yellow nodes + connecting line over the tower, revealed as you descend.
+   Node positions live in TOWER_NODE_POINTS (viewBox 1000x1333, matches the
+   3:4 tower video) and are easy to re-tune. */
+.tower-path{position:absolute;inset:0;pointer-events:none;z-index:3;}
+.tower-path>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
+.tower-path-line{fill:none;stroke:#ffd83a;stroke-width:6;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 0 3px rgba(255,216,58,.85));stroke-dasharray:1;animation:tpath-draw .9s ease-out;}
+@keyframes tpath-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+.tnode{position:absolute;width:26px;height:26px;transform:translate(-50%,-50%);pointer-events:auto;}
+.tnode-dot{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 40% 34%,#fff2a8,#ffd21e 55%,#c9960a);border:2px solid #fff3b0;box-shadow:0 0 8px 2px rgba(255,216,58,.7);display:flex;align-items:center;justify-content:center;font-size:14px;color:#3a2a00;animation:tnode-pop .35s ease-out both;}
+@keyframes tnode-pop{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:scale(1)}}
+.tnode-done .tnode-dot{background:radial-gradient(circle at 40% 34%,#e8c766,#b9902f 60%,#7a5f28);box-shadow:0 0 5px 1px rgba(212,168,75,.5);}
+.tnode-cur .tnode-dot{cursor:pointer;animation:tnode-pop .35s ease-out both,tnode-pulse 1.5s ease-in-out .35s infinite;}
+@keyframes tnode-pulse{0%,100%{box-shadow:0 0 8px 2px rgba(255,216,58,.7)}50%{box-shadow:0 0 17px 6px rgba(255,216,58,.95)}}
+.tnode-cur::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,216,58,.55);animation:tnode-ring 1.6s ease-out infinite;pointer-events:none;}
+.tnode-boss .tnode-dot{background:radial-gradient(circle at 40% 34%,#ffd0a8,#ff5a1e 55%,#a01818);border-color:#ffd0b0;}
+@keyframes tnode-ring{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2);opacity:0}}
+/* radial variant menu */
+.tnode-radial{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;}
+.tnode-opt{position:absolute;left:0;top:0;
+  transform:translate(-50%,-50%) rotate(var(--a)) translateY(-78px) rotate(calc(-1 * var(--a)));
+  display:flex;flex-direction:column;align-items:center;gap:2px;min-width:76px;padding:7px 9px;
+  border:1.5px solid #ffd83a;border-radius:8px;background:rgba(18,11,3,.96);color:#ffe98a;
+  font-family:'Cinzel',serif;font-size:.62rem;line-height:1.15;letter-spacing:.02em;white-space:nowrap;text-align:center;
+  cursor:pointer;opacity:0;scale:.4;pointer-events:none;transition:opacity .18s ease,scale .18s ease,background .15s,color .15s;
+  box-shadow:0 2px 14px rgba(0,0,0,.7);}
+.tnode-opt-icon{font-size:1.1rem;line-height:1;}
+.tnode:hover .tnode-opt,.tnode.open .tnode-opt{opacity:1;scale:1;pointer-events:auto;}
+.tnode:hover,.tnode.open{z-index:30;}
+.tnode-opt:hover{background:#3a2600;color:#fff;border-color:#fff;box-shadow:0 0 14px rgba(255,216,58,.55);}
+.tnode-hint{position:absolute;left:50%;top:calc(100% + 7px);transform:translateX(-50%);font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:#ffd83a;white-space:nowrap;text-shadow:0 0 6px rgba(0,0,0,.9);pointer-events:none;transition:opacity .15s;}
+.tnode:hover .tnode-hint,.tnode.open .tnode-hint{opacity:0;}
 
 /* ── GAME ── */
 .game-screen{flex:1;overflow:hidden;display:flex;flex-direction:column;background:#008080;
@@ -1998,19 +2031,53 @@ if(A.pickerOverlay)renderPickerOverlay();
 }
 
 // ── MAP ────────────────────────────────────────────────────
+// Node positions along the tower for each floor (0=top .. 9=bottom/boss).
+// Coordinates are in the SVG viewBox space 1000x1333 (matches the 3:4 tower
+// video); tweak these to sit the climb path on the artwork.
+const TOWER_NODE_POINTS=[
+  [566,120],[624,250],[544,372],[620,494],[550,616],
+  [626,738],[554,860],[616,982],[566,1104],[590,1226]
+];
+function buildTowerPath(){
+  const pts=TOWER_NODE_POINTS;
+  const maxF=Math.min(A.floor,9);            // reveal nodes/line up to current floor
+  const revealed=[];for(let f=0;f<=maxF;f++)revealed.push(f);
+  const poly=revealed.map(f=>pts[f].join(',')).join(' ');
+  const svg=`<svg viewBox="0 0 1000 1333" preserveAspectRatio="none"><polyline class="tower-path-line" points="${poly}" pathLength="1"></polyline></svg>`;
+  let nodesHTML='';
+  for(const f of revealed){
+    const [x,y]=pts[f];
+    const pos=`left:${(x/1000*100).toFixed(2)}%;top:${(y/1333*100).toFixed(2)}%`;
+    const isCur=f===A.floor,isLast=f===9;
+    if(!isCur){
+      nodesHTML+=`<div class="tnode tnode-done" style="${pos}" id="floor-${f}"><div class="tnode-dot">✓</div></div>`;
+      continue;
+    }
+    let opts;
+    if(isLast){
+      opts=`<button class="tnode-opt" style="--a:0deg" onclick="startGame('freecell',${f})"><span class="tnode-opt-icon">👑</span>FreeCell</button>`;
+    }else{
+      const ch=A.choices[f];
+      const opt=(type,a)=>`<button class="tnode-opt" style="--a:${a}" onclick="startGame('${type}',${f})"><span class="tnode-opt-icon">${ICONS[type]}</span>${NAMES[type]}</button>`;
+      opts=opt(ch.left,'-40deg')+opt(ch.right,'40deg');
+    }
+    nodesHTML+=`<div class="tnode tnode-cur${isLast?' tnode-boss':''}" style="${pos}" id="floor-${f}" onclick="toggleTowerNode(event,this)"><div class="tnode-dot">${isLast?'👑':''}</div><div class="tnode-radial">${opts}</div><div class="tnode-hint">${isLast?'Final Boss':'Choose'} ▸</div></div>`;
+  }
+  return `<div class="tower-path">${svg}${nodesHTML}</div>`;
+}
+function toggleTowerNode(e,el){
+  if(e.target.closest('.tnode-opt'))return;   // let option clicks through
+  const wasOpen=el.classList.contains('open');
+  document.querySelectorAll('.tnode.open').forEach(n=>n.classList.remove('open'));
+  if(!wasOpen)el.classList.add('open');
+  e.stopPropagation();
+}
+if(!window._towerNodeCloseBound){window._towerNodeCloseBound=true;
+  document.addEventListener('click',e=>{if(!e.target.closest('.tnode'))document.querySelectorAll('.tnode.open').forEach(n=>n.classList.remove('open'));});
+}
 function renderMap(app){
 const liv=Array.from({length:A.lives},()=>`<span class="lheart">♥</span>`).join('');
 const cbUnseen=compendiumUnseenCount();
-let floorNodes='';
-for(let f=0;f<10;f++){
-const ch=A.choices[f];const isCur=f===A.floor;const isDone=A.done.has(f);const isFuture=f>A.floor;const displayNum=10-f;const isLast=f===9;
-let choicesHTML;
-if(isFuture){choicesHTML=`<span class="f-mystery">🔒</span>`;}
-else if(isLast){const cls=isDone?'done':isCur?'boss cur':'boss';const lbl=isDone?'✓ FreeCell':'👑 FreeCell -- Final Boss';choicesHTML=`<button class="cbtn ${cls}" onclick="startGame('freecell',${f})">${lbl}</button>`;}
-else{const mkB=(type)=>{const cls=isDone?'done':isCur?'cur':'';const lbl=isDone?`✓ ${NAMES[type]}`:`${ICONS[type]} ${NAMES[type]}`;return`<button class="cbtn ${cls}" ${isDone?'disabled':''} onclick="startGame('${type}',${f})">${lbl}</button>`;};choicesHTML=`${mkB(ch.left)}<span class="f-or">${isDone?'/':'or'}</span>${mkB(ch.right)}`;}
-const curMark=isCur?`<div class="cur-marker">▶ YOU</div>`:'';
-floorNodes+=`<div class="f-floor ${isCur?'f-floor-cur':''}" id="floor-${f}"> <div class="f-level-label">${displayNum}</div> <div class="f-content">${curMark}<div class="f-choices">${choicesHTML}</div></div> </div>`;
-}
 const invSlots=Array.from({length:3},(_,i)=>{
 const it=A.inventory[i];
 return it
@@ -2063,7 +2130,7 @@ ${invSlots}
 <div class="tower-container" id="tower-container">
 <div class="tower-lightning" id="tower-lightning"></div>
 <video class="tower-svg" src="Tower Menu Animation 1400.mp4" autoplay loop muted playsinline style="display:block;width:100%;"></video>
-<div class="floors-overlay">${floorNodes}</div>
+${buildTowerPath()}
 </div>
 <div class="map-lb-panel" id="map-lb">
 <div class="map-lb-title">🏆 HIGH SCORES</div>
