@@ -2062,7 +2062,7 @@ ${invSlots}
 </div>
 <div class="tower-container" id="tower-container">
 <div class="tower-lightning" id="tower-lightning"></div>
-<video class="tower-svg" src="TowerAnimated.mp4" autoplay loop muted playsinline style="display:block;width:100%;margin-top:-32%;margin-bottom:-18%;"></video>
+<video class="tower-svg" src="Tower_Menu_Animation.mp4" autoplay loop muted playsinline style="display:block;width:100%;margin-top:-18%;margin-bottom:-18%;"></video>
 <div class="floors-overlay">${floorNodes}</div>
 </div>
 <div class="map-lb-panel" id="map-lb">
@@ -2081,11 +2081,17 @@ ${invSlots}
 // ── TOWER ATMOSPHERE EFFECTS ───────────────────────────────
 let _towerLightningTimer=null;
 let _towerLightTimers=[];
+// The tower menu animation has its own lightning, fire, and lit windows baked
+// in, so the old JS atmosphere overlays (the white lightning-flash and the
+// flickering window-light dots, both geometry-tuned to the previous tower art)
+// are disabled to avoid clashing. Flip this to true to bring them back.
+const TOWER_OVERLAYS_ENABLED=false;
 function startTowerAtmosphere(){
   // Clean up previous
   if(_towerLightningTimer)clearTimeout(_towerLightningTimer);
   _towerLightTimers.forEach(t=>clearTimeout(t));
   _towerLightTimers=[];
+  if(!TOWER_OVERLAYS_ENABLED)return;
 
   // LIGHTNING: random strikes
   function scheduleLightning(){
