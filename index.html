@@ -2009,11 +2009,12 @@ const app=document.getElementById('app');
 // Auto-save on every render (except dialogue / title)
 if(A.screen!=='patron-dialogue'&&A.screen!=='title')saveGame();
 if(A.screen!=='patron-dialogue')stopIntroMusic();
+if(A.screen!=='map')stopMapMusic();
 if(A.screen==='title'){stopMusic();stopCrtGlitch();renderTitleScreen(app);return;}
 if(A.screen==='patron-dialogue'){stopMusic();startIntroMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
 if(A.screen==='patron-select'){stopMusic();stopCrtGlitch();renderPatronSelect(app);return;}
 if(A.screen==='cardback-select'){stopMusic();stopCrtGlitch();renderCardbackSelect(app);return;}
-if(A.screen==='map'){playMusic('map');stopCrtGlitch();if(A.timerRunning)stopTimer();renderMap(app);return;}
+if(A.screen==='map'){startMapMusic();stopCrtGlitch();if(A.timerRunning)stopTimer();renderMap(app);return;}
 if(A.screen!=='map')stopAmbientAudio();
 if(A.screen==='shop'){stopMusic();stopCrtGlitch();renderShop(app);return;}
 if(A.screen==='gameover'){stopMusic();stopCrtGlitch();renderNameEntry(app,false);return;}
@@ -2360,6 +2361,52 @@ function stopIntroMusic(){
   if(!_introMusic)return;
   const audio=_introMusic;
   _introMusic=null;
+  let vol=audio.volume;
+  const fadeOut=setInterval(()=>{
+    vol=Math.max(0,vol-0.05);
+    audio.volume=vol;
+    if(vol<=0){clearInterval(fadeOut);audio.pause();audio.src='';}
+  },40);
+}
+
+// ── TOWER MENU (MAP) MUSIC ─────────────────────────────────
+// Looping background music for the tower menu / map screen.
+const MAP_MUSIC_SRC='music/tim_kulig_free_music-a-dark-and-stormy-night-420657.mp3';
+const MAP_MUSIC_VOLUME=0.35;
+let _mapMusic=null;
+function _mapMusicFadeIn(audio){
+  const fadeIn=setInterval(()=>{
+    if(_mapMusic!==audio||audio.paused){clearInterval(fadeIn);return;}
+    audio.volume=Math.min(MAP_MUSIC_VOLUME,audio.volume+0.015);
+    if(audio.volume>=MAP_MUSIC_VOLUME)clearInterval(fadeIn);
+  },60);
+}
+let _mapAudioUnlockArmed=false;
+function _armMapAudioUnlock(){
+  // The map is normally reached after clicks (audio already unlocked), but a
+  // cloud resume can land here first; retry on the earliest gesture just in case.
+  if(_mapAudioUnlockArmed)return;
+  _mapAudioUnlockArmed=true;
+  const unlock=()=>{if(A&&A.screen==='map')startMapMusic();};
+  document.addEventListener('pointerdown',unlock,{capture:true});
+  document.addEventListener('keydown',unlock,{capture:true});
+}
+function startMapMusic(){
+  if(_mapMusic){
+    if(_mapMusic.paused){_mapMusic.play().then(()=>_mapMusicFadeIn(_mapMusic)).catch(()=>{});}
+    return;
+  }
+  _armMapAudioUnlock();
+  const audio=new Audio(MAP_MUSIC_SRC);
+  audio.loop=true;
+  audio.volume=0;
+  _mapMusic=audio;
+  audio.play().then(()=>_mapMusicFadeIn(audio)).catch(()=>{});
+}
+function stopMapMusic(){
+  if(!_mapMusic)return;
+  const audio=_mapMusic;
+  _mapMusic=null;
   let vol=audio.volume;
   const fadeOut=setInterval(()=>{
     vol=Math.max(0,vol-0.05);
