@@ -2010,6 +2010,7 @@ const app=document.getElementById('app');
 if(A.screen!=='patron-dialogue'&&A.screen!=='title')saveGame();
 if(A.screen!=='patron-dialogue')stopIntroMusic();
 if(A.screen!=='map')stopMapMusic();
+if(A.screen!=='game')stopGameMusic();
 if(A.screen==='title'){stopMusic();stopCrtGlitch();renderTitleScreen(app);return;}
 if(A.screen==='patron-dialogue'){stopMusic();startIntroMusic();stopCrtGlitch();renderPatronDialogue(app);return;}
 if(A.screen==='patron-select'){stopMusic();stopCrtGlitch();renderPatronSelect(app);return;}
@@ -2024,7 +2025,7 @@ if(A.screen==='dee-checkin-dialogue'){stopMusic();stopCrtGlitch();renderDeeCheck
 if(A.screen==='dee-dialogue3'){stopMusic();stopCrtGlitch();renderDeeDialogue3(app);return;}
 if(A.screen==='dee-final-dialogue'){stopMusic();stopCrtGlitch();renderDeeFinalDialogue(app);return;}
 const s=getS(A.gtype);applyS(s);
-playMusic('game');
+startGameMusic();
 startCrtGlitch();
 snapCards();renderGame(app,s);
 requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
@@ -2407,6 +2408,64 @@ function stopMapMusic(){
   if(!_mapMusic)return;
   const audio=_mapMusic;
   _mapMusic=null;
+  let vol=audio.volume;
+  const fadeOut=setInterval(()=>{
+    vol=Math.max(0,vol-0.05);
+    audio.volume=vol;
+    if(vol<=0){clearInterval(fadeOut);audio.pause();audio.src='';}
+  },40);
+}
+
+// ── CARD GAMEPLAY MUSIC ────────────────────────────────────
+// A random one of these plays (looping) during each card game; the track is
+// chosen per game in startGame() and held until the next game.
+const GAME_MUSIC_TRACKS=[
+  'music/leberch-horror-creepy-255685.mp3',
+  'music/leberch-spooky-piano-251474.mp3',
+  'music/leberch-horror-piano-250870.mp3'
+];
+const GAME_MUSIC_VOLUME=0.4;
+let _gameMusic=null,_gameMusicTrack=null;
+function pickGameMusicTrack(){
+  // Random, avoiding an immediate repeat of the previous game's track.
+  const opts=GAME_MUSIC_TRACKS.filter(t=>t!==_gameMusicTrack);
+  const list=opts.length?opts:GAME_MUSIC_TRACKS;
+  _gameMusicTrack=list[Math.floor(Math.random()*list.length)];
+}
+function _gameMusicFadeIn(audio){
+  const fadeIn=setInterval(()=>{
+    if(_gameMusic!==audio||audio.paused){clearInterval(fadeIn);return;}
+    audio.volume=Math.min(GAME_MUSIC_VOLUME,audio.volume+0.015);
+    if(audio.volume>=GAME_MUSIC_VOLUME)clearInterval(fadeIn);
+  },60);
+}
+let _gameAudioUnlockArmed=false;
+function _armGameAudioUnlock(){
+  // Games are normally reached after clicks (audio already unlocked), but a
+  // cloud resume can land here first; retry on the earliest gesture just in case.
+  if(_gameAudioUnlockArmed)return;
+  _gameAudioUnlockArmed=true;
+  const unlock=()=>{if(A&&A.screen==='game')startGameMusic();};
+  document.addEventListener('pointerdown',unlock,{capture:true});
+  document.addEventListener('keydown',unlock,{capture:true});
+}
+function startGameMusic(){
+  if(_gameMusic){
+    if(_gameMusic.paused){_gameMusic.play().then(()=>_gameMusicFadeIn(_gameMusic)).catch(()=>{});}
+    return;
+  }
+  if(!_gameMusicTrack)pickGameMusicTrack();
+  _armGameAudioUnlock();
+  const audio=new Audio(_gameMusicTrack);
+  audio.loop=true;
+  audio.volume=0;
+  _gameMusic=audio;
+  audio.play().then(()=>_gameMusicFadeIn(audio)).catch(()=>{});
+}
+function stopGameMusic(){
+  if(!_gameMusic)return;
+  const audio=_gameMusic;
+  _gameMusic=null;
   let vol=audio.volume;
   const fadeOut=setInterval(()=>{
     vol=Math.max(0,vol-0.05);
@@ -3647,6 +3706,7 @@ function handleDragEnd(e){DR={active:false,cards:null,src:null};document.querySe
 //  GAME FLOW
 // ═══════════════════════════════════════════════════════════
 function startGame(type,floor){
+pickGameMusicTrack();stopGameMusic(); // fresh random gameplay track per game
 A.gtype=type;A.floor=floor;A.moves=0;A.undoStack=[];A.sel=null;A.winOverlay=false;A.paused=false;
 A.itemMode=null;A.hints=[];A.hintTargets=[];A.hintUntil=0;A.revealAllUntil=0;A.revealSnapshot=null;A.pickerOverlay=null;
 // Per-floor tracking
