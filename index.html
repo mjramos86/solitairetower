@@ -2027,7 +2027,6 @@ const s=getS(A.gtype);applyS(s);
 playMusic('game');
 startCrtGlitch();
 snapCards();renderGame(app,s);
-sfxAfterGameRender();
 requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
 if(A.pickerOverlay)renderPickerOverlay();
 }
@@ -2416,33 +2415,6 @@ function stopMapMusic(){
   },40);
 }
 
-// ── CARD SOUND EFFECTS ─────────────────────────────────────
-// Short samples for card movement and flips, played from a small pool of
-// preloaded Audio elements so rapid plays can overlap. Slight random pitch/
-// volume variation keeps repeated plays from sounding mechanical.
-const SFX_SRC={move:'sfx/card_move.wav',flip:'sfx/card_flip.wav'};
-const SFX_VOLUME=0.45;
-let _sfxEnabled=true;
-const _sfxPools={};
-function sfx(name){
-  if(!_sfxEnabled||!SFX_SRC[name])return;
-  let p=_sfxPools[name];
-  if(!p){p={pool:[],i:0};for(let k=0;k<5;k++){const a=new Audio(SFX_SRC[name]);a.preload='auto';p.pool.push(a);}_sfxPools[name]=p;}
-  const a=p.pool[p.i];p.i=(p.i+1)%p.pool.length;
-  try{a.currentTime=0;a.volume=SFX_VOLUME*(0.85+Math.random()*0.15);a.playbackRate=0.94+Math.random()*0.12;a.play().catch(()=>{});}catch(e){}
-}
-// State diff driving the SFX: a rise in A.moves = a card moved; a drop in the
-// number of rendered face-down cards (.card.back) = a card flipped face-up.
-let _sfxPrevMoves=0,_sfxPrevBacks=0,_sfxSuppress=true;
-function sfxAfterGameRender(){
-  const backs=document.querySelectorAll('.card.back').length;
-  if(_sfxSuppress){_sfxSuppress=false;}
-  else{
-    if(A.moves>_sfxPrevMoves)sfx('move');
-    if(backs<_sfxPrevBacks)setTimeout(()=>sfx('flip'),90); // flip follows the placement
-  }
-  _sfxPrevMoves=A.moves;_sfxPrevBacks=backs;
-}
 
 function renderMapBoard(el,board){
 if(!board.length){el.innerHTML=`<div class="map-lb-empty">No scores yet.<br>Be the first to escape!</div>`;return;}
@@ -3675,7 +3647,6 @@ function handleDragEnd(e){DR={active:false,cards:null,src:null};document.querySe
 //  GAME FLOW
 // ═══════════════════════════════════════════════════════════
 function startGame(type,floor){
-_sfxSuppress=true; // don't fire card SFX for the initial deal
 A.gtype=type;A.floor=floor;A.moves=0;A.undoStack=[];A.sel=null;A.winOverlay=false;A.paused=false;
 A.itemMode=null;A.hints=[];A.hintTargets=[];A.hintUntil=0;A.revealAllUntil=0;A.revealSnapshot=null;A.pickerOverlay=null;
 // Per-floor tracking
@@ -3879,7 +3850,6 @@ A.screen='map';render();
 
 function newShuffle(){
 if(!confirm('New Shuffle? Costs 1 life.'))return;
-_sfxSuppress=true; // don't fire card SFX for the re-deal
 recordGameEnd(A.gtype,false);
 A.lives--;A.sel=null;A.winOverlay=false;A.tpStreak=0;A.itemMode=null;A.instaWin=false;A.instaWinScore=0;
 if(A.lives<=0){stopTimer();A.screen='gameover';recordRunEnd(false);render();return;}
