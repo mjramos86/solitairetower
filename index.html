@@ -2038,6 +2038,7 @@ const s=getS(A.gtype);applyS(s);
 startGameMusic();
 startCrtGlitch();
 snapCards();renderGame(app,s);
+sfxAfterGameRender();
 requestAnimationFrame(()=>{animateCards();applyHints();applyReveal();});
 if(A.pickerOverlay)renderPickerOverlay();
 }
@@ -2490,6 +2491,30 @@ function stopGameMusic(){
   },40);
 }
 
+// ── CARD SOUND EFFECTS ─────────────────────────────────────
+// Two short samples: card_taken plays when the player grabs or clicks a card,
+// card_moved plays when a card is dropped after a drag or moved with a
+// one-click. Each name keeps a small pool of preloaded Audio elements so rapid,
+// overlapping plays don't cut each other off.
+const SFX_SRC={taken:'music/card_taken.mp3',moved:'music/card_moved.mp3'};
+const SFX_VOLUME=0.5;
+let _sfxEnabled=true;
+const _sfxPools={};
+function sfx(name){
+  if(!_sfxEnabled||!SFX_SRC[name])return;
+  let p=_sfxPools[name];
+  if(!p){p={pool:[],i:0};for(let k=0;k<5;k++){const a=new Audio(SFX_SRC[name]);a.preload='auto';p.pool.push(a);}_sfxPools[name]=p;}
+  const a=p.pool[p.i];p.i=(p.i+1)%p.pool.length;
+  try{a.currentTime=0;a.volume=SFX_VOLUME;a.play().catch(()=>{});}catch(e){}
+}
+// card_moved is driven by a state diff after each game render: any rise in
+// A.moves means a card landed on a new pile. Stock deals and the toolbox return
+// set _sfxSkipMoved so those (which aren't card moves) stay silent.
+let _sfxPrevMoves=0,_sfxSkipMoved=false;
+function sfxAfterGameRender(){
+  if(A.moves>_sfxPrevMoves&&!_sfxSkipMoved)sfx('moved');
+  _sfxPrevMoves=A.moves;_sfxSkipMoved=false;
+}
 
 function renderMapBoard(el,board){
 if(!board.length){el.innerHTML=`<div class="map-lb-empty">No scores yet.<br>Be the first to escape!</div>`;return;}
@@ -3147,6 +3172,7 @@ const src=el.dataset.src;
 if(['stock','sp-stock','tp-stock','py-stock'].includes(src))return;
 const card=el.closest('.card')||el;
 if(card.classList.contains('back'))return;
+if(card.classList.contains('card'))sfx('taken');
 const r=card.getBoundingClientRect();
 MOUSE={active:true,startEl:el,startX:e.clientX,startY:e.clientY,grabOffX:e.clientX-r.left,grabOffY:e.clientY-r.top,prevX:e.clientX,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
 }
@@ -3199,6 +3225,7 @@ const src=el.dataset.src;
 if(['stock','sp-stock','tp-stock','py-stock'].includes(src))return;
 const t=e.touches[0];
 const card=el.closest('.card')||el;const r=card.getBoundingClientRect();
+if(card.classList.contains('card')&&!card.classList.contains('back'))sfx('taken');
 TOUCH={active:true,startEl:el,startX:t.clientX,startY:t.clientY,grabOffX:t.clientX-r.left,grabOffY:t.clientY-r.top,prevX:t.clientX,ghost:null,moved:false,src:el.dataset.src,col:parseInt(el.dataset.col)||0,idx:parseInt(el.dataset.idx)||0,_dimmedEls:[],_highlightEl:null};
 }
 function handleTouchMove(e){
@@ -3275,19 +3302,19 @@ if(!A.toolboxCard){showToast('Drag a card here first!');}
 else{
 // Return card to waste or try tableau
 const card=A.toolboxCard;
-if(t==='klondike'){pushUndo();const s=cloneState(A.gs);s.waste.push({...card,faceUp:true});A.gs=s;A.toolboxCard=null;A.toolboxUses=0;A.moves++;render();}
+if(t==='klondike'){pushUndo();const s=cloneState(A.gs);s.waste.push({...card,faceUp:true});A.gs=s;A.toolboxCard=null;A.toolboxUses=0;A.moves++;_sfxSkipMoved=true;render();}
 else{showToast('Drag toolbox card to a column!');}
 }
 return;
 }
 
-if(src==='stock'){pushUndo();A.gs=klDraw(A.gs);A.moves++;A.floorUndosUsed=Math.max(0,A.floorUndosUsed-1);render();return;}
+if(src==='stock'){pushUndo();A.gs=klDraw(A.gs);A.moves++;A.floorUndosUsed=Math.max(0,A.floorUndosUsed-1);_sfxSkipMoved=true;render();return;}
 if(src==='sp-stock'){
 if(A.gs.stockGroups.length&&A.gs.tableau.some(c=>!c.length)){showToast('Fill all empty columns before dealing!');return;}
-pushUndo();A.gs=spDeal(A.gs);A.moves++;checkWin();render();return;
+pushUndo();A.gs=spDeal(A.gs);A.moves++;checkWin();_sfxSkipMoved=true;render();return;
 }
-if(src==='tp-stock'){pushUndo();tpDrawStock();A.moves++;render();return;}
-if(src==='py-stock'){pushUndo();A.gs=pyDrawStock(A.gs);A.moves++;render();return;}
+if(src==='tp-stock'){pushUndo();tpDrawStock();A.moves++;_sfxSkipMoved=true;render();return;}
+if(src==='py-stock'){pushUndo();A.gs=pyDrawStock(A.gs);A.moves++;_sfxSkipMoved=true;render();return;}
 
 if(t==='tripeaks'&&src==='pycard'){
 pushUndo();const gs=A.gs;const wasteTop=gs.waste.length?gs.waste[gs.waste.length-1]:null;const card=gs.pyramid[idx];
