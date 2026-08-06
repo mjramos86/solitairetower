@@ -2892,7 +2892,7 @@ showToast('+5 undos added!');render();break;}
 case 'free-draw':{ // Coffee
 if(!['klondike','tripeaks','pyramid'].includes(t)){showToast('Not useful in this game!');return;}
 pushUndo();
-if(t==='klondike'){A.gs=klDraw(A.gs);A.floorUndosUsed=Math.max(0,A.floorUndosUsed-1);}
+if(t==='klondike'){A.gs=klDraw(A.gs);}
 else if(t==='tripeaks'){tpDrawStock();}
 else if(t==='pyramid'){A.gs=pyDrawStock(A.gs);}
 consumeItem(invIdx);render();break;}
@@ -3314,7 +3314,7 @@ else{showToast('Drag toolbox card to a column!');}
 return;
 }
 
-if(src==='stock'){pushUndo();A.gs=klDraw(A.gs);A.moves++;A.floorUndosUsed=Math.max(0,A.floorUndosUsed-1);render();return;}
+if(src==='stock'){pushUndo();A.gs=klDraw(A.gs);A.moves++;render();return;}
 if(src==='sp-stock'){
 if(A.gs.stockGroups.length&&A.gs.tableau.some(c=>!c.length)){showToast('Fill all empty columns before dealing!');return;}
 pushUndo();A.gs=spDeal(A.gs);A.moves++;checkWin();render();return;
