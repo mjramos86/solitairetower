@@ -37,9 +37,9 @@ func _ready() -> void:
 	get_tree().quit(1 if _failed > 0 else 0)
 
 
-func suite(name: String) -> void:
-	_current = name
-	print("• %s" % name)
+func suite(suite_name: String) -> void:
+	_current = suite_name
+	print("• %s" % suite_name)
 
 
 func check(condition: bool, description: String) -> void:
@@ -309,7 +309,7 @@ func test_scoring() -> void:
 
 	# Floor-clear bonus scales with depth: 100 × (10 - floor).
 	RunState.score = 0
-	RunState.floor = 0
+	RunState.floor_index = 0
 	RunState.gtype = "klondike"
 	RunState.done = []
 	RunState.next_floor()
@@ -393,7 +393,7 @@ func test_save_round_trip() -> void:
 	# A run round-trips through the save file, board included.
 	RunState.new_run()
 	RunState.lives = 2
-	RunState.floor = 4
+	RunState.floor_index = 4
 	RunState.score = 777
 	RunState.gold = 42
 	RunState.gtype = "spider"
@@ -407,7 +407,7 @@ func test_save_round_trip() -> void:
 	check(SaveManager.has_run(), "saved run is detected")
 	RunState.from_snapshot(SaveManager.run)
 	check_eq(RunState.lives, 2, "lives restored")
-	check_eq(RunState.floor, 4, "floor restored")
+	check_eq(RunState.floor_index, 4, "floor restored")
 	check_eq(RunState.score, 777, "score restored")
 	check_eq(RunState.gold, 42, "gold restored")
 	check_eq(RunState.gtype, "spider", "game type restored")
@@ -455,7 +455,7 @@ func test_full_run() -> void:
 	RunState.new_run()
 
 	check_eq(RunState.lives, 3, "run starts with 3 lives")
-	check_eq(RunState.floor, 0, "run starts on floor 0")
+	check_eq(RunState.floor_index, 0, "run starts on floor 0")
 	check_eq(RunState.choices.size(), 10, "run has 10 floors of choices")
 
 	var reached_victory := [false]
@@ -508,7 +508,7 @@ func test_full_run() -> void:
 	check(RunState.shop_gold_earned > 0, "shop awards credits")
 	check_eq(RunState.gold, RunState.shop_gold_earned, "credits are banked")
 	check_eq(RunState.shop_items.size(), 3, "shop restocks 3 items")
-	check_eq(RunState.floor, 1, "floor advances past the shop")
+	check_eq(RunState.floor_index, 1, "floor advances past the shop")
 
 	SaveManager.erase_all()
 

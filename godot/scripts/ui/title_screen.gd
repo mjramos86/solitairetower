@@ -63,4 +63,5 @@ func _on_scores() -> void:
 
 func _format_time(seconds: float) -> String:
 	var total := int(seconds)
+	@warning_ignore("integer_division")
 	return "%d:%02d" % [total / 60, total % 60]

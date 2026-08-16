@@ -51,7 +51,7 @@ func _build_floor_row(index: int) -> Control:
 	row.add_child(label)
 
 	var cleared := RunState.done.has(index)
-	var current := index == RunState.floor
+	var current := index == RunState.floor_index
 
 	if cleared:
 		var done := Label.new()
