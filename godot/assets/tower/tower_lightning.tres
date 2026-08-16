@@ -1,0 +1,83 @@
+[gd_resource type="SpriteFrames" load_steps=11 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/tower/tower_lightning_sheet.png" id="1_sheet"]
+
+[sub_resource type="AtlasTexture" id="bolt_0"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 804, 661, 460)
+margin = Rect2(0, 0, 39, 473)
+
+[sub_resource type="AtlasTexture" id="bolt_1"]
+atlas = ExtResource("1_sheet")
+region = Rect2(157, 0, 203, 799)
+margin = Rect2(497, 0, 497, 134)
+
+[sub_resource type="AtlasTexture" id="bolt_2"]
+atlas = ExtResource("1_sheet")
+region = Rect2(661, 804, 181, 411)
+margin = Rect2(519, 4, 519, 522)
+
+[sub_resource type="AtlasTexture" id="bolt_3"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 1995, 700, 309)
+margin = Rect2(0, 62, 0, 624)
+
+[sub_resource type="AtlasTexture" id="bolt_4"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 1644, 700, 351)
+margin = Rect2(0, 38, 0, 582)
+
+[sub_resource type="AtlasTexture" id="bolt_5"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 1264, 700, 380)
+margin = Rect2(0, 8, 0, 553)
+
+[sub_resource type="AtlasTexture" id="bolt_6"]
+atlas = ExtResource("1_sheet")
+region = Rect2(0, 0, 157, 804)
+margin = Rect2(518, 2, 543, 129)
+
+[sub_resource type="AtlasTexture" id="bolt_7"]
+atlas = ExtResource("1_sheet")
+region = Rect2(360, 0, 167, 660)
+margin = Rect2(533, 0, 533, 273)
+
+[sub_resource type="AtlasTexture" id="bolt_8"]
+atlas = ExtResource("1_sheet")
+region = Rect2(527, 0, 175, 493)
+margin = Rect2(525, 5, 525, 440)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("bolt_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_6")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_7")
+}, {
+"duration": 1.0,
+"texture": SubResource("bolt_8")
+}],
+"loop": true,
+"name": &"bolts",
+"speed": 5.0
+}]

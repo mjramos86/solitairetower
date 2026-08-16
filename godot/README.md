@@ -5,7 +5,7 @@ font asset from the web build, organised into Godot's conventional layout, plus
 project settings tuned for a 2D desktop game.
 
 **What is here:** assets, project configuration, an asset-verification scene,
-and the video conversion tooling.
+and a working animated tower for the map screen.
 **What is not here:** the game itself. `index.html` is 4,590 lines of DOM-driven
 solitaire that has to be rewritten as Godot scenes — that is the port, and this
 is the foundation it stands on. [Porting notes](#8-porting-notes) at the end.
@@ -23,14 +23,19 @@ godot/
 │   ├── patrons/               Compendium portraits
 │   ├── intro/                 11 intro cutscene stills
 │   ├── ui/                    Title keyart, logo, tower
-│   ├── video/                 Ogg Theora (generated — see step 5)
+│   ├── tower/                 Animated map tower: plate + lightning sheet
 │   └── _unused/               Alternate art, exclude from export
 ├── audio/music/               5 tracks    audio/sfx/  2 card sounds
 ├── fonts/                     6 TTFs + OFL licences
 ├── scenes/main.tscn           Asset verification screen
-├── scripts/asset_paths.gd     Central asset registry
-└── tools/convert_video.sh     MP4 → OGV conversion
+├── scenes/tower_menu.tscn     Animated tower (drop-in for the map screen)
+└── scripts/asset_paths.gd     Central asset registry
 ```
+
+**No video, and no video dependency.** The map screen's tower was a looping MP4
+in the web build. Godot only plays Ogg Theora, which would have meant an ffmpeg
+step for every developer — so the animation was rebuilt as a static plate plus a
+lightning sprite sheet instead. Details in [step 5](#5-the-animated-tower).
 
 ---
 
@@ -46,13 +51,8 @@ prompt — that is expected and safe. On 4.4 it warns the project is from a newe
 version; edit that line in `project.godot` to `"4.4"` if you want to stay there.
 Do not use Godot 3.x, none of this is compatible.
 
-Also install **ffmpeg** now if you want the menu video (step 5):
-
-```bash
-brew install ffmpeg          # macOS
-sudo apt install ffmpeg      # Ubuntu/Debian
-winget install Gyan.FFmpeg   # Windows
-```
+Nothing else to install. There is no ffmpeg step and no video codec to worry
+about — see [step 5](#5-the-animated-tower).
 
 ## 2. Open the project
 
@@ -77,15 +77,15 @@ to load every asset in `scripts/asset_paths.gd` and reports the result:
 
 - **Green ✓** — imported correctly.
 - **Red ✗** — failed to import or misnamed. Fix before porting anything.
-- **Grey ○** — video, expected to be absent until step 5.
 
 You should also see the six fonts rendered as sample lines, the four card backs
 as thumbnails, and two buttons that play the card SFX through the `SFX` bus. If
 the fonts render but all look identical, the TTFs did not import — check the
 FileSystem dock.
 
-A summary line prints to the Output panel: `Asset check: 34/34 loaded`
-(4 card backs, 3 portraits, 11 intro stills, 3 UI, 5 music, 2 SFX, 6 fonts).
+A summary line prints to the Output panel: `Asset check: 37/37 loaded`
+(4 card backs, 3 portraits, 11 intro stills, 3 UI, 3 tower, 5 music, 2 SFX,
+6 fonts).
 
 Once you start building the real title screen, set
 `Project → Project Settings → Application → Run → Main Scene` to it and delete
@@ -116,43 +116,47 @@ default correctly; if VT323 looks soft at small sizes, set its
 **Rendering → Antialiasing** to *Disabled* and **Hinting** to *None* for a
 crisper pixel look, which suits the Windows-95 chrome.
 
-## 5. Convert the video
+## 5. The animated tower
 
-Godot's `VideoStreamPlayer` supports **Ogg Theora only**. The `.mp4` and `.MOV`
-masters cannot be imported — the editor will not even list them. Run this from
-the repo root:
+Nothing to do here — it already works. This section explains why it looks the
+way it does, because it is the one place the port deliberately diverges from the
+web build.
 
-```bash
-bash godot/tools/convert_video.sh
-```
+The map screen's tower was `Tower Menu Animation 1400.mp4`, a 5-second, 152-frame
+loop at 1400×1866. Godot cannot play MP4 at all; its `VideoStreamPlayer` accepts
+only Ogg Theora, which would have meant an ffmpeg conversion step for every
+developer who clones this repo, plus a CPU video decoder running behind a menu.
 
-It converts `Tower Menu Animation 1400.mp4` (the map screen's looping tower,
-audio stripped since it is muted in the web build) and `winning cinematic.mp4`
-into `godot/assets/video/`. Switch back to the Godot window afterwards so it
-detects the new files, then re-run F5 — the grey ○ lines turn green.
+Frame analysis of that clip showed something better: **the tower never moves.**
+Every animated pixel is lightning in the sky — the building, the fire, the clock
+and the windows are identical in all 152 frames. So the clip was decomposed:
 
-If they don't appear, run the diagnostic — it converts nothing and reports
-which stage failed, including the exact output path and whether your ffmpeg has
-the Theora encoder:
+| Layer | File | What it is |
+|---|---|---|
+| Base | `assets/tower/tower_base.png` | Temporal median of all 152 frames — the tower with every bolt removed |
+| Bolts | `assets/tower/tower_lightning_sheet.png` | 9 distinct bolt shapes, isolated by connected-component analysis, packed with soft alpha |
+| Frames | `assets/tower/tower_lightning.tres` | `SpriteFrames` whose `AtlasTexture` margins place each bolt back at its original position |
 
-```bash
-bash godot/tools/convert_video.sh --check
-```
+`scenes/tower_menu.tscn` composites them and strikes on a 2–8 second random
+timer, reproducing the web build's `scheduleLightning()` exactly, including the
+60/40 split between a 0.12 s flash and the 0.6 s stuttering one and the sky-glow
+gradient from the `.tower-lightning` CSS.
 
-Two things catch people here. **`.ogv` files have no Import tab** — Godot loads
-video directly instead of importing it, so its absence is normal. And the editor
-may not notice externally-created files, in which case
-**Project → Reload Current Project** forces a rescan. Full troubleshooting list
-in [`assets/video/README.md`](assets/video/README.md#troubleshooting-the-ogv-files-dont-show-up-in-godot).
+This is smaller than the video it replaces (2.5 MB of PNG vs 1.2 MB of MP4, but
+9.4 MB of VRAM and no decoder), sharper at any resolution, and the strike timing
+is now a tunable constant instead of being baked into a loop. It also reunites
+two systems the web build had drifted apart: `startTowerAtmosphere()` already
+implemented procedural lightning, but sat behind `TOWER_OVERLAYS_ENABLED = false`
+because the video supplied its own.
 
-Two things worth knowing before you lean on this:
+To use it, instance `scenes/tower_menu.tscn` where the map screen's tower goes.
+It exposes a `thunder` signal on each strike — the web build synthesises thunder
+with the Web Audio API rather than a sample (`playThunder`: filtered noise plus a
+40–70 Hz sawtooth), so there is no audio file to import and you will need to
+either synthesise or source one.
 
-- Theora is an old codec. The 25 MB `winning cinematic.mp4` will grow
-  substantially at `-q:v 7`. Lower it to 5 in the script if size matters.
-- Godot's Theora playback is CPU-decoded and has no seek. For a short looping
-  background like the tower animation, an **`AnimatedTexture` or sprite sheet
-  will look better and cost less** than video. Consider exporting the tower loop
-  as frames instead — it is only a few seconds.
+Tuning is at the top of `scripts/tower_menu.gd`: `STRIKE_DELAY_MIN` /
+`STRIKE_DELAY_MAX` and `LONG_FLASH_CHANCE`.
 
 ## 6. Add Steam integration (GodotSteam)
 

@@ -54,6 +54,17 @@ const UI := {
 	"tower_static": "res://assets/ui/tower_static.jpg",
 }
 
+# ── Animated tower (map screen) ───────────────────────────────────────────────
+# Replaces the web build's looping .mp4. The tower plate is static; only the
+# lightning animates. See scenes/tower_menu.tscn.
+const TOWER := {
+	"base": "res://assets/tower/tower_base.png",
+	"lightning_sheet": "res://assets/tower/tower_lightning_sheet.png",
+	"lightning_frames": "res://assets/tower/tower_lightning.tres",
+}
+
+const TOWER_SCENE := "res://scenes/tower_menu.tscn"
+
 # ── Music ─────────────────────────────────────────────────────────────────────
 const MUSIC_INTRO := "res://audio/music/intro_ambience.mp3"
 const MUSIC_MAP := "res://audio/music/map_dark_and_stormy_night.mp3"
@@ -88,20 +99,12 @@ const FONTS := {
 	"mono": "res://fonts/ShareTechMono-Regular.ttf",
 }
 
-# ── Video ─────────────────────────────────────────────────────────────────────
-# Godot's VideoStreamPlayer only accepts Ogg Theora (.ogv). The source .mp4 /
-# .MOV masters live in the repo root; run godot/tools/convert_video.sh to
-# produce these. Absent until you do — check with ResourceLoader.exists().
-const VIDEO := {
-	"tower_menu": "res://assets/video/tower_menu_animation.ogv",
-	"winning_cinematic": "res://assets/video/winning_cinematic.ogv",
-}
-
 ## Every asset expected to exist after a clean import, for the verification
-## screen. Video is excluded because it requires the manual ffmpeg step.
+## screen. The project ships no video, so there is nothing conditional here —
+## every path below must resolve.
 static func required_assets() -> Array[String]:
 	var out: Array[String] = []
-	for d in [CARDBACKS, PATRONS, INTRO, UI, SFX, FONTS]:
+	for d in [CARDBACKS, PATRONS, INTRO, UI, TOWER, SFX, FONTS]:
 		for k in d:
 			var path: String = d[k]
 			out.append(path)

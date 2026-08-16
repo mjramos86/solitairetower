@@ -115,20 +115,30 @@ The web build also uses `Georgia`/`Times New Roman` as a fallback stack in one
 place. Those are system fonts with no redistributable equivalent — EB Garamond
 covers the same role and is already bundled.
 
-## Video — `res://assets/video/`
+## Animated tower — `res://assets/tower/`
 
-**Empty until you run the conversion.** Godot 4's `VideoStreamPlayer` supports
-Ogg Theora only; `.mp4` and `.MOV` cannot be imported. Run
-`godot/tools/convert_video.sh` from the repo root. See `assets/video/README.md`.
+The web build's map screen used `Tower Menu Animation 1400.mp4` (5 s, 152 frames,
+1400×1866). Godot plays only Ogg Theora, so shipping it would have forced an
+ffmpeg step on every developer. Frame analysis showed the tower is completely
+static — **only the lightning animates** — so the clip was decomposed instead:
 
-| Source (repo root) | Becomes | Use |
+| Godot file | Derived from | Size |
 |---|---|---|
-| `Tower Menu Animation 1400.mp4` (1.2 MB) | `tower_menu_animation.ogv` | Map screen tower loop |
-| `winning cinematic.mp4` (25 MB) | `winning_cinematic.ogv` | Unused in web build |
+| `tower_base.png` | Temporal median of all 152 frames (bolts removed) | 1400×1866, 2.0 MB |
+| `tower_lightning_sheet.png` | 9 distinct bolts, connected-component isolated, shelf-packed with soft alpha | 1024×2304, 449 KB |
+| `tower_lightning.tres` | `SpriteFrames` of 9 `AtlasTexture`s | 2 KB |
 
-`Tower_Menu_Animation.MOV`, `TowerAnimated.mp4`, `Intro.mp4`, `Intro V2.mp4`, and
-`Intro3.mp4` are superseded masters that the web build never loads. Left at the
-repo root; convert them too if you want them.
+Each `AtlasTexture` uses `margin` to expand its tight-packed region back to the
+full 700×933 frame, so every bolt carries its original position and all nine
+share one coordinate space — no per-bolt offset code.
+
+`res://scenes/tower_menu.tscn` composites base + bolt + sky-glow and strikes
+every 2–8 s, matching `scheduleLightning()` in the web build. Total 2.5 MB and
+9.4 MB VRAM, with no video decoder.
+
+The source `.mp4` stays at the repo root for the web build. `TowerAnimated.mp4`,
+`Tower_Menu_Animation.MOV`, `Intro*.mp4` and `winning cinematic.mp4` are unused
+by both builds.
 
 ## Unused / alternate art — `res://assets/_unused/`
 

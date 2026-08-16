@@ -131,17 +131,10 @@ func _run_check(report: VBoxContainer) -> void:
 			failures += 1
 		report.add_child(_status_line(ok, path))
 
-	# Video is optional until the ffmpeg conversion step has been run.
-	for key in AssetPaths.VIDEO:
-		var video_path: String = AssetPaths.VIDEO[key]
-		if ResourceLoader.exists(video_path):
-			report.add_child(_status_line(true, video_path))
-		else:
-			var line := Label.new()
-			line.text = "  ○  %s — not converted yet (see tools/convert_video.sh)" % video_path
-			line.add_theme_color_override("font_color", Color("9a8fb0"))
-			line.custom_minimum_size.y = ROW_HEIGHT
-			report.add_child(line)
+	var scene_ok := ResourceLoader.exists(AssetPaths.TOWER_SCENE)
+	if not scene_ok:
+		failures += 1
+	report.add_child(_status_line(scene_ok, AssetPaths.TOWER_SCENE))
 
 	var summary := Label.new()
 	summary.add_theme_font_size_override("font_size", 18)
