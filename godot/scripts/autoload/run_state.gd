@@ -133,7 +133,38 @@ func next_floor() -> void:
 		set_screen("victory-dialogue")
 		return
 
+	# John Dee interrupts after floors 3, 6 and 9 (indices 2, 5, 8), once each
+	# per profile. Ported from the patron checks in nextFloor.
+	var interlude := _pending_interlude()
+	if interlude != "":
+		stop_timer()
+		set_screen(interlude)
+		return
+
 	proceed_to_shop()
+
+
+## Returns the dialogue screen owed at this floor, or "" if none.
+func _pending_interlude() -> String:
+	if patron != "johndee":
+		return ""
+	match floor:
+		2:
+			if not bool(SaveManager.profile.get("dee_checkin_done", false)):
+				SaveManager.profile["dee_checkin_done"] = true
+				SaveManager.mark_dirty()
+				return "dee-checkin-dialogue"
+		5:
+			if not bool(SaveManager.profile.get("dee_dialogue3_done", false)):
+				SaveManager.profile["dee_dialogue3_done"] = true
+				SaveManager.mark_dirty()
+				return "dee-dialogue3"
+		8:
+			if not bool(SaveManager.profile.get("dee_final_done", false)):
+				SaveManager.profile["dee_final_done"] = true
+				SaveManager.mark_dirty()
+				return "dee-final-dialogue"
+	return ""
 
 
 func proceed_to_shop() -> void:

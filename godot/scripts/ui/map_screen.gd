@@ -8,12 +8,17 @@ extends Control
 @onready var _floor_list: VBoxContainer = $Body/Side/Scroll/Floors
 @onready var _header: Label = $Header/Status
 @onready var _credits: Label = $Header/Credits
+@onready var _compendium_button: Button = $Header/Compendium
+@onready var _intro_button: Button = $Header/WatchIntro
 
 
 func _ready() -> void:
 	var tower := load(AssetPaths.TOWER_SCENE).instantiate()
 	_tower_host.add_child(tower)
 	tower.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	_compendium_button.pressed.connect(func(): RunState.set_screen("compendium"))
+	_intro_button.pressed.connect(func(): RunState.set_screen("patron-dialogue"))
 
 	RunState.state_changed.connect(_refresh)
 	_refresh()

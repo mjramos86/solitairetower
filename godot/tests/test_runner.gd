@@ -29,6 +29,7 @@ func _ready() -> void:
 	test_full_run()
 	test_hints()
 	test_item_effects()
+	test_narrative()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -786,5 +787,113 @@ func test_item_effects() -> void:
 		if item["effect"] in ["skip-floor", "no-life-abandon"]:
 			RunState.new_run()
 			RunState.start_game("klondike", 5)
+
+	SaveManager.erase_all()
+
+
+func test_narrative() -> void:
+	suite("narrative and compendium")
+	SaveManager.erase_all()
+
+	# Content survived extraction intact.
+	check_eq(Narrative.PATRONS.size(), 6, "six patrons")
+	check_eq(Narrative.LORE.size(), 1, "one lore entry")
+	check_eq(Narrative.DEE_DIALOGUE.size(), 59, "intro has 59 beats")
+	check_eq(Narrative.DEE_FINAL.size(), 7, "final interlude has 7 beats")
+	check_eq(Narrative.DEE_CHECKIN_TOPICS.size(), 3, "checkin offers 3 topics")
+	check_eq(Narrative.DEE_DIALOGUE3_TOPICS.size(), 3, "third transmission offers 3 topics")
+	check_eq(Narrative.VICTORY_CHOICES.size(), Narrative.VICTORY_RESPONSES.size(),
+		"every victory choice has a response")
+
+	# Every entry has the fields the compendium reads.
+	for p in Narrative.PATRONS:
+		check(p.has("id") and String(p["id"]) != "", "patron has an id")
+		check(p.has("name"), "patron %s has a name" % p.get("id", "?"))
+		check(p.has("year"), "patron %s has a year" % p.get("id", "?"))
+
+	# Image references point at files that exist.
+	var checked := 0
+	for entry in Narrative.PATRONS + Narrative.LORE:
+		if entry.has("img"):
+			check(ResourceLoader.exists(String(entry["img"])),
+				"compendium image exists: %s" % entry["img"])
+			checked += 1
+	check(checked >= 3, "at least three compendium portraits are wired")
+
+	for beat in Narrative.DEE_DIALOGUE:
+		if beat.has("img"):
+			check(ResourceLoader.exists(String(beat["img"])),
+				"intro image exists: %s" % beat["img"])
+		if beat.has("imgs"):
+			for path in beat["imgs"]:
+				check(ResourceLoader.exists(String(path)), "intro image exists: %s" % path)
+
+	# HTML did not survive into the text.
+	var html := 0
+	for beat in Narrative.DEE_DIALOGUE:
+		if String(beat.get("text", "")).contains("<"):
+			html += 1
+	check_eq(html, 0, "no HTML tags left in dialogue text")
+
+	# Topics carry their beats.
+	for topic in Narrative.DEE_CHECKIN_TOPICS:
+		check(topic.has("question"), "topic has a question")
+		check((topic.get("beats", []) as Array).size() > 0, "topic has beats")
+
+	# ── Interlude routing ──
+	# Dee interrupts after floors 3, 6 and 9 (indices 2, 5, 8), once per profile.
+	RunState.new_run()
+	var seen := {}
+	for f in GameData.TOTAL_FLOORS:
+		RunState.start_game("klondike", f)
+		RunState.next_floor()
+		if RunState.screen.ends_with("dialogue"):
+			seen[f] = RunState.screen
+			# Dismissing the interlude continues to the shop.
+			RunState.proceed_to_shop()
+	check(seen.has(2), "an interlude fires after floor index 2")
+	check(seen.has(5), "an interlude fires after floor index 5")
+	check(seen.has(8), "an interlude fires after floor index 8")
+	check_eq(String(seen.get(2, "")), "dee-checkin-dialogue", "floor 2 is the check-in")
+	check_eq(String(seen.get(5, "")), "dee-dialogue3", "floor 5 is the third transmission")
+	check_eq(String(seen.get(8, "")), "dee-final-dialogue", "floor 8 is the final word")
+
+	# Second run: already seen, so no interludes and the shop follows directly.
+	RunState.new_run()
+	var repeats := 0
+	for f in GameData.TOTAL_FLOORS - 1:
+		RunState.start_game("klondike", f)
+		RunState.next_floor()
+		if RunState.screen.ends_with("dialogue"):
+			repeats += 1
+			RunState.proceed_to_shop()
+	check_eq(repeats, 0, "interludes do not repeat once seen")
+
+	# ── Compendium economy ──
+	SaveManager.erase_all()
+	check(not SaveManager.has_seen("unlocked_connections", "johndee"),
+		"connections start locked")
+	SaveManager.add_banked_credits(400)
+	check(not SaveManager.spend_banked_credits(500), "cannot buy a connection under-funded")
+	SaveManager.add_banked_credits(200)
+	check(SaveManager.spend_banked_credits(500), "can buy once funded")
+	SaveManager.mark_seen("unlocked_connections", "johndee")
+	check(SaveManager.has_seen("unlocked_connections", "johndee"), "connection unlock persists")
+	check_eq(int(SaveManager.profile["banked_credits"]), 100, "credits are deducted")
+
+	SaveManager.save_game()
+	SaveManager.load_game()
+	check(SaveManager.has_seen("unlocked_connections", "johndee"),
+		"connection survives a reload")
+
+	# The revealed patron shows her true name.
+	var marie := {}
+	for p in Narrative.PATRONS:
+		if String(p["id"]) == "marie":
+			marie = p
+	check(marie.has("true_name"), "the other queen has a true name")
+	check(not SaveManager.is_patron_revealed("marie"), "she starts unrevealed")
+	SaveManager.reveal_patron("marie")
+	check(SaveManager.is_patron_revealed("marie"), "reveal persists")
 
 	SaveManager.erase_all()

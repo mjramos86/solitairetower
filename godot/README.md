@@ -30,7 +30,7 @@ godot/
 ├── scenes/app.tscn            Main scene — screen router
 ├── scenes/screens/           Title, map, game, shop, end
 ├── scripts/                   core, data, autoload, ui
-└── tests/test_runner.gd       437 headless assertions
+└── tests/test_runner.gd       479 headless assertions
 ```
 
 **No video, and no video dependency.** The map screen's tower is an MP4 in the
@@ -227,14 +227,17 @@ scripts/core/       cards.gd        deck, shuffle, seeded RNG, deep clone
                     item_effects.gd all 19 shop item effects
                     rules.gd        all 5 variants: deal, legality, win, solver
 scripts/data/       game_data.gd    shop stock, floor choices, gold breakdown
+                    narrative.gd    all story text, generated from index.html
 scripts/autoload/   save_manager.gd local save file (replaces Firebase)
                     run_state.gd    lives/floor/score/gold, floor progression
                     audio_manager.gd music crossfade + SFX pool
 scripts/ui/         app.gd          screen router
                     game_screen.gd  the card table, all 5 layouts
+                    dialogue_screen.gd  plays all five conversations
+                    compendium_screen.gd patrons, lore, unlock economy
                     card_view.gd    card faces, drawn not blitted
                     ui_theme.gd     palette + fonts from the CSS
-tests/              test_runner.gd  437 assertions, headless
+tests/              test_runner.gd  479 assertions, headless
 ```
 
 ### Accounts are gone, replaced by a local save
@@ -330,13 +333,45 @@ underneath the remaining stock; a test asserts all 52 cards survive.
 
 **The easy-floor solver never worked.** See the deviation note above.
 
+### Story, dialogue and the compendium
+
+`scripts/data/narrative.gd` holds every line of story content — the 59-beat
+intro, John Dee's three interludes with their player-chosen topics, the victory
+exchange, and the patron/lore entries behind the compendium.
+
+It was **generated, not retyped.** The arrays were pulled out of `index.html`,
+evaluated with Node, and converted mechanically, so the text matches the web
+build exactly. Only two transformations were applied: image filenames became
+`res://` paths, and `<br>` became a real newline, since Godot Labels take plain
+text rather than HTML. A test asserts no HTML survived and that every image
+reference resolves.
+
+**One dialogue scene plays all five conversations.** The web build had four
+near-identical render functions; here `dialogue_screen.gd` reads which
+conversation to play from the screen name, so the router knows nothing about
+narrative structure. It handles narration beats, Dee beats, player choices,
+multi-image arrangements, the screen-flicker effect, and topic menus that mark
+themselves as read.
+
+Dee interrupts after floors 3, 6 and 9 — once per profile, tracked in the save
+file rather than per-run, so a second playthrough is uninterrupted.
+
+**The compendium** lists patrons and lore chronologically. Entries can be locked
+(a silhouette with only its year), unlocked, or revealed — the last replaces an
+alias with a true name. Two purchases spend banked Time Energy: `connection_cost`
+uncovers an entry's link to Solitaire, `patron_unlock_cost` brings an
+in-development patron forward. John Dee's connection stays sealed until his third
+transmission, as in the web build.
+
+Both purchases persist in the local save, so **banked Time Energy now carries
+between runs for every player** — in the web build it only survived for
+signed-in accounts.
+
 ### Not yet ported
 
 The playable loop — title, map, 10 floors, shop, game over, victory — works end
 to end. Still outstanding:
 
-- **Patron dialogue and the compendium.** John Dee's four interludes, the lore
-  entries and the unlock economy. The data is extracted, the screens are not built.
 - **Drag and drop.** Play is click-to-select, click-to-place, which works with
   mouse, touch and the Deck's trackpad. Dragging is additive.
 - **Card back selection screen**, and the win cascade animation.
