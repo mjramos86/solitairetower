@@ -30,7 +30,7 @@ godot/
 ├── scenes/app.tscn            Main scene — screen router
 ├── scenes/screens/           Title, map, game, shop, end
 ├── scripts/                   core, data, autoload, ui
-└── tests/test_runner.gd       338 headless assertions
+└── tests/test_runner.gd       437 headless assertions
 ```
 
 **No video, and no video dependency.** The map screen's tower is an MP4 in the
@@ -223,6 +223,8 @@ The game itself is here, not just its assets.
 
 ```
 scripts/core/       cards.gd        deck, shuffle, seeded RNG, deep clone
+                    hints.gd        legal-move finders for all 5 variants
+                    item_effects.gd all 19 shop item effects
                     rules.gd        all 5 variants: deal, legality, win, solver
 scripts/data/       game_data.gd    shop stock, floor choices, gold breakdown
 scripts/autoload/   save_manager.gd local save file (replaces Firebase)
@@ -232,7 +234,7 @@ scripts/ui/         app.gd          screen router
                     game_screen.gd  the card table, all 5 layouts
                     card_view.gd    card faces, drawn not blitted
                     ui_theme.gd     palette + fonts from the CSS
-tests/              test_runner.gd  338 assertions, headless
+tests/              test_runner.gd  437 assertions, headless
 ```
 
 ### Accounts are gone, replaced by a local save
@@ -297,14 +299,42 @@ This does make easy floors genuinely easier than the live web build. To restore
 the original behaviour exactly, delete the waste-to-tableau block and the
 empty-column case in that function; the comment there marks both.
 
+### Item effects
+
+All 19 items work. `scripts/core/item_effects.gd` holds the effect engine and
+`scripts/core/hints.gd` the legal-move finders the hint items depend on.
+
+Effects come in four shapes, and `activate()` returns which one applies rather
+than touching the UI, so every item is testable headlessly:
+
+| Shape | Items | Behaviour |
+|---|---|---|
+| Immediate | Knotted Cord, Mortlake Brew, Sealing Wax, Sealed Letter, Wax Seal Press, Philosopher's Sponge, Skeleton Key, Alchemist's Cabinet, Queen's Patronage, Vial of Quicksilver | Applied at once |
+| Timed | Scrying Glass, Astrolabe, Obsidian Mirror, Quill of Ravens | Hint glow / reveal / peek that expires |
+| Armed | Athame, Brass Compass, Angelic Besom | Arms a mode; the next board click resolves it |
+| Picker | Hermetic Casket, Enochian Key | Opens a card chooser |
+
+An armed item is only consumed on a *successful* target, so clicking a
+face-down card with the Athame warns and stays armed. Clicking the item again
+cancels. The Alchemist's Cabinet stash is a slot in the inventory bar: click it
+with a card selected to stash, click again to place.
+
+### Two bug fixes carried over from the web build
+
+**Sealed Letter destroyed cards.** `executeItemEffect` assigned
+`s.stock = [...s.waste].reverse()`, replacing the stock rather than adding to
+it. Used while the stock still held cards — which the item invites, since it is
+sold as a *free* recycle — those cards were deleted outright, and a board could
+become unwinnable with no indication why. Here the recycled waste goes
+underneath the remaining stock; a test asserts all 52 cards survive.
+
+**The easy-floor solver never worked.** See the deviation note above.
+
 ### Not yet ported
 
 The playable loop — title, map, 10 floors, shop, game over, victory — works end
 to end. Still outstanding:
 
-- **Item effects.** All 19 items are purchasable and inventory works, but the
-  effect dispatch (`hint`, `reveal-all`, `remove-card`, `toolbox` and the rest)
-  is not wired to the board yet.
 - **Patron dialogue and the compendium.** John Dee's four interludes, the lore
   entries and the unlock economy. The data is extracted, the screens are not built.
 - **Drag and drop.** Play is click-to-select, click-to-place, which works with

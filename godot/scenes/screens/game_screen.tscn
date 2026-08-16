@@ -25,7 +25,29 @@ show_percentage = false
 [node name="Score" type="Label" parent="Top"]
 layout_mode = 2
 
+[node name="Banner" type="Label" parent="."]
+layout_mode = 2
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.831, 0.659, 0.294, 1)
+
 [node name="Board" type="Control" parent="."]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 1
+
+[node name="Bottom" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Inventory" type="HBoxContainer" parent="Bottom"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Undo" type="Button" parent="Bottom"]
+layout_mode = 2
+text = "UNDO"
+
+[node name="Abandon" type="Button" parent="Bottom"]
+layout_mode = 2
+text = "ABANDON FLOOR"

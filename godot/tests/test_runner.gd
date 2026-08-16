@@ -27,6 +27,8 @@ func _ready() -> void:
 	test_shop_and_choices()
 	test_save_round_trip()
 	test_full_run()
+	test_hints()
+	test_item_effects()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -506,5 +508,283 @@ func test_full_run() -> void:
 	check_eq(RunState.gold, RunState.shop_gold_earned, "credits are banked")
 	check_eq(RunState.shop_items.size(), 3, "shop restocks 3 items")
 	check_eq(RunState.floor, 1, "floor advances past the shop")
+
+	SaveManager.erase_all()
+
+
+func test_hints() -> void:
+	suite("hint finders")
+
+	# Klondike: an exposed ace must be reported as a foundation move.
+	var kl := Rules.init_klondike(5, Cards.new_rng(21))
+	kl["waste"] = [Cards.make_card(Cards.Suit.SPADES, 1, true)]
+	var found := Hints.klondike(kl, false)
+	check_eq(found.size(), 1, "single-hint mode returns at most one hint")
+	check_eq(found[0]["src"], "waste", "waste ace is found")
+	check_eq(found[0]["tsrc"], "found", "waste ace targets a foundation")
+	check(Hints.klondike(kl, true).size() >= 1, "all-hints mode returns at least as many")
+
+	# Spider: a 6 onto a 7 in another column.
+	var sp := Rules.init_spider(0, Cards.new_rng(22))
+	sp["tableau"][0] = [Cards.make_card(0, 7, true)]
+	sp["tableau"][1] = [Cards.make_card(0, 6, true)]
+	var sp_hints := Hints.spider(sp, false)
+	check_eq(sp_hints.size(), 1, "spider finds the 6-onto-7 move")
+	check_eq(sp_hints[0]["col"], 1, "hint source is the 6's column")
+	check_eq(sp_hints[0]["tcol"], 0, "hint target is the 7's column")
+
+	# TriPeaks: only free cards adjacent in rank to the waste top.
+	var tp := Rules.init_tripeaks(0, Cards.new_rng(23))
+	tp["waste"] = [Cards.make_card(0, 7, true)]
+	for i in 28:
+		tp["pyramid"][i] = null
+	tp["pyramid"][27] = Cards.make_card(1, 8, true)
+	check_eq(Hints.tripeaks(tp, true).size(), 1, "tripeaks finds the adjacent card")
+	tp["pyramid"][27] = Cards.make_card(1, 4, true)
+	check_eq(Hints.tripeaks(tp, true).size(), 0, "tripeaks ignores non-adjacent ranks")
+
+	# Pyramid: a king is always playable alone.
+	var py := Rules.init_pyramid(0, Cards.new_rng(24))
+	for i in 28:
+		py["pyramid"][i] = null
+	py["pyramid"][27] = Cards.make_card(0, 13, true)
+	py["waste"] = []
+	check_eq(Hints.pyramid(py, true).size(), 1, "pyramid finds the lone king")
+
+	# FreeCell: an ace on a tableau top goes to a foundation.
+	var fc := Rules.init_freecell(0, false, Cards.new_rng(25))
+	fc["tableau"][0] = [Cards.make_card(Cards.Suit.HEARTS, 1, true)]
+	var fc_hints := Hints.freecell(fc, false)
+	check_eq(fc_hints.size(), 1, "freecell finds the ace")
+	check_eq(fc_hints[0]["tsrc"], "found", "freecell prefers the foundation")
+
+	# The dispatcher routes by board type.
+	check(Hints.find(kl, false).size() > 0, "find() dispatches klondike")
+	check_eq(Hints.find({}, false).size(), 0, "find() on an empty board returns nothing")
+
+
+func test_item_effects() -> void:
+	suite("item effects")
+	SaveManager.erase_all()
+
+	# ── Knotted Cord: +5 undos ──
+	RunState.new_run()
+	RunState.start_game("klondike", 5)
+	var before := RunState.undos_remaining()
+	var r := ItemEffects.activate(GameData.item_by_id("rubber-band"), 0)
+	check(r["consumed"], "knotted cord is consumed")
+	check_eq(RunState.undos_remaining(), before + 5, "knotted cord adds 5 undos")
+
+	# ── Mortlake Brew: a free draw, and refused where it makes no sense ──
+	RunState.start_game("klondike", 5)
+	var stock_before: int = RunState.gs["stock"].size()
+	r = ItemEffects.activate(GameData.item_by_id("coffee"), 0)
+	check(r["consumed"], "brew is consumed in klondike")
+	check_eq(RunState.gs["stock"].size(), stock_before - 3, "brew draws from stock")
+	RunState.start_game("spider", 5)
+	r = ItemEffects.activate(GameData.item_by_id("coffee"), 0)
+	check(not r["consumed"], "brew is refused in spider")
+	check(String(r["message"]) != "", "refusal explains itself")
+
+	# ── Sealing Wax: one more recycle ──
+	RunState.start_game("klondike", 9)
+	var draws: int = RunState.gs["draws_left"]
+	r = ItemEffects.activate(GameData.item_by_id("tape"), 0)
+	check(r["consumed"], "sealing wax is consumed")
+	check_eq(int(RunState.gs["draws_left"]), draws + 1, "sealing wax adds a recycle")
+
+	# ── Sealed Letter: waste back to stock, refused when the waste is empty ──
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("envelope"), 0)
+	check(not r["consumed"], "sealed letter refused on an empty waste")
+	RunState.gs = Rules.klondike_draw(RunState.gs)
+	var wasted: int = RunState.gs["waste"].size()
+	var left_in_stock: int = RunState.gs["stock"].size()
+	r = ItemEffects.activate(GameData.item_by_id("envelope"), 0)
+	check(r["consumed"], "sealed letter is consumed")
+	check_eq(RunState.gs["waste"].size(), 0, "waste is emptied")
+	# The web build assigned stock = waste, deleting whatever was left in the
+	# stock. All 52 cards must still be accounted for after a recycle.
+	check_eq(RunState.gs["stock"].size(), left_in_stock + wasted,
+		"recycled waste is added to the stock, not swapped for it")
+	var accounted: int = RunState.gs["stock"].size() + RunState.gs["waste"].size()
+	for col in RunState.gs["tableau"]:
+		accounted += col.size()
+	for f in RunState.gs["foundations"]:
+		accounted += f.size()
+	check_eq(accounted, 52, "no cards are lost by the recycle")
+
+	# ── Obsidian Mirror: reveals face-down cards and reports what to re-hide ──
+	RunState.start_game("klondike", 5)
+	var hidden_before := 0
+	for col in RunState.gs["tableau"]:
+		for c in col:
+			if not c["face_up"]:
+				hidden_before += 1
+	check(hidden_before > 0, "klondike deals face-down cards")
+	r = ItemEffects.activate(GameData.item_by_id("magnifier"), 0)
+	check(r["consumed"], "mirror is consumed")
+	var still_hidden := 0
+	for col in RunState.gs["tableau"]:
+		for c in col:
+			if not c["face_up"]:
+				still_hidden += 1
+	check_eq(still_hidden, 0, "everything is revealed")
+	check_eq((r["timed"]["hidden"] as Array).size(), hidden_before, "records what to re-hide")
+
+	# ── Wax Seal Press: sends an ace up, and reports when there is none ──
+	RunState.start_game("klondike", 5)
+	RunState.gs["tableau"][0] = [Cards.make_card(Cards.Suit.CLUBS, 1, true)]
+	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
+	check(r["consumed"], "seal press is consumed when an ace exists")
+	check_eq(RunState.gs["foundations"][Cards.Suit.CLUBS].size(), 1, "ace reaches its foundation")
+	for c in 7:
+		RunState.gs["tableau"][c] = [Cards.make_card(0, 9, true)]
+	RunState.gs["waste"] = []
+	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
+	check(not r["consumed"], "seal press is not consumed without an ace")
+
+	# ── Philosopher's Sponge: rewinds up to 10 moves ──
+	RunState.start_game("klondike", 5)
+	for i in 12:
+		RunState.push_undo()
+		RunState.gs = Rules.klondike_draw(RunState.gs)
+	var deep: int = RunState.undo_stack.size()
+	r = ItemEffects.activate(GameData.item_by_id("eraser"), 0)
+	check(r["consumed"], "sponge is consumed")
+	check_eq(RunState.undo_stack.size(), deep - 10, "sponge pops 10 states")
+	RunState.undo_stack = []
+	r = ItemEffects.activate(GameData.item_by_id("eraser"), 0)
+	check(not r["consumed"], "sponge refuses with nothing to undo")
+
+	# ── Skeleton Key: a fifth cell, FreeCell only ──
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("spare-key"), 0)
+	check(not r["consumed"], "skeleton key refused outside freecell")
+	RunState.start_game("freecell", 5)
+	check_eq(RunState.gs["freecells"].size(), 4, "freecell starts with 4 cells")
+	r = ItemEffects.activate(GameData.item_by_id("spare-key"), 0)
+	check(r["consumed"], "skeleton key is consumed in freecell")
+	check_eq(RunState.gs["freecells"].size(), 5, "a fifth cell appears")
+	r = ItemEffects.activate(GameData.item_by_id("spare-key"), 0)
+	check(not r["consumed"], "a sixth cell is refused")
+
+	# ── Alchemist's Cabinet ──
+	RunState.start_game("spider", 5)
+	RunState.toolbox_uses = 0
+	RunState.toolbox_card = null
+	r = ItemEffects.activate(GameData.item_by_id("toolbox"), 0)
+	check(r["consumed"], "cabinet is consumed")
+	check_eq(RunState.toolbox_uses, ItemEffects.TOOLBOX_USES, "cabinet grants 8 uses")
+	r = ItemEffects.activate(GameData.item_by_id("toolbox"), 0)
+	check(not r["consumed"], "a second cabinet is refused while one is active")
+
+	# ── Scrying Glass / Astrolabe ──
+	RunState.start_game("klondike", 5)
+	RunState.gs["waste"] = [Cards.make_card(Cards.Suit.SPADES, 1, true)]
+	r = ItemEffects.activate(GameData.item_by_id("sticky-note"), 0)
+	check(r["consumed"], "scrying glass is consumed when a move exists")
+	check_eq(String(r["timed"]["kind"]), "hints", "scrying glass returns hints")
+	check_eq((r["timed"]["hints"] as Array).size(), 1, "scrying glass returns exactly one")
+	r = ItemEffects.activate(GameData.item_by_id("calculator"), 0)
+	check((r["timed"]["hints"] as Array).size() >= 1, "astrolabe returns all hints")
+
+	# ── Quill of Ravens: peek at three ──
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("pencil"), 0)
+	check(r["consumed"], "quill is consumed")
+	check_eq((r["timed"]["cards"] as Array).size(), 3, "quill shows three cards")
+
+	# ── Athame: arms a mode, then removes the clicked card ──
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("scissors"), 0)
+	check(not r["consumed"], "athame is not consumed on arming")
+	check_eq(String(r["mode"]["effect"]), "remove-card", "athame arms remove-card")
+	var col0: int = RunState.gs["tableau"][0].size()
+	var res := ItemEffects.resolve_mode(r["mode"], {"kind": "tableau", "col": 0, "index": 0})
+	check(res["consumed"], "athame is consumed on a valid target")
+	check_eq(RunState.gs["tableau"][0].size(), col0 - 1, "the card is gone")
+	# A face-down target is rejected and the item survives.
+	r = ItemEffects.activate(GameData.item_by_id("scissors"), 0)
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "tableau", "col": 6, "index": 0})
+	check(not res["consumed"], "athame refuses a face-down card")
+
+	# ── Brass Compass: flips a face-down card ──
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("paperclip"), 0)
+	check_eq(String(r["mode"]["effect"]), "flip-card", "compass arms flip-card")
+	check(not RunState.gs["tableau"][6][0]["face_up"], "target starts face-down")
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "tableau", "col": 6, "index": 0})
+	check(res["consumed"], "compass is consumed")
+	check(RunState.gs["tableau"][6][0]["face_up"], "the card is now face-up")
+	r = ItemEffects.activate(GameData.item_by_id("paperclip"), 0)
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "tableau", "col": 6, "index": 0})
+	check(not res["consumed"], "compass refuses an already face-up card")
+
+	# ── Angelic Besom: sweeps a top card to an empty column ──
+	RunState.start_game("spider", 5)
+	r = ItemEffects.activate(GameData.item_by_id("broom"), 0)
+	check(not r["consumed"], "besom refused with no empty column")
+	RunState.gs["tableau"][3] = []
+	r = ItemEffects.activate(GameData.item_by_id("broom"), 0)
+	check_eq(String(r["mode"]["effect"]), "broom", "besom arms once a column is empty")
+	var src_len: int = RunState.gs["tableau"][0].size()
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "tableau", "col": 0})
+	check(res["consumed"], "besom is consumed")
+	check_eq(RunState.gs["tableau"][0].size(), src_len - 1, "source pile shrinks")
+	check_eq(RunState.gs["tableau"][3].size(), 1, "the card lands in the empty column")
+
+	# ── Hermetic Casket: pull a buried waste card to the top ──
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("briefcase"), 0)
+	check(not r["consumed"], "casket refused on a short waste")
+	for i in 3:
+		RunState.gs = Rules.klondike_draw(RunState.gs)
+	r = ItemEffects.activate(GameData.item_by_id("briefcase"), 0)
+	check(not r["picker"].is_empty(), "casket opens a picker")
+	var buried: Dictionary = RunState.gs["waste"][0]
+	res = ItemEffects.resolve_picker(r["picker"], buried)
+	check(res["consumed"], "casket is consumed on choosing")
+	var new_top: Dictionary = RunState.gs["waste"][RunState.gs["waste"].size() - 1]
+	check_eq(Cards.key(new_top), Cards.key(buried), "the chosen card is now on top")
+
+	# ── Enochian Key: pull any card out of the stock ──
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("master-key"), 0)
+	check(not r["picker"].is_empty(), "enochian key opens a picker")
+	var wanted: Dictionary = RunState.gs["stock"][5]
+	var stock_size: int = RunState.gs["stock"].size()
+	res = ItemEffects.resolve_picker(r["picker"], wanted)
+	check(res["consumed"], "enochian key is consumed")
+	check_eq(RunState.gs["stock"].size(), stock_size - 1, "stock shrinks by one")
+	check_eq(Cards.key(RunState.gs["waste"][RunState.gs["waste"].size() - 1]), Cards.key(wanted),
+		"the chosen card is on the waste")
+
+	# ── Queen's Patronage: clears the floor outright ──
+	RunState.new_run()
+	RunState.start_game("klondike", 0)
+	r = ItemEffects.activate(GameData.item_by_id("exec-chair"), 0)
+	check(r["consumed"], "patronage is consumed")
+	check(RunState.done.has(0), "the floor counts as cleared")
+	check_eq(RunState.screen, "shop", "patronage routes to the shop")
+
+	# ── Vial of Quicksilver: retreat with no life lost ──
+	RunState.new_run()
+	RunState.start_game("klondike", 0)
+	RunState.inventory = [GameData.item_by_id("extinguisher")]
+	ItemEffects.activate(GameData.item_by_id("extinguisher"), 0)
+	check_eq(RunState.lives, 3, "quicksilver costs no life")
+	check_eq(RunState.inventory.size(), 0, "quicksilver is consumed")
+	check_eq(RunState.screen, "map", "quicksilver returns to the map")
+
+	# Every item in the shop is reachable by the dispatcher.
+	RunState.new_run()
+	RunState.start_game("klondike", 5)
+	for item in GameData.SHOP_ITEMS:
+		var out := ItemEffects.activate(item, 0)
+		check(out.has("consumed") and out.has("message"), "%s returns a result" % item["id"])
+		if item["effect"] in ["skip-floor", "no-life-abandon"]:
+			RunState.new_run()
+			RunState.start_game("klondike", 5)
 
 	SaveManager.erase_all()

@@ -29,17 +29,51 @@ const PILE_GAP := 0.18
 @onready var _status: Label = $Top/Status
 @onready var _score_label: Label = $Top/Score
 @onready var _progress: ProgressBar = $Top/Progress
+@onready var _inventory_bar: HBoxContainer = $Bottom/Inventory
+@onready var _undo_button: Button = $Bottom/Undo
+@onready var _abandon_button: Button = $Bottom/Abandon
+@onready var _banner: Label = $Banner
 
 ## {"kind": "tableau"/"waste"/"freecell"/"pyramid", "col": int, "index": int}
 var _selection: Dictionary = {}
 var _card_size := Vector2(70, 98)
+
+## Armed click-targeting item, e.g. the Athame waiting for a card to remove.
+var _item_mode: Dictionary = {}
+## Slots currently glowing from a hint item.
+var _hint_slots: Array = []
+var _hint_timer: SceneTreeTimer
 
 
 func _ready() -> void:
 	RunState.state_changed.connect(_rebuild)
 	RunState.score_changed.connect(_on_score)
 	resized.connect(_rebuild)
+	_undo_button.pressed.connect(_on_undo)
+	_abandon_button.pressed.connect(_on_abandon)
+	_banner.visible = false
 	_rebuild()
+
+
+func _on_undo() -> void:
+	RunState.undo_move()
+
+
+func _on_abandon() -> void:
+	var confirm := ConfirmationDialog.new()
+	var free := false
+	for item in RunState.inventory:
+		if item["effect"] == "no-life-abandon":
+			free = true
+	confirm.dialog_text = "Abandon this floor?\n\n" + (
+		"Your Vial of Quicksilver will be used — no life lost."
+		if free else "You will lose a life.")
+	add_child(confirm)
+	confirm.popup_centered()
+	confirm.confirmed.connect(func():
+		RunState.abandon_floor()
+		confirm.queue_free())
+	confirm.canceled.connect(confirm.queue_free)
 
 
 func _on_score(total: int, _delta: int, _reason: String) -> void:
@@ -59,12 +93,210 @@ func _refresh_header() -> void:
 	_score_label.text = "★ %d pts" % RunState.score
 	_progress.max_value = GameData.MAX_CARD_POINTS
 	_progress.value = RunState.total_card_points()
+	_undo_button.text = "UNDO (%d)" % RunState.undos_remaining()
+	_undo_button.disabled = RunState.undo_stack.is_empty() or RunState.undos_remaining() <= 0
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Items
+# ══════════════════════════════════════════════════════════════════════════════
+
+func _refresh_inventory() -> void:
+	for child in _inventory_bar.get_children():
+		child.queue_free()
+
+	for i in RunState.inventory.size():
+		var item: Dictionary = RunState.inventory[i]
+		var button := Button.new()
+		button.text = "%s %s" % [item["icon"], item["name"]]
+		button.tooltip_text = "%s\n\n%s" % [item["desc"], item["use"]]
+		# Re-clicking an armed item cancels it, as the web build did.
+		if not _item_mode.is_empty() and int(_item_mode.get("inv_index", -1)) == i:
+			button.text = "✕ CANCEL"
+		button.pressed.connect(_on_item_pressed.bind(i))
+		_inventory_bar.add_child(button)
+
+	if RunState.inventory.is_empty():
+		var empty := Label.new()
+		empty.text = "No items — buy some in the shop"
+		empty.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		_inventory_bar.add_child(empty)
+
+	if RunState.toolbox_uses > 0 or RunState.toolbox_card != null:
+		_inventory_bar.add_child(_build_toolbox_slot())
+
+
+## The Alchemist's Cabinet: an off-board slot holding one card for 8 uses.
+func _build_toolbox_slot() -> Control:
+	var button := Button.new()
+	if RunState.toolbox_card == null:
+		button.text = "🗄️ stash empty (%d)" % RunState.toolbox_uses
+	else:
+		var c: Dictionary = RunState.toolbox_card
+		button.text = "🗄️ %s%s (%d)" % [Cards.rank_name(c), Cards.symbol(c), RunState.toolbox_uses]
+	button.tooltip_text = "Click a board card to stash it, or click here to take the stashed card back."
+	button.pressed.connect(_on_toolbox_pressed)
+	return button
+
+
+func _on_toolbox_pressed() -> void:
+	if RunState.toolbox_card == null:
+		RunState.toast.emit("Select a card on the board to stash it.")
+		return
+	# Taking the card back puts it in hand: select it as the pending move source.
+	_item_mode = {"effect": "toolbox-place", "inv_index": -1,
+		"banner": "ALCHEMIST'S CABINET: click where the stashed card should go"}
+	_show_banner()
+	_rebuild()
+
+
+func _on_item_pressed(index: int) -> void:
+	if not _item_mode.is_empty() and int(_item_mode.get("inv_index", -1)) == index:
+		_cancel_item_mode()
+		return
+	if index < 0 or index >= RunState.inventory.size():
+		return
+
+	var item: Dictionary = RunState.inventory[index]
+	var result := ItemEffects.activate(item, index)
+	_apply_result(result, index)
+
+
+func _apply_result(result: Dictionary, inv_index: int) -> void:
+	if String(result.get("message", "")) != "":
+		RunState.toast.emit(result["message"])
+
+	var mode: Dictionary = result.get("mode", {})
+	var picker: Dictionary = result.get("picker", {})
+	var timed: Dictionary = result.get("timed", {})
+
+	if bool(result.get("consumed", false)) and inv_index >= 0 \
+			and inv_index < RunState.inventory.size():
+		RunState.inventory.remove_at(inv_index)
+
+	if not mode.is_empty():
+		_item_mode = mode
+		_show_banner()
+	else:
+		_item_mode = {}
+		_banner.visible = false
+
+	if not picker.is_empty():
+		_open_picker(picker)
+
+	if not timed.is_empty():
+		_start_timed(timed)
+
+	_selection = {}
+	_rebuild()
+	_check_win()
+
+
+func _cancel_item_mode() -> void:
+	_item_mode = {}
+	_banner.visible = false
+	_rebuild()
+
+
+func _show_banner() -> void:
+	_banner.text = String(_item_mode.get("banner", ""))
+	_banner.visible = _banner.text != ""
+
+
+## Hint glow, temporary reveal and stock peek all expire on a timer.
+func _start_timed(timed: Dictionary) -> void:
+	match String(timed["kind"]):
+		"hints":
+			_hint_slots = []
+			for h in timed["hints"]:
+				_hint_slots.append(h)
+			_rebuild()
+			_hint_timer = get_tree().create_timer(float(timed["seconds"]))
+			_hint_timer.timeout.connect(func():
+				_hint_slots = []
+				if is_inside_tree():
+					_rebuild())
+
+		"reveal":
+			var hidden: Array = timed["hidden"]
+			get_tree().create_timer(float(timed["seconds"])).timeout.connect(func():
+				if not is_inside_tree():
+					return
+				var s := Cards.clone_state(RunState.gs)
+				for pair in hidden:
+					var c := int(pair[0])
+					var i := int(pair[1])
+					if c < s["tableau"].size() and i < s["tableau"][c].size():
+						s["tableau"][c][i]["face_up"] = false
+				RunState.gs = s
+				_rebuild())
+
+		"peek":
+			var names := PackedStringArray()
+			for c in timed["cards"]:
+				names.append("%s%s" % [Cards.rank_name(c), Cards.symbol(c)])
+			var dialog := AcceptDialog.new()
+			dialog.title = "Quill of Ravens"
+			dialog.dialog_text = "Next from the stock:\n\n  " + "\n  ".join(names)
+			add_child(dialog)
+			dialog.popup_centered()
+			var close := func():
+				if is_instance_valid(dialog):
+					dialog.queue_free()
+			dialog.confirmed.connect(close)
+			dialog.canceled.connect(close)
+			get_tree().create_timer(float(timed["seconds"])).timeout.connect(close)
+
+
+func _open_picker(picker: Dictionary) -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = String(picker["title"])
+	dialog.ok_button_text = "Cancel"
+
+	var grid := GridContainer.new()
+	grid.columns = 8
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	dialog.add_child(grid)
+
+	for card in picker["cards"]:
+		var button := Button.new()
+		button.text = "%s%s" % [Cards.rank_name(card), Cards.symbol(card)]
+		button.custom_minimum_size = Vector2(56, 44)
+		button.pressed.connect(func():
+			var result := ItemEffects.resolve_picker(picker, card)
+			dialog.queue_free()
+			_apply_result(result, int(picker["inv_index"])))
+		grid.add_child(button)
+
+	add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+
+
+func _is_hinted(meta: Dictionary) -> bool:
+	if _hint_slots.is_empty():
+		return false
+	var kind: String = meta.get("kind", "")
+	# Hints use the web build's shorter source names.
+	var as_hint := {"tableau": "tab", "waste": "waste", "freecell": "fc",
+		"pyramid": "pycard", "foundation": "found"}.get(kind, kind)
+	for h in _hint_slots:
+		if h.get("src") == as_hint \
+				and int(h.get("col", -1)) == int(meta.get("col", -1)) \
+				and int(h.get("index", -1)) == int(meta.get("index", -1)):
+			return true
+		if h.get("tsrc") == as_hint and int(h.get("tcol", -99)) == int(meta.get("col", -1)):
+			return true
+	return false
 
 
 func _rebuild() -> void:
 	if not is_inside_tree():
 		return
 	_refresh_header()
+	_refresh_inventory()
 	for child in _board.get_children():
 		child.queue_free()
 
@@ -101,6 +333,7 @@ func _spawn(card, pos: Vector2, meta: Dictionary, face_up_override = null) -> Co
 	view.set_meta("slot", meta)
 	view.card_pressed.connect(_on_card_pressed)
 	view.selected = _is_selected(meta)
+	view.hinted = _is_hinted(meta)
 	return view
 
 
@@ -318,6 +551,16 @@ func _on_card_pressed(view: Control) -> void:
 	var gs := RunState.gs
 	if gs.is_empty():
 		return
+
+	# An armed item takes priority over normal play.
+	if not _item_mode.is_empty():
+		_resolve_item_click(meta)
+		return
+
+	# With an empty toolbox stash armed, the next card click stores it.
+	if RunState.toolbox_uses > 0 and RunState.toolbox_card == null and _selection.is_empty():
+		if _try_stash(meta):
+			return
 
 	if meta.get("kind") == "stock":
 		_draw_stock()
@@ -597,8 +840,101 @@ func _pyramid_remove(gs: Dictionary, meta: Dictionary) -> void:
 		"waste": gs["waste"].pop_back()
 
 
+func _resolve_item_click(meta: Dictionary) -> void:
+	# The toolbox "place" mode is a move, not an item effect, so it is handled
+	# here rather than in ItemEffects.
+	if String(_item_mode.get("effect", "")) == "toolbox-place":
+		_try_unstash(meta)
+		return
+
+	var result := ItemEffects.resolve_mode(_item_mode, meta)
+	var message := String(result.get("message", ""))
+
+	# A failed target keeps the mode armed so the player can try again, which
+	# is what the web build did — only a successful use consumes the item.
+	if not bool(result.get("consumed", false)):
+		if message != "":
+			RunState.toast.emit(message)
+		return
+
+	_apply_result(result, int(_item_mode.get("inv_index", -1)))
+
+
+## Moves a board card into the toolbox stash.
+func _try_stash(meta: Dictionary) -> bool:
+	var kind: String = meta.get("kind", "")
+	if not ["tableau", "waste", "freecell"].has(kind):
+		return false
+	var gs := RunState.gs
+	var pile_top := true
+	if kind == "tableau":
+		var pile: Array = gs["tableau"][meta["col"]]
+		pile_top = int(meta.get("index", -1)) == pile.size() - 1
+	if not pile_top:
+		return false
+
+	var card = ItemEffects._card_at(gs, meta)
+	if card == null or not bool(card.get("face_up", false)):
+		return false
+
+	RunState.push_undo()
+	RunState.gs = ItemEffects._remove_card_at(gs, meta)
+	RunState.toolbox_card = card
+	RunState.toolbox_uses -= 1
+	AudioManager.card_taken()
+	RunState.toast.emit("Stashed %s%s" % [Cards.rank_name(card), Cards.symbol(card)])
+	_rebuild()
+	return true
+
+
+## Plays the stashed card back onto the board, if the target accepts it.
+func _try_unstash(meta: Dictionary) -> void:
+	var card = RunState.toolbox_card
+	if card == null:
+		_cancel_item_mode()
+		return
+
+	var gs := Cards.clone_state(RunState.gs)
+	var accepted := false
+
+	match meta.get("kind"):
+		"tableau":
+			var target: Array = gs["tableau"][meta["col"]]
+			match gs["type"]:
+				"klondike": accepted = Rules.klondike_can_tableau([card], target)
+				"spider": accepted = Rules.spider_can_drop([card], target)
+				"freecell": accepted = Rules.freecell_can_tableau(card, target)
+			if accepted:
+				target.append(card)
+		"foundation":
+			if Rules.klondike_can_foundation(card, gs["foundations"]) \
+					and int(meta["col"]) == int(card["suit"]):
+				gs["foundations"][card["suit"]].append(card)
+				accepted = true
+		"freecell":
+			if gs["freecells"][meta["col"]] == null:
+				gs["freecells"][meta["col"]] = card
+				accepted = true
+
+	if not accepted:
+		RunState.toast.emit("The stashed card does not fit there.")
+		return
+
+	RunState.push_undo()
+	RunState.gs = gs
+	RunState.toolbox_card = null
+	RunState.moves += 1
+	AudioManager.card_moved()
+	_cancel_item_mode()
+	_check_win()
+
+
 func _after_move() -> void:
 	_rebuild()
+	_check_win()
+
+
+func _check_win() -> void:
 	if Rules.is_won(RunState.gs):
 		RunState.win_overlay = true
 		RunState.next_floor()
