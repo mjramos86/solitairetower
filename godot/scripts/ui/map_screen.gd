@@ -13,7 +13,9 @@ extends Control
 
 
 func _ready() -> void:
-	var tower := load(AssetPaths.TOWER_SCENE).instantiate()
+	# load() returns an untyped Resource, so cast to PackedScene before
+	# instantiating — otherwise the result has no static type to infer from.
+	var tower := (load(AssetPaths.TOWER_SCENE) as PackedScene).instantiate() as Control
 	_tower_host.add_child(tower)
 	tower.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
