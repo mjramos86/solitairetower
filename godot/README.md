@@ -123,13 +123,27 @@ masters cannot be imported — the editor will not even list them. Run this from
 the repo root:
 
 ```bash
-./godot/tools/convert_video.sh
+bash godot/tools/convert_video.sh
 ```
 
 It converts `Tower Menu Animation 1400.mp4` (the map screen's looping tower,
 audio stripped since it is muted in the web build) and `winning cinematic.mp4`
 into `godot/assets/video/`. Switch back to the Godot window afterwards so it
 detects the new files, then re-run F5 — the grey ○ lines turn green.
+
+If they don't appear, run the diagnostic — it converts nothing and reports
+which stage failed, including the exact output path and whether your ffmpeg has
+the Theora encoder:
+
+```bash
+bash godot/tools/convert_video.sh --check
+```
+
+Two things catch people here. **`.ogv` files have no Import tab** — Godot loads
+video directly instead of importing it, so its absence is normal. And the editor
+may not notice externally-created files, in which case
+**Project → Reload Current Project** forces a rescan. Full troubleshooting list
+in [`assets/video/README.md`](assets/video/README.md#troubleshooting-the-ogv-files-dont-show-up-in-godot).
 
 Two things worth knowing before you lean on this:
 
