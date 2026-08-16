@@ -1,0 +1,30 @@
+# Godot 4 editor cache and generated data. Never commit these — .godot/ is
+# rebuilt from source assets on open, and committing it causes constant churn
+# and merge conflicts.
+.godot/
+
+# Legacy Godot 3 cache, harmless to keep ignored.
+.import/
+
+# Export output.
+build/
+export/
+*.pck
+*.exe
+*.x86_64
+*.dmg
+*.app/
+*.zip
+
+# Steam SDK — download it from partner.steamgames.com, do not commit it.
+# The redistributable binaries are covered by the Steamworks SDK Access
+# Agreement, which does not permit redistribution in a public repo.
+addons/godotsteam/steam_api*.dll
+addons/godotsteam/libsteam_api.*
+addons/godotsteam/steam_appid.txt
+steam_appid.txt
+sdk/
+
+# OS noise
+.DS_Store
+Thumbs.db

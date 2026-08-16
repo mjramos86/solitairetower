@@ -1,0 +1,70 @@
+; Engine configuration file.
+; Generated for the Godot 4 / Steam port of The Solitaire Tower of Doom.
+;
+; Format documented at https://docs.godotengine.org/en/stable/classes/class_projectsettings.html
+; Most values are also editable from Project > Project Settings in the editor.
+
+config_version=5
+
+[application]
+
+config/name="The Solitaire Tower of Doom"
+config/description="A roguelike solitaire descent through 10 floors of card chaos."
+config/version="0.1.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.5", "GL Compatibility")
+config/icon="res://assets/ui/logo_sigil.png"
+boot_splash/bg_color=Color(0.039, 0.024, 0.086, 1)
+boot_splash/image="res://assets/ui/logo_sigil.png"
+boot_splash/fullsize=false
+boot_splash/use_filter=true
+
+[audio]
+
+buses/default_bus_layout="res://default_bus_layout.tres"
+
+[display]
+
+; The web build is fluid; 1920x1080 is the design resolution for the desktop
+; port. "canvas_items" + "expand" keeps UI crisp and lets ultrawide / Steam Deck
+; (1280x800) reveal extra space instead of letterboxing.
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[file_customization]
+
+folder_colors={
+"res://assets/": "purple",
+"res://audio/": "teal",
+"res://fonts/": "yellow",
+"res://scenes/": "blue",
+"res://scripts/": "green"
+}
+
+[importer_defaults]
+
+; 2D-only project: keep source pixels lossless and stop Godot from silently
+; re-importing card art as VRAM-compressed when a 3D node touches it.
+texture={
+"compress/mode": 0,
+"detect_3d/compress_to": 0,
+"mipmaps/generate": false
+}
+mp3={
+"loop": false
+}
+
+[rendering]
+
+; Compatibility (OpenGL 3.3 / GLES3) is the right renderer for a 2D card game:
+; widest hardware support, smallest export, runs well on Steam Deck and old
+; laptops. Switch to "forward_plus" only if you add real 2D lighting/shaders.
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=false
+environment/defaults/default_clear_color=Color(0.039, 0.024, 0.086, 1)
