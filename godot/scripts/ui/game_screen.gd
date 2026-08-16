@@ -86,7 +86,7 @@ func _refresh_header() -> void:
 		hearts += "♥"
 	_status.text = "%s   Floor %d   %s   %s" % [
 		hearts,
-		GameData.TOTAL_FLOORS - RunState.floor,
+		GameData.TOTAL_FLOORS - RunState.floor_index,
 		GameData.NAMES.get(RunState.gtype, RunState.gtype),
 		RunState.format_elapsed(),
 	]

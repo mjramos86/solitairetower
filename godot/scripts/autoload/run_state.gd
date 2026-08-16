@@ -11,7 +11,7 @@ signal screen_changed(screen: String)
 signal state_changed
 signal score_changed(total: int, delta: int, reason: String)
 signal lives_changed(lives: int)
-signal floor_cleared(floor: int)
+signal floor_cleared(floor_index: int)
 signal game_won
 signal run_ended(won: bool)
 signal toast(message: String)
@@ -21,7 +21,7 @@ const MAX_UNDO_STACK := 50
 var screen := "title"
 
 var lives := GameData.STARTING_LIVES
-var floor := 0
+var floor_index := 0
 var choices: Array = []
 var done: Array = []
 
@@ -65,7 +65,7 @@ var _timer_running := false
 
 func new_run() -> void:
 	lives = GameData.STARTING_LIVES
-	floor = 0
+	floor_index = 0
 	choices = GameData.generate_choices()
 	done = []
 	gtype = ""
@@ -100,7 +100,7 @@ func set_screen(next: String) -> void:
 
 func start_game(type: String, target_floor: int) -> void:
 	gtype = type
-	floor = target_floor
+	floor_index = target_floor
 	moves = 0
 	undo_stack = []
 	win_overlay = false
@@ -121,13 +121,13 @@ func start_game(type: String, target_floor: int) -> void:
 ## Clears the floor and routes to the next beat: victory, a patron interlude,
 ## or the shop. Ported from nextFloor.
 func next_floor() -> void:
-	if not done.has(floor):
-		done.append(floor)
+	if not done.has(floor_index):
+		done.append(floor_index)
 	SaveManager.record_game_result(gtype, true)
-	add_score(100 * (GameData.TOTAL_FLOORS - floor), "floor cleared")
-	floor_cleared.emit(floor)
+	add_score(100 * (GameData.TOTAL_FLOORS - floor_index), "floor cleared")
+	floor_cleared.emit(floor_index)
 
-	if floor >= GameData.TOTAL_FLOORS - 1:
+	if floor_index >= GameData.TOTAL_FLOORS - 1:
 		stop_timer()
 		game_won.emit()
 		set_screen("victory-dialogue")
@@ -148,7 +148,7 @@ func next_floor() -> void:
 func _pending_interlude() -> String:
 	if patron != "johndee":
 		return ""
-	match floor:
+	match floor_index:
 		2:
 			if not bool(SaveManager.profile.get("dee_checkin_done", false)):
 				SaveManager.profile["dee_checkin_done"] = true
@@ -182,7 +182,7 @@ func proceed_to_shop() -> void:
 		owned.append(it["id"])
 	shop_items = GameData.generate_shop_items(owned)
 
-	floor += 1
+	floor_index += 1
 	set_screen("shop")
 	state_changed.emit()
 
@@ -210,7 +210,7 @@ func new_shuffle() -> bool:
 	floor_undos_used = 0
 	floor_start_time = Time.get_ticks_msec()
 	floor_start_score = score
-	gs = Rules.init_game(gtype, floor, extra_freecell)
+	gs = Rules.init_game(gtype, floor_index, extra_freecell)
 	state_changed.emit()
 	return true
 
@@ -258,7 +258,7 @@ func add_score(amount: int, reason: String = "") -> void:
 	score_log.append({
 		"amount": amount,
 		"reason": reason if reason != "" else "score",
-		"floor": floor,
+		"floor": floor_index,
 		"gtype": gtype,
 		"total": score,
 	})
@@ -311,7 +311,7 @@ func undo_move() -> bool:
 	if undo_stack.is_empty():
 		return false
 	if undos_remaining() <= 0:
-		toast.emit("No undos left this floor!")
+		toast.emit("No undos left this floor_index!")
 		return false
 	var prev: Dictionary = undo_stack.pop_back()
 	gs = prev["gs"]
@@ -352,6 +352,7 @@ func get_elapsed_seconds() -> float:
 
 func format_elapsed() -> String:
 	var total := int(get_elapsed_seconds())
+	@warning_ignore("integer_division")
 	return "%d:%02d" % [total / 60, total % 60]
 
 
@@ -363,7 +364,7 @@ func to_snapshot() -> Dictionary:
 	return {
 		"screen": screen,
 		"lives": lives,
-		"floor": floor,
+		"floor": floor_index,
 		"choices": choices,
 		"done": done,
 		"gtype": gtype,
@@ -390,7 +391,7 @@ func to_snapshot() -> Dictionary:
 func from_snapshot(snap: Dictionary) -> void:
 	screen = snap.get("screen", "map")
 	lives = int(snap.get("lives", GameData.STARTING_LIVES))
-	floor = int(snap.get("floor", 0))
+	floor_index = int(snap.get("floor", 0))
 	choices = snap.get("choices", [])
 	if choices.is_empty():
 		choices = GameData.generate_choices()

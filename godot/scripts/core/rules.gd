@@ -21,10 +21,10 @@ const PTS_SUIT_COMPLETED := 100
 
 
 ## Difficulty band for a floor index (0 = floor 10, 9 = floor 1).
-static func difficulty(floor: int) -> String:
-	if floor <= 3:
+static func difficulty(floor_index: int) -> String:
+	if floor_index <= 3:
 		return "easy"
-	if floor <= 6:
+	if floor_index <= 6:
 		return "medium"
 	return "hard"
 
@@ -33,8 +33,8 @@ static func difficulty(floor: int) -> String:
 #  KLONDIKE
 # ══════════════════════════════════════════════════════════════════════════════
 
-static func build_klondike_deal(deck: Array, floor: int) -> Dictionary:
-	var diff := difficulty(floor)
+static func build_klondike_deal(deck: Array, floor_index: int) -> Dictionary:
+	var diff := difficulty(floor_index)
 	var tableau := []
 	var idx := 0
 	for c in 7:
@@ -58,20 +58,20 @@ static func build_klondike_deal(deck: Array, floor: int) -> Dictionary:
 		"foundations": [[], [], [], []],
 		"draw_count": 1 if diff == "easy" else 3,
 		"draws_left": 3 if diff == "hard" else 999,
-		"floor": floor,
+		"floor": floor_index,
 		"card_points": {},
 	}
 
 
 ## Easy floors guarantee a winnable deal by test-solving with a greedy player,
 ## retrying up to 25 shuffles. Ported from initKlondike.
-static func init_klondike(floor: int, rng: RandomNumberGenerator = null) -> Dictionary:
+static func init_klondike(floor_index: int, rng: RandomNumberGenerator = null) -> Dictionary:
 	if rng == null:
 		rng = Cards.new_rng()
-	var easy := difficulty(floor) == "easy"
+	var easy := difficulty(floor_index) == "easy"
 	var state := {}
 	for attempt in 25:
-		state = build_klondike_deal(Cards.shuffle(Cards.make_deck(), rng), floor)
+		state = build_klondike_deal(Cards.shuffle(Cards.make_deck(), rng), floor_index)
 		if not easy or klondike_greedy_solvable(state):
 			return state
 	return state
@@ -241,10 +241,10 @@ static func klondike_greedy_solvable(state: Dictionary) -> bool:
 #  SPIDER
 # ══════════════════════════════════════════════════════════════════════════════
 
-static func init_spider(floor: int, rng: RandomNumberGenerator = null) -> Dictionary:
+static func init_spider(floor_index: int, rng: RandomNumberGenerator = null) -> Dictionary:
 	if rng == null:
 		rng = Cards.new_rng()
-	var diff := difficulty(floor)
+	var diff := difficulty(floor_index)
 	var suits := 1 if diff == "easy" else (2 if diff == "medium" else 4)
 	var deck := []
 	for copy in 8:
@@ -282,7 +282,7 @@ static func init_spider(floor: int, rng: RandomNumberGenerator = null) -> Dictio
 		"stock_groups": stock_groups,
 		"foundations": [],
 		"suits": suits,
-		"floor": floor,
+		"floor": floor_index,
 		"card_points": {},
 	}
 
@@ -373,7 +373,7 @@ const TP_ROWS := [
 ]
 
 
-static func init_tripeaks(floor: int, rng: RandomNumberGenerator = null) -> Dictionary:
+static func init_tripeaks(floor_index: int, rng: RandomNumberGenerator = null) -> Dictionary:
 	if rng == null:
 		rng = Cards.new_rng()
 	var deck := Cards.shuffle(Cards.make_deck(), rng)
@@ -399,8 +399,8 @@ static func init_tripeaks(floor: int, rng: RandomNumberGenerator = null) -> Dict
 		"stock": stock,
 		"waste": waste,
 		"recycle": 0,
-		"max_recycle": 1 if difficulty(floor) == "easy" else 0,
-		"floor": floor,
+		"max_recycle": 1 if difficulty(floor_index) == "easy" else 0,
+		"floor": floor_index,
 		"card_points": {},
 	}
 
@@ -456,10 +456,11 @@ static func tripeaks_draw(state: Dictionary) -> Dictionary:
 # ══════════════════════════════════════════════════════════════════════════════
 
 static func pyramid_index(row: int, col: int) -> int:
+	@warning_ignore("integer_division")
 	return row * (row + 1) / 2 + col
 
 
-static func init_pyramid(floor: int, rng: RandomNumberGenerator = null) -> Dictionary:
+static func init_pyramid(floor_index: int, rng: RandomNumberGenerator = null) -> Dictionary:
 	if rng == null:
 		rng = Cards.new_rng()
 	var deck := Cards.shuffle(Cards.make_deck(), rng)
@@ -478,7 +479,7 @@ static func init_pyramid(floor: int, rng: RandomNumberGenerator = null) -> Dicti
 		var first: Dictionary = stock.pop_front()
 		first["face_up"] = true
 		waste.append(first)
-	var diff := difficulty(floor)
+	var diff := difficulty(floor_index)
 	var max_cycles := 9999 if diff == "easy" else (2 if diff == "medium" else 1)
 	return {
 		"type": "pyramid",
@@ -487,7 +488,7 @@ static func init_pyramid(floor: int, rng: RandomNumberGenerator = null) -> Dicti
 		"waste": waste,
 		"cycles": 0,
 		"max_cycles": max_cycles,
-		"floor": floor,
+		"floor": floor_index,
 		"card_points": {},
 	}
 
@@ -538,7 +539,7 @@ static func pyramid_draw(state: Dictionary) -> Dictionary:
 #  FREECELL
 # ══════════════════════════════════════════════════════════════════════════════
 
-static func init_freecell(floor: int, extra_cell: bool = false, rng: RandomNumberGenerator = null) -> Dictionary:
+static func init_freecell(floor_index: int, extra_cell: bool = false, rng: RandomNumberGenerator = null) -> Dictionary:
 	if rng == null:
 		rng = Cards.new_rng()
 	var deck := Cards.shuffle(Cards.make_deck(), rng)
@@ -561,7 +562,7 @@ static func init_freecell(floor: int, extra_cell: bool = false, rng: RandomNumbe
 		"tableau": tableau,
 		"freecells": cells,
 		"foundations": [[], [], [], []],
-		"floor": floor,
+		"floor": floor_index,
 		"card_points": {},
 	}
 
@@ -599,13 +600,13 @@ static func freecell_won(state: Dictionary) -> bool:
 #  DISPATCH
 # ══════════════════════════════════════════════════════════════════════════════
 
-static func init_game(type: String, floor: int, extra_cell: bool = false, rng: RandomNumberGenerator = null) -> Dictionary:
+static func init_game(type: String, floor_index: int, extra_cell: bool = false, rng: RandomNumberGenerator = null) -> Dictionary:
 	match type:
-		"klondike": return init_klondike(floor, rng)
-		"spider": return init_spider(floor, rng)
-		"tripeaks": return init_tripeaks(floor, rng)
-		"pyramid": return init_pyramid(floor, rng)
-		"freecell": return init_freecell(floor, extra_cell, rng)
+		"klondike": return init_klondike(floor_index, rng)
+		"spider": return init_spider(floor_index, rng)
+		"tripeaks": return init_tripeaks(floor_index, rng)
+		"pyramid": return init_pyramid(floor_index, rng)
+		"freecell": return init_freecell(floor_index, extra_cell, rng)
 	push_error("Unknown game type: %s" % type)
 	return {}
 

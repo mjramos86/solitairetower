@@ -123,10 +123,10 @@ func play_game_music() -> void:
 	play_music(_last_game_track)
 
 
-func play_sfx(name: String) -> void:
-	if not AssetPaths.SFX.has(name):
+func play_sfx(sfx_name: String) -> void:
+	if not AssetPaths.SFX.has(sfx_name):
 		return
-	var stream := load(AssetPaths.SFX[name]) as AudioStream
+	var stream := load(AssetPaths.SFX[sfx_name]) as AudioStream
 	if stream == null:
 		return
 	var player := _sfx_pool[_sfx_index]

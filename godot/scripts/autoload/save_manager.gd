@@ -277,7 +277,7 @@ func record_score(player_name: String, score: int, time_seconds: float, all_floo
 	return highscores.find(entry)
 
 
-func record_run_end(won: bool, score: int, elapsed: float, leftover_credits: int) -> void:
+func record_run_end(won: bool, _score: int, _elapsed: float, leftover_credits: int) -> void:
 	profile["runs_played"] = int(profile.get("runs_played", 0)) + 1
 	if won:
 		profile["runs_won"] = int(profile.get("runs_won", 0)) + 1
