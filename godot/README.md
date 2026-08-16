@@ -27,9 +27,10 @@ godot/
 │   └── _unused/               Alternate art, exclude from export
 ├── audio/music/               5 tracks    audio/sfx/  2 card sounds
 ├── fonts/                     6 TTFs + OFL licences
-├── scenes/main.tscn           Asset verification screen
-├── scenes/tower_menu.tscn     Animated tower (drop-in for the map screen)
-└── scripts/asset_paths.gd     Central asset registry
+├── scenes/app.tscn            Main scene — screen router
+├── scenes/screens/           Title, map, game, shop, end
+├── scripts/                   core, data, autoload, ui
+└── tests/test_runner.gd       338 headless assertions
 ```
 
 **No video, and no video dependency.** The map screen's tower is an MP4 in the
@@ -81,9 +82,9 @@ as thumbnails, and two buttons that play the card SFX through the `SFX` bus. If
 the fonts render but all look identical, the TTFs did not import — check the
 FileSystem dock.
 
-A summary line prints to the Output panel: `Asset check: 35/35 loaded`
-(4 card backs, 3 portraits, 11 intro stills, 3 UI, 1 tower animation, 5 music, 2 SFX,
-6 fonts).
+The first screen is the title. There is no separate asset-check scene any more —
+the game itself is the check. If assets were missing, the title keyart, fonts or
+card backs would visibly fail.
 
 Once you start building the real title screen, set
 `Project → Project Settings → Application → Run → Main Scene` to it and delete
@@ -216,48 +217,96 @@ override and `expand` stretch mode already handle the Deck's 1280×800 screen.
 Upload with SteamPipe (`steamcmd` + an app build script) — see Valve's
 [SteamPipe docs](https://partner.steamgames.com/doc/sdk/uploading).
 
-## 8. Porting notes
+## 8. What is ported
 
-The assets are done; the game is not. The main things the web build does that
-have no automatic Godot equivalent:
+The game itself is here, not just its assets.
 
-**Card faces have no art.** Every card is CSS — a Unicode suit glyph over a
-white rounded rectangle. Rebuild as a `Card` scene (`Panel` + `Label`) with a
-theme. Details and the alternative in [ASSET_MAP.md](ASSET_MAP.md#there-is-no-card-face-art).
+```
+scripts/core/       cards.gd        deck, shuffle, seeded RNG, deep clone
+                    rules.gd        all 5 variants: deal, legality, win, solver
+scripts/data/       game_data.gd    shop stock, floor choices, gold breakdown
+scripts/autoload/   save_manager.gd local save file (replaces Firebase)
+                    run_state.gd    lives/floor/score/gold, floor progression
+                    audio_manager.gd music crossfade + SFX pool
+scripts/ui/         app.gd          screen router
+                    game_screen.gd  the card table, all 5 layouts
+                    card_view.gd    card faces, drawn not blitted
+                    ui_theme.gd     palette + fonts from the CSS
+tests/              test_runner.gd  338 assertions, headless
+```
 
-**The whole UI is DOM.** `render()` (`index.html:2016`) rebuilds screens by
-regenerating HTML strings on every state change. That maps to Godot as one scene
-per screen with signals — there are 11 screens: `title`, `patron-dialogue`,
-`map`, `game`, `shop`, `gameover`, `victory`, `victory-dialogue`,
-`dee-checkin-dialogue`, `dee-final-dialogue`, `cardback-select`. Immediate-mode
-rebuilding is the wrong pattern in Godot; port to retained scenes rather than
-translating `render()` literally.
+### Accounts are gone, replaced by a local save
 
-**Five game variants share one state machine.** Klondike, Spider, TriPeaks,
-Pyramid, and FreeCell each have `init*`, `*CanDrop`/`*Won`, and `findHints*`
-functions. This logic is pure and portable — it is the easiest part to move to
-GDScript nearly line for line, and the best place to start. Scoring rules are
-already documented in [`../klondike.md`](../klondike.md).
+The web build kept a Firestore `players/{uid}` document behind an email/password
+account, plus a `scores_v2` leaderboard collection, and split players into
+"signed in" and "guest" with progress only persisting for the former. All of it
+is removed. There is no network code in the project.
 
-**Firebase must go or change.** The web build uses Firebase Auth (email/password)
-and Firestore for the leaderboard (`index.html:24-60`). On Steam you have two
-options: replace it with **Steam Leaderboards + Stats** via GodotSteam, which is
-the native fit and gives you achievements for free; or keep Firestore and talk to
-its REST API through `HTTPRequest`. The former is a better Steam citizen. Note
-the Firebase web API key is currently committed in `index.html` — that is normal
-for Firebase web apps (it is an identifier, not a secret; `firestore.rules` does
-the enforcement), but the desktop port is a natural moment to move off it.
+In its place, `SaveManager` writes one JSON file to `user://savegame.json`:
 
-**Saves move to `user://`.** Browser `localStorage` becomes
-`FileAccess.open("user://save.cfg", ...)` or a `ConfigFile`. Godot resolves
-`user://` to the right per-OS location. Steam Cloud sync is configured in the
-partner backend and needs no code changes if you keep saves under `user://`.
+| Section | Holds |
+|---|---|
+| `profile` | banked credits, unlocks, card back, dialogue seen, volumes, lifetime stats |
+| `run` | the in-progress run including the dealt board, so a run survives quitting |
+| `highscores` | local top-20, replacing the online leaderboard |
 
-**Layout is responsive, not fixed.** The CSS uses `max-width` breakpoints at
-600/700/820 px. Godot Control anchors and containers cover this, but the
-translation is manual — plan the screens against the 1920×1080 design resolution
-set in `project.godot`.
+Writes are atomic — a temp file is written then renamed, so an interrupted write
+cannot truncate the save — and the previous file is kept as `.bak`. A file that
+fails to parse is moved to `savegame.corrupt.json` and defaults are used, rather
+than crashing or silently wiping progress. Autosave runs every 5 seconds while
+dirty, plus on quit.
 
-**Intro art is small.** The stills are 260×220 and will upscale poorly at 1080p.
-Re-export at 2× when you get the chance; the lossless import settings make it a
-straight file swap.
+`user://` resolves per-OS (`%APPDATA%` on Windows, `~/Library/Application
+Support` on macOS, `~/.local/share` on Linux), and is exactly what Steam Cloud
+expects, so cloud sync needs backend configuration and no code change.
+
+Every player now keeps their progress. There is no sign-in, and nothing is lost
+by playing offline.
+
+### Card faces are drawn, not textured
+
+There is still no card face art — `card_view.gd` draws them, the way the CSS
+did: white rounded rect, Unicode pip, rank in the corners and a large centre
+pip. Resolution-independent, and the only card texture in the build is the back.
+
+### Running the tests
+
+```bash
+godot --headless --path godot res://tests/test_runner.tscn
+```
+
+Exits non-zero on failure, so it can gate CI. Covers all five rulesets, the
+20-points-per-card scoring model, shop and floor progression, a full 10-floor
+run, and save round-trip including corruption recovery.
+
+### Deliberate deviation: the easy-floor solvability check
+
+`initKlondike` in the web build reshuffles up to 25 times until
+`klGreedySolvable` accepts a deal, so that easy floors are always winnable. That
+solver only considered tableau-to-tableau moves onto non-empty columns — it
+never played from the waste and never used an empty column. Measured over 200
+deals it succeeds **0%** of the time, so the guarantee never held: it burned all
+25 shuffles (1.34 s of frozen UI per deal) and returned the last one anyway.
+
+`Rules.klondike_greedy_solvable` adds the two missing move types. The check now
+does what it was written to do — 25% of deals pass, easy floors really are
+winnable, and deal time drops to 228 ms because it succeeds early instead of
+exhausting every attempt.
+
+This does make easy floors genuinely easier than the live web build. To restore
+the original behaviour exactly, delete the waste-to-tableau block and the
+empty-column case in that function; the comment there marks both.
+
+### Not yet ported
+
+The playable loop — title, map, 10 floors, shop, game over, victory — works end
+to end. Still outstanding:
+
+- **Item effects.** All 19 items are purchasable and inventory works, but the
+  effect dispatch (`hint`, `reveal-all`, `remove-card`, `toolbox` and the rest)
+  is not wired to the board yet.
+- **Patron dialogue and the compendium.** John Dee's four interludes, the lore
+  entries and the unlock economy. The data is extracted, the screens are not built.
+- **Drag and drop.** Play is click-to-select, click-to-place, which works with
+  mouse, touch and the Deck's trackpad. Dragging is additive.
+- **Card back selection screen**, and the win cascade animation.

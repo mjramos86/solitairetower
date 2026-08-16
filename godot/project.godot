@@ -11,7 +11,7 @@ config_version=5
 config/name="The Solitaire Tower of Doom"
 config/description="A roguelike solitaire descent through 10 floors of card chaos."
 config/version="0.1.0"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/app.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://assets/ui/logo_sigil.png"
 boot_splash/bg_color=Color(0.039, 0.024, 0.086, 1)
@@ -22,6 +22,13 @@ boot_splash/use_filter=true
 [audio]
 
 buses/default_bus_layout="res://default_bus_layout.tres"
+
+[autoload]
+
+; SaveManager first: RunState reads and writes through it on ready.
+SaveManager="*res://scripts/autoload/save_manager.gd"
+RunState="*res://scripts/autoload/run_state.gd"
+AudioManager="*res://scripts/autoload/audio_manager.gd"
 
 [display]
 

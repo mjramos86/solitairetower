@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/ui/title_screen.gd" id="1"]
+
+[node name="TitleScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1")
+
+[node name="Keyart" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+modulate = Color(0.45, 0.45, 0.45, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 1
+
+[node name="Panel" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="Center/Panel"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Center/Panel"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Panel"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="Continue" type="Button" parent="Center/Panel/Buttons"]
+layout_mode = 2
+text = "CONTINUE RUN"
+
+[node name="NewRun" type="Button" parent="Center/Panel/Buttons"]
+layout_mode = 2
+text = "NEW RUN"
+
+[node name="Scores" type="Button" parent="Center/Panel/Buttons"]
+layout_mode = 2
+text = "HIGH SCORES"
