@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/ui/card_view.gd" id="1"]
+[node name="CardView" type="Control"]
+custom_minimum_size = Vector2(70, 98)
+mouse_filter = 0
+script = ExtResource("1")
