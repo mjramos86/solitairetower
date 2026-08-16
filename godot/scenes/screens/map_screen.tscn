@@ -20,6 +20,14 @@ size_flags_horizontal = 3
 [node name="Credits" type="Label" parent="Header"]
 layout_mode = 2
 
+[node name="WatchIntro" type="Button" parent="Header"]
+layout_mode = 2
+text = "▶ INTRO"
+
+[node name="Compendium" type="Button" parent="Header"]
+layout_mode = 2
+text = "📖 COMPENDIUM"
+
 [node name="Body" type="HBoxContainer" parent="."]
 layout_mode = 2
 size_flags_vertical = 3

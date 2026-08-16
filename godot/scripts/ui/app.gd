@@ -12,7 +12,13 @@ const SCREENS := {
 	"shop": "res://scenes/screens/shop_screen.tscn",
 	"gameover": "res://scenes/screens/end_screen.tscn",
 	"victory": "res://scenes/screens/end_screen.tscn",
-	"victory-dialogue": "res://scenes/screens/end_screen.tscn",
+	"compendium": "res://scenes/screens/compendium_screen.tscn",
+	# One scene plays every conversation; it picks its script from the screen name.
+	"patron-dialogue": "res://scenes/screens/dialogue_screen.tscn",
+	"dee-checkin-dialogue": "res://scenes/screens/dialogue_screen.tscn",
+	"dee-dialogue3": "res://scenes/screens/dialogue_screen.tscn",
+	"dee-final-dialogue": "res://scenes/screens/dialogue_screen.tscn",
+	"victory-dialogue": "res://scenes/screens/dialogue_screen.tscn",
 }
 
 var _current: Node
@@ -62,10 +68,13 @@ func _apply_music(screen: String) -> void:
 	match screen:
 		"title":
 			AudioManager.play_intro_music()
-		"map", "shop":
+		"map", "shop", "compendium":
 			AudioManager.play_map_music()
 		"game":
 			AudioManager.play_game_music()
+		"patron-dialogue", "dee-checkin-dialogue", "dee-dialogue3", \
+		"dee-final-dialogue", "victory-dialogue":
+			AudioManager.play_intro_music()
 		_:
 			pass
 
