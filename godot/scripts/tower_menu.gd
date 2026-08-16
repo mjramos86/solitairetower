@@ -1,110 +1,60 @@
-extends Control
+extends TextureRect
 
-## Animated tower for the map screen.
+## Looping tower animation for the map screen.
 ##
-## Replaces the web build's looping "Tower Menu Animation 1400.mp4". Analysis of
-## that clip showed the tower itself never moves — the only animation is lightning
-## in the sky. So instead of shipping video, this composites three layers:
+## Plays the frames extracted from "Tower Menu Animation 1400.mp4" — the real
+## footage, unaltered, just decoded ahead of time because Godot cannot play MP4.
 ##
-##   Base    a clean tower plate (the temporal median of the clip, bolts removed)
-##   Bolt    one of 9 lightning shapes lifted from the clip, shown in bursts
-##   Flash   a full-area sky glow, matching the web build's .tower-lightning CSS
+## 76 frames at 15 fps = the original 5.07 second loop. Frames are stored at
+## 700x933, the size the tower is actually displayed at, as lossless WebP.
 ##
-## Result is sharper than the video, ~2.5 MB instead of a video decoder, and the
-## strike timing is controllable instead of baked into a 5-second loop.
-##
-## The web build's own procedural lightning (startTowerAtmosphere) is gated behind
-## TOWER_OVERLAYS_ENABLED = false, so the video's baked bolts were the only ones
-## visible. This brings the two systems back together.
+## TextureRect rather than AnimatedSprite2D so the tower participates in the
+## map screen's Control layout instead of needing manual pixel positioning.
 
-## Emitted on each strike so the map screen can play thunder. The web build
-## synthesises this with the Web Audio API (playThunder: filtered noise + a
-## 40-70 Hz sawtooth over 0.8-2.0 s) rather than using a sample, so there is no
-## audio file to import — wire this up to a synthesised or sampled cue.
-signal thunder
+const ANIMATION_PATH := "res://assets/tower/tower_animation.tres"
+const ANIMATION_NAME := &"tower"
 
-## Seconds between strikes, matching scheduleLightning() in index.html.
-const STRIKE_DELAY_MIN := 2.0
-const STRIKE_DELAY_MAX := 8.0
+## Frames per second. The source clip is 30 fps; every second frame was kept.
+@export var fps := 15.0
 
-## Probability a strike is the longer, flickering kind (web build: Math.random() > 0.6).
-const LONG_FLASH_CHANCE := 0.4
-
-@onready var _bolt: TextureRect = $Bolt
-@onready var _flash: TextureRect = $Flash
+## Uncheck to freeze on the first frame (useful when editing the map layout).
+@export var playing := true
 
 var _frames: SpriteFrames
-var _bolt_count := 0
-var _last_bolt := -1
-var _tween: Tween
+var _count := 0
+var _index := 0
+var _accumulator := 0.0
 
 
 func _ready() -> void:
-	_frames = load("res://assets/tower/tower_lightning.tres")
-	if _frames and _frames.has_animation("bolts"):
-		_bolt_count = _frames.get_frame_count("bolts")
-	_bolt.modulate.a = 0.0
-	_flash.modulate.a = 0.0
-	if _bolt_count == 0:
-		push_warning("tower_lightning.tres has no 'bolts' frames — tower will be static.")
-		return
-	_schedule_strike()
-
-
-func _strike() -> void:
-	# The timer outlives this node if the map screen is torn down mid-wait.
-	if not is_inside_tree():
+	_frames = load(ANIMATION_PATH)
+	if _frames == null or not _frames.has_animation(ANIMATION_NAME):
+		push_error("Tower animation missing or has no '%s' track: %s" % [ANIMATION_NAME, ANIMATION_PATH])
+		set_process(false)
 		return
 
-	# Pick a bolt, never the same one twice in a row.
-	var idx := randi() % _bolt_count
-	if _bolt_count > 1 and idx == _last_bolt:
-		idx = (idx + 1 + randi() % (_bolt_count - 1)) % _bolt_count
-	_last_bolt = idx
-	_bolt.texture = _frames.get_frame_texture("bolts", idx)
-
-	if _tween and _tween.is_running():
-		_tween.kill()
-	_tween = create_tween()
-	_tween.set_parallel(true)
-
-	if randf() < LONG_FLASH_CHANCE:
-		_flicker_long()
-	else:
-		_flicker_short()
-
-	_tween.finished.connect(_schedule_strike, CONNECT_ONE_SHOT)
-	thunder.emit()
-
-
-func _schedule_strike() -> void:
-	if not is_inside_tree():
+	_count = _frames.get_frame_count(ANIMATION_NAME)
+	if _count == 0:
+		push_error("Tower animation has no frames.")
+		set_process(false)
 		return
-	get_tree().create_timer(randf_range(STRIKE_DELAY_MIN, STRIKE_DELAY_MAX)) \
-		.timeout.connect(_strike)
+
+	texture = _frames.get_frame_texture(ANIMATION_NAME, 0)
 
 
-## .12s linear fade — @keyframes lightning-flash
-func _flicker_short() -> void:
-	for node in [_bolt, _flash]:
-		node.modulate.a = 1.0
-		_tween.tween_property(node, "modulate:a", 0.0, 0.12)
+func _process(delta: float) -> void:
+	if not playing or _count == 0 or fps <= 0.0:
+		return
 
+	_accumulator += delta
+	var step := 1.0 / fps
+	var advanced := false
+	# A while loop rather than a single step so a dropped frame catches up
+	# instead of stretching the loop.
+	while _accumulator >= step:
+		_accumulator -= step
+		_index = (_index + 1) % _count
+		advanced = true
 
-## .6s stuttering fade — @keyframes lightning-flash-long, whose opacity stops are
-## 0/.9, 8%/.15, 20%/.75, 35%/.1, 50%/.5, 70%/.15, 100%/0 over 600 ms.
-func _flicker_long() -> void:
-	const STOPS := [
-		[0.00, 0.90], [0.08, 0.15], [0.20, 0.75], [0.35, 0.10],
-		[0.50, 0.50], [0.70, 0.15], [1.00, 0.00],
-	]
-	const DURATION := 0.6
-	for node in [_bolt, _flash]:
-		node.modulate.a = STOPS[0][1]
-		var prev: float = 0.0
-		for i in range(1, STOPS.size()):
-			var at: float = STOPS[i][0]
-			var alpha: float = STOPS[i][1]
-			_tween.tween_property(node, "modulate:a", alpha, (at - prev) * DURATION) \
-				.set_delay(prev * DURATION)
-			prev = at
+	if advanced:
+		texture = _frames.get_frame_texture(ANIMATION_NAME, _index)

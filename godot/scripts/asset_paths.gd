@@ -55,12 +55,12 @@ const UI := {
 }
 
 # ── Animated tower (map screen) ───────────────────────────────────────────────
-# Replaces the web build's looping .mp4. The tower plate is static; only the
-# lightning animates. See scenes/tower_menu.tscn.
+# The frames of "Tower Menu Animation 1400.mp4", decoded ahead of time because
+# Godot cannot play MP4. 76 frames at 15 fps reproduce the original 5.07 s loop.
+# The individual frames live in assets/tower/frames/ and are referenced by this
+# SpriteFrames resource, so this one path is enough to pull in the whole loop.
 const TOWER := {
-	"base": "res://assets/tower/tower_base.png",
-	"lightning_sheet": "res://assets/tower/tower_lightning_sheet.png",
-	"lightning_frames": "res://assets/tower/tower_lightning.tres",
+	"animation": "res://assets/tower/tower_animation.tres",
 }
 
 const TOWER_SCENE := "res://scenes/tower_menu.tscn"

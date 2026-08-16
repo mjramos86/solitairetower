@@ -117,24 +117,25 @@ covers the same role and is already bundled.
 
 ## Animated tower — `res://assets/tower/`
 
-The web build's map screen used `Tower Menu Animation 1400.mp4` (5 s, 152 frames,
-1400×1866). Godot plays only Ogg Theora, so shipping it would have forced an
-ffmpeg step on every developer. Frame analysis showed the tower is completely
-static — **only the lightning animates** — so the clip was decomposed instead:
+The web build's map screen plays `Tower Menu Animation 1400.mp4` (5.07 s, 152
+frames, 1400×1866, 30 fps). Godot cannot play MP4, and Ogg Theora — its only
+video format — would force an ffmpeg step on every developer. The clip ships as
+its own frames instead: the real footage, unaltered.
 
-| Godot file | Derived from | Size |
-|---|---|---|
-| `tower_base.png` | Temporal median of all 152 frames (bolts removed) | 1400×1866, 2.0 MB |
-| `tower_lightning_sheet.png` | 9 distinct bolts, connected-component isolated, shelf-packed with soft alpha | 1024×2304, 449 KB |
-| `tower_lightning.tres` | `SpriteFrames` of 9 `AtlasTexture`s | 2 KB |
+| Godot file | What it is |
+|---|---|
+| `frames/tower_001..076.webp` | Every second frame of the clip, 700×933, lossless WebP, 37 MB total |
+| `tower_animation.tres` | `SpriteFrames` referencing all 76 at `speed = 15.0`, `loop = true` |
 
-Each `AtlasTexture` uses `margin` to expand its tight-packed region back to the
-full 700×933 frame, so every bolt carries its original position and all nine
-share one coordinate space — no per-bolt offset code.
+76 frames at 15 fps reproduce the original 5.07-second loop exactly. Frames are
+lossless, so the pixels are the decoder's output with nothing re-encoded away.
 
-`res://scenes/tower_menu.tscn` composites base + bolt + sky-glow and strikes
-every 2–8 s, matching `scheduleLightning()` in the web build. Total 2.5 MB and
-9.4 MB VRAM, with no video decoder.
+700×933 is the size the tower is actually displayed at — the source is 2× that,
+and those pixels can never reach the screen. Keeping them would have cost about
+140 MB on disk and 1.6 GB of VRAM; at display size it is 37 MB and ~199 MB.
+
+`res://scenes/tower_menu.tscn` is a `TextureRect` that plays the loop and sits
+in Control layout. It exposes `fps` and `playing` as exported properties.
 
 The source `.mp4` stays at the repo root for the web build. `TowerAnimated.mp4`,
 `Tower_Menu_Animation.MOV`, `Intro*.mp4` and `winning cinematic.mp4` are unused

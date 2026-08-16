@@ -1,23 +1,8 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/tower_menu.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://assets/tower/tower_base.png" id="2_base"]
 
-[sub_resource type="Gradient" id="Gradient_sky"]
-offsets = PackedFloat32Array(0, 0.15, 0.35, 0.6)
-colors = PackedColorArray(0.8627, 0.8235, 1, 1, 0.7059, 0.6667, 0.902, 0.5, 0.549, 0.5098, 0.7843, 0.16, 0, 0, 0, 0)
-
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_sky"]
-gradient = SubResource("Gradient_sky")
-width = 64
-height = 512
-fill_from = Vector2(0, 0)
-fill_to = Vector2(0, 1)
-
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_add"]
-blend_mode = 1
-
-[node name="TowerMenu" type="Control"]
+[node name="TowerMenu" type="TextureRect"]
 custom_minimum_size = Vector2(700, 933)
 layout_mode = 3
 anchors_preset = 15
@@ -26,41 +11,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 script = ExtResource("1_script")
-
-[node name="Base" type="TextureRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = ExtResource("2_base")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="Bolt" type="TextureRect" parent="."]
-material = SubResource("CanvasItemMaterial_add")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="Flash" type="TextureRect" parent="."]
-material = SubResource("CanvasItemMaterial_add")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = SubResource("GradientTexture2D_sky")
-expand_mode = 1
-stretch_mode = 0

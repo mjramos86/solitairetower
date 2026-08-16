@@ -23,7 +23,7 @@ godot/
 │   ├── patrons/               Compendium portraits
 │   ├── intro/                 11 intro cutscene stills
 │   ├── ui/                    Title keyart, logo, tower
-│   ├── tower/                 Animated map tower: plate + lightning sheet
+│   ├── tower/                 76 frames of the map tower animation + .tres
 │   └── _unused/               Alternate art, exclude from export
 ├── audio/music/               5 tracks    audio/sfx/  2 card sounds
 ├── fonts/                     6 TTFs + OFL licences
@@ -32,12 +32,10 @@ godot/
 └── scripts/asset_paths.gd     Central asset registry
 ```
 
-**No video, and no video dependency.** The map screen's tower was a looping MP4
-in the web build. Godot only plays Ogg Theora, which would have meant an ffmpeg
-step for every developer — so the animation was rebuilt as a static plate plus a
-lightning sprite sheet instead. Details in [step 5](#5-the-animated-tower).
-
----
+**No video, and no video dependency.** The map screen's tower is an MP4 in the
+web build. Godot cannot play MP4, so it ships here as its own frames instead —
+the same footage, just decoded ahead of time. Details in
+[step 5](#5-the-animated-tower).
 
 ## 1. Install Godot
 
@@ -83,8 +81,8 @@ as thumbnails, and two buttons that play the card SFX through the `SFX` bus. If
 the fonts render but all look identical, the TTFs did not import — check the
 FileSystem dock.
 
-A summary line prints to the Output panel: `Asset check: 37/37 loaded`
-(4 card backs, 3 portraits, 11 intro stills, 3 UI, 3 tower, 5 music, 2 SFX,
+A summary line prints to the Output panel: `Asset check: 35/35 loaded`
+(4 card backs, 3 portraits, 11 intro stills, 3 UI, 1 tower animation, 5 music, 2 SFX,
 6 fonts).
 
 Once you start building the real title screen, set
@@ -118,45 +116,48 @@ crisper pixel look, which suits the Windows-95 chrome.
 
 ## 5. The animated tower
 
-Nothing to do here — it already works. This section explains why it looks the
-way it does, because it is the one place the port deliberately diverges from the
-web build.
+Nothing to do — it already works. This section explains what the asset is.
 
-The map screen's tower was `Tower Menu Animation 1400.mp4`, a 5-second, 152-frame
-loop at 1400×1866. Godot cannot play MP4 at all; its `VideoStreamPlayer` accepts
-only Ogg Theora, which would have meant an ffmpeg conversion step for every
-developer who clones this repo, plus a CPU video decoder running behind a menu.
+The map screen's tower is `Tower Menu Animation 1400.mp4` in the web build.
+Godot cannot play MP4, and its only video format (Ogg Theora) would have meant
+an ffmpeg step for everyone who clones this repo plus a video decoder running
+behind a menu. So the clip is shipped as **its own frames**, decoded ahead of
+time — the real footage, unaltered, baked lightning and all.
 
-Frame analysis of that clip showed something better: **the tower never moves.**
-Every animated pixel is lightning in the sky — the building, the fire, the clock
-and the windows are identical in all 152 frames. So the clip was decomposed:
+| | |
+|---|---|
+| Frames | 76, in `assets/tower/frames/` |
+| Rate | 15 fps — the source is 30 fps, every second frame kept |
+| Loop length | 5.07 s, identical to the original |
+| Size | 700×933 per frame, lossless WebP, 37 MB total |
+| VRAM | ~199 MB once all frames are resident |
 
-| Layer | File | What it is |
-|---|---|---|
-| Base | `assets/tower/tower_base.png` | Temporal median of all 152 frames — the tower with every bolt removed |
-| Bolts | `assets/tower/tower_lightning_sheet.png` | 9 distinct bolt shapes, isolated by connected-component analysis, packed with soft alpha |
-| Frames | `assets/tower/tower_lightning.tres` | `SpriteFrames` whose `AtlasTexture` margins place each bolt back at its original position |
+`assets/tower/tower_animation.tres` is a `SpriteFrames` referencing all 76, and
+`scenes/tower_menu.tscn` is a `TextureRect` that plays it on a loop. Instance
+that scene where the map screen's tower goes; it participates in Control layout,
+so anchors and containers position it normally.
 
-`scenes/tower_menu.tscn` composites them and strikes on a 2–8 second random
-timer, reproducing the web build's `scheduleLightning()` exactly, including the
-60/40 split between a 0.12 s flash and the 0.6 s stuttering one and the sky-glow
-gradient from the `.tower-lightning` CSS.
+Two exported properties on the scene root: `fps` and `playing`. Untick `playing`
+to freeze on frame 1 while you lay out the map screen.
 
-This is smaller than the video it replaces (2.5 MB of PNG vs 1.2 MB of MP4, but
-9.4 MB of VRAM and no decoder), sharper at any resolution, and the strike timing
-is now a tunable constant instead of being baked into a loop. It also reunites
-two systems the web build had drifted apart: `startTowerAtmosphere()` already
-implemented procedural lightning, but sat behind `TOWER_OVERLAYS_ENABLED = false`
-because the video supplied its own.
+**700×933 is the display size, not a downscale of convenience.** The source is
+1400×1866, but the tower renders at roughly 700 px wide, so the extra pixels
+could never be shown. Storing them would have cost ~140 MB on disk and ~1.6 GB
+of VRAM, which does not load on most GPUs.
 
-To use it, instance `scenes/tower_menu.tscn` where the map screen's tower goes.
-It exposes a `thunder` signal on each strike — the web build synthesises thunder
-with the Web Audio API rather than a sample (`playThunder`: filtered noise plus a
-40–70 Hz sawtooth), so there is no audio file to import and you will need to
-either synthesise or source one.
+If you want it lighter or smoother later, re-run the extraction with a different
+`fps=` or `scale=` and regenerate the `.tres`:
 
-Tuning is at the top of `scripts/tower_menu.gd`: `STRIKE_DELAY_MIN` /
-`STRIKE_DELAY_MAX` and `LONG_FLASH_CHANCE`.
+```bash
+ffmpeg -y -i "Tower Menu Animation 1400.mp4" \
+  -vf "fps=15,scale=700:933:flags=lanczos" \
+  -f image2 -vcodec libwebp -lossless 1 \
+  godot/assets/tower/frames/tower_%03d.webp
+```
+
+Frame count, VRAM, and disk all scale linearly with `fps`, and with the square
+of `scale`. Update `speed` in `tower_animation.tres` and `fps` on the scene root
+to match if you change the rate.
 
 ## 6. Add Steam integration (GodotSteam)
 
