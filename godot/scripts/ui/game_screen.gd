@@ -280,7 +280,8 @@ func _is_hinted(meta: Dictionary) -> bool:
 		return false
 	var kind: String = meta.get("kind", "")
 	# Hints use the web build's shorter source names.
-	var as_hint := {"tableau": "tab", "waste": "waste", "freecell": "fc",
+	# Dictionary.get() returns Variant, so the type has to be declared.
+	var as_hint: String = {"tableau": "tab", "waste": "waste", "freecell": "fc",
 		"pyramid": "pycard", "foundation": "found"}.get(kind, kind)
 	for h in _hint_slots:
 		if h.get("src") == as_hint \
@@ -506,7 +507,7 @@ func _layout_tripeaks(gs: Dictionary) -> void:
 		var view := _spawn(c, pos, {"kind": "pyramid", "index": i})
 		view.playable = Rules.tripeaks_free(gs["pyramid"], i)
 
-	var base_y := row_y[3] + _card_size.y * 1.25
+	var base_y: float = row_y[3] + _card_size.y * 1.25
 	if gs["stock"].is_empty():
 		_spawn_slot(Vector2(0, base_y), {"kind": "stock"}, "—")
 	else:

@@ -30,6 +30,7 @@ func _ready() -> void:
 	test_hints()
 	test_item_effects()
 	test_narrative()
+	test_every_scene_loads()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -815,23 +816,23 @@ func test_narrative() -> void:
 	var checked := 0
 	for entry in Narrative.PATRONS + Narrative.LORE:
 		if entry.has("img"):
-			check(ResourceLoader.exists(String(entry["img"])),
+			check(ResourceLoader.exists(str(entry["img"])),
 				"compendium image exists: %s" % entry["img"])
 			checked += 1
 	check(checked >= 3, "at least three compendium portraits are wired")
 
 	for beat in Narrative.DEE_DIALOGUE:
 		if beat.has("img"):
-			check(ResourceLoader.exists(String(beat["img"])),
+			check(ResourceLoader.exists(str(beat["img"])),
 				"intro image exists: %s" % beat["img"])
 		if beat.has("imgs"):
 			for path in beat["imgs"]:
-				check(ResourceLoader.exists(String(path)), "intro image exists: %s" % path)
+				check(ResourceLoader.exists(str(path)), "intro image exists: %s" % path)
 
 	# HTML did not survive into the text.
 	var html := 0
 	for beat in Narrative.DEE_DIALOGUE:
-		if String(beat.get("text", "")).contains("<"):
+		if str(beat.get("text", "")).contains("<"):
 			html += 1
 	check_eq(html, 0, "no HTML tags left in dialogue text")
 
@@ -842,12 +843,16 @@ func test_narrative() -> void:
 
 	# ── Interlude routing ──
 	# Dee interrupts after floors 3, 6 and 9 (indices 2, 5, 8), once per profile.
+	# Match the screen names exactly: "dee-dialogue3" does not end in
+	# "dialogue", and a suffix test silently skipped it.
+	const DIALOGUE_SCREENS := ["dee-checkin-dialogue", "dee-dialogue3",
+		"dee-final-dialogue", "victory-dialogue", "patron-dialogue"]
 	RunState.new_run()
 	var seen := {}
 	for f in GameData.TOTAL_FLOORS:
 		RunState.start_game("klondike", f)
 		RunState.next_floor()
-		if RunState.screen.ends_with("dialogue"):
+		if DIALOGUE_SCREENS.has(RunState.screen):
 			seen[f] = RunState.screen
 			# Dismissing the interlude continues to the shop.
 			RunState.proceed_to_shop()
@@ -864,7 +869,7 @@ func test_narrative() -> void:
 	for f in GameData.TOTAL_FLOORS - 1:
 		RunState.start_game("klondike", f)
 		RunState.next_floor()
-		if RunState.screen.ends_with("dialogue"):
+		if DIALOGUE_SCREENS.has(RunState.screen):
 			repeats += 1
 			RunState.proceed_to_shop()
 	check_eq(repeats, 0, "interludes do not repeat once seen")
@@ -895,5 +900,71 @@ func test_narrative() -> void:
 	check(not SaveManager.is_patron_revealed("marie"), "she starts unrevealed")
 	SaveManager.reveal_patron("marie")
 	check(SaveManager.is_patron_revealed("marie"), "reveal persists")
+
+	SaveManager.erase_all()
+
+
+## Loads and instantiates every scene in the project.
+##
+## This exists because a parse error in map_screen.gd shipped undetected: the
+## headless boot only ever reaches the title screen, so no other UI script was
+## compiled, and the logic tests never touch scenes. Adding a child runs _ready
+## synchronously, so this catches both parse errors and crashes on entry.
+func test_every_scene_loads() -> void:
+	suite("every scene loads")
+
+	# Screens that read RunState.screen to decide what to show need it set first.
+	var scenes := [
+		["res://scenes/app.tscn", ""],
+		["res://scenes/card_view.tscn", ""],
+		["res://scenes/tower_menu.tscn", ""],
+		["res://scenes/screens/title_screen.tscn", "title"],
+		["res://scenes/screens/map_screen.tscn", "map"],
+		["res://scenes/screens/game_screen.tscn", "game"],
+		["res://scenes/screens/shop_screen.tscn", "shop"],
+		["res://scenes/screens/end_screen.tscn", "gameover"],
+		["res://scenes/screens/compendium_screen.tscn", "compendium"],
+		["res://scenes/screens/dialogue_screen.tscn", "patron-dialogue"],
+	]
+
+	# Give the screens a plausible run to render, so _ready does real work
+	# rather than bailing out early.
+	RunState.new_run()
+	RunState.start_game("klondike", 0)
+	RunState.shop_items = GameData.generate_shop_items([])
+	RunState.shop_gold_breakdown = GameData.floor_gold_breakdown(60000, 500, 0, true)
+
+	for entry in scenes:
+		var path: String = entry[0]
+		var screen: String = entry[1]
+
+		check(ResourceLoader.exists(path), "scene exists: %s" % path)
+		var packed := ResourceLoader.load(path) as PackedScene
+		check(packed != null, "scene loads as PackedScene: %s" % path)
+		if packed == null:
+			continue
+
+		if screen != "":
+			RunState.screen = screen
+
+		var instance := packed.instantiate()
+		check(instance != null, "scene instantiates: %s" % path)
+		if instance == null:
+			continue
+
+		# add_child runs _ready synchronously; a script error surfaces here.
+		add_child(instance)
+		check(instance.is_inside_tree(), "scene enters the tree: %s" % path)
+		# A parse error leaves the node with no script rather than failing to
+		# instantiate, which is exactly how map_screen.gd shipped broken.
+		if screen != "" or path.ends_with("app.tscn"):
+			check(instance.get_script() != null,
+				"script compiled and attached: %s" % path)
+		remove_child(instance)
+		instance.queue_free()
+
+	# Every screen the router can reach must have a scene registered.
+	var app_script := load("res://scripts/ui/app.gd")
+	check(app_script != null, "app.gd loads")
 
 	SaveManager.erase_all()
