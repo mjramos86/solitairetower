@@ -39,8 +39,10 @@ func _on_continue() -> void:
 
 
 func _on_new_run() -> void:
-	RunState.new_run()
-	RunState.set_screen("map")
+	# The intro plays first; finishing it starts the run, as in the web build
+	# where the title's Play button leads into the dialogue rather than the map.
+	RunState.intro_replay = false
+	RunState.set_screen("patron-dialogue")
 
 
 func _on_scores() -> void:

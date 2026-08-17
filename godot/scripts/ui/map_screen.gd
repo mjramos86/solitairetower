@@ -20,7 +20,9 @@ func _ready() -> void:
 	tower.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	_compendium_button.pressed.connect(func(): RunState.set_screen("compendium"))
-	_intro_button.pressed.connect(func(): RunState.set_screen("patron-dialogue"))
+	_intro_button.pressed.connect(func():
+		RunState.intro_replay = true
+		RunState.set_screen("patron-dialogue"))
 
 	RunState.state_changed.connect(_refresh)
 	_refresh()
