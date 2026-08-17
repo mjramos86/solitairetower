@@ -51,6 +51,23 @@ var _item_mode: Dictionary = {}
 var _hint_slots: Array = []
 var _hint_timer: SceneTreeTimer
 
+## Drag-and-drop. A press records here without acting; release decides whether it
+## was a click (no movement) or a drag (moved past the threshold). Click-to-place
+## still works untouched — drag is an alternative, not a replacement.
+const DRAG_THRESHOLD := 8.0
+var _press: Dictionary = {}
+var _dragging := false
+var _drag_source: Dictionary = {}
+var _drag_cards: Array = []
+var _ghost: Control
+## Cursor position within the grabbed card, so the ghost tracks from that point.
+var _grab_offset := Vector2.ZERO
+## Pointer position at the last button-down, in canvas coords. Captured in _input
+## before the card's press signal fires, since the signal carries no event. Using
+## event positions rather than get_mouse_position keeps this working with both
+## real input and pushed test events.
+var _pending_start := Vector2.ZERO
+
 
 func _ready() -> void:
 	RunState.state_changed.connect(_rebuild)
@@ -611,8 +628,45 @@ func _layout_pyramid(gs: Dictionary) -> void:
 #  Interaction
 # ══════════════════════════════════════════════════════════════════════════════
 
+## A card was pressed. Record it and wait: motion past the threshold starts a
+## drag, a release in place is a click. Acting on release keeps click-to-place
+## working exactly as before.
 func _on_card_pressed(view: Control) -> void:
-	var meta: Dictionary = view.get_meta("slot")
+	if RunState.gs.is_empty():
+		return
+	_press = {
+		"view": view,
+		"meta": view.get_meta("slot"),
+		"start": _pending_start,
+	}
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			# Remember where the press landed; the card's press signal fires
+			# immediately after this and reads _pending_start.
+			_pending_start = mb.position
+		else:
+			if _dragging:
+				_end_drag(mb.position)
+			elif not _press.is_empty():
+				# No movement: treat exactly as a click.
+				_click_slot(_press["meta"])
+			_press = {}
+		return
+
+	if event is InputEventMouseMotion and (not _press.is_empty() or _dragging):
+		var pointer := (event as InputEventMouseMotion).position
+		if _dragging:
+			_ghost.global_position = pointer - _grab_offset
+		elif pointer.distance_to(_press["start"]) > DRAG_THRESHOLD and _is_draggable(_press["meta"]):
+			_begin_drag()
+
+
+## The click behaviour, unchanged — runs on a release that did not become a drag.
+func _click_slot(meta: Dictionary) -> void:
 	var gs := RunState.gs
 	if gs.is_empty():
 		return
@@ -645,6 +699,149 @@ func _on_card_pressed(view: Control) -> void:
 		_begin_selection(meta)
 	else:
 		_handle_target(meta)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Drag and drop
+# ══════════════════════════════════════════════════════════════════════════════
+
+## A source is draggable only when a plain move makes sense: one of the three
+## tableau games, no armed item or stash, and a legal movable run under the grab.
+## The checks mirror _begin_selection so drag and click accept the same moves.
+func _is_draggable(meta: Dictionary) -> bool:
+	if not _item_mode.is_empty():
+		return false
+	if RunState.toolbox_uses > 0 and RunState.toolbox_card == null:
+		return false
+	var gs := RunState.gs
+	var type: String = gs.get("type", "")
+	if not ["klondike", "spider", "freecell"].has(type):
+		return false
+
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			var idx := int(meta.get("index", pile.size() - 1))
+			if idx < 0 or idx >= pile.size() or not pile[idx]["face_up"]:
+				return false
+			if type == "klondike" and not _is_valid_run(pile, idx):
+				return false
+			if type == "spider" and pile.size() - idx > Rules.spider_sequence_length(pile):
+				return false
+			if type == "freecell" and pile.size() - idx > Rules.freecell_max_movable(gs):
+				return false
+			return true
+		"waste":
+			return not gs["waste"].is_empty()
+		"freecell":
+			return gs["freecells"][meta["col"]] != null
+	return false
+
+
+func _begin_drag() -> void:
+	var meta: Dictionary = _press["meta"]
+	var gs := RunState.gs
+	_drag_source = meta
+	_drag_cards = _cards_for_drag(gs, meta)
+	if _drag_cards.is_empty():
+		_press = {}
+		return
+
+	_selection = {}
+	_dragging = true
+	var source_view: Control = _press["view"]
+	_grab_offset = _press["start"] - source_view.global_position
+
+	# Dim the cards being carried so the board shows where they came from.
+	for child in _board.get_children():
+		if child is Control and _belongs_to_drag(child.get_meta("slot", {})):
+			(child as Control).modulate.a = 0.3
+
+	# A floating stack of the dragged cards that follows the cursor.
+	_ghost = Control.new()
+	_ghost.top_level = true
+	_ghost.z_index = 100
+	_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_ghost)
+	for i in _drag_cards.size():
+		var card_view := CARD_VIEW.instantiate()
+		_ghost.add_child(card_view)
+		card_view.position = Vector2(0, i * _card_size.y * FAN_DOWN_FACE_UP)
+		card_view.custom_minimum_size = _card_size
+		card_view.size = _card_size
+		card_view.setup(_drag_cards[i])
+		card_view.face_up = true
+		card_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ghost.global_position = source_view.global_position
+	AudioManager.card_taken()
+
+
+## The run that would be picked up from a slot, without removing it yet.
+func _cards_for_drag(gs: Dictionary, meta: Dictionary) -> Array:
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			return pile.slice(int(meta.get("index", pile.size() - 1)))
+		"waste":
+			return [gs["waste"][gs["waste"].size() - 1]] if not gs["waste"].is_empty() else []
+		"freecell":
+			var c = gs["freecells"][meta["col"]]
+			return [c] if c != null else []
+	return []
+
+
+## Whether a board slot is part of the run currently being dragged.
+func _belongs_to_drag(meta: Dictionary) -> bool:
+	if meta.get("kind") != _drag_source.get("kind"):
+		return false
+	if meta.get("col", -1) != _drag_source.get("col", -1):
+		return false
+	if _drag_source.get("kind") == "tableau":
+		return int(meta.get("index", -1)) >= int(_drag_source.get("index", 0))
+	return true
+
+
+## `drop_point` is in canvas coords; convert to board-local for the hit test.
+func _end_drag(drop_point: Vector2) -> void:
+	var target := _target_at(drop_point - _board.global_position)
+	if is_instance_valid(_ghost):
+		_ghost.queue_free()
+	_ghost = null
+	_dragging = false
+
+	if target.is_empty() or _same_slot(target, _drag_source):
+		_rebuild()  # snap back
+		return
+
+	if _try_move(_drag_source, target):
+		AudioManager.card_moved()
+		_after_move()
+	else:
+		_rebuild()  # rejected: snap back
+	_drag_source = {}
+	_drag_cards = []
+
+
+func _same_slot(a: Dictionary, b: Dictionary) -> bool:
+	return a.get("kind") == b.get("kind") and a.get("col", -1) == b.get("col", -1)
+
+
+## The drop target under a board-local point: the topmost card or empty slot
+## there, reduced to the pile it belongs to. Dragged source cards are skipped so
+## dropping onto a column always finds the resting cards beneath the ghost.
+func _target_at(local_pos: Vector2) -> Dictionary:
+	var children := _board.get_children()
+	for i in range(children.size() - 1, -1, -1):
+		var child = children[i]
+		if not (child is Control):
+			continue
+		var meta: Dictionary = child.get_meta("slot", {})
+		if meta.is_empty() or _belongs_to_drag(meta):
+			continue
+		if (child as Control).get_rect().has_point(local_pos):
+			return {"kind": meta.get("kind", ""), "col": meta.get("col", -1),
+				"index": meta.get("index", -1)}
+	return {}
 
 
 func _begin_selection(meta: Dictionary) -> void:
