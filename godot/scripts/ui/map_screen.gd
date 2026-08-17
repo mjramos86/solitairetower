@@ -11,6 +11,7 @@ extends Control
 @onready var _scores: VBoxContainer = $Body/Side/Scores
 @onready var _header: Label = $Header/Status
 @onready var _credits: Label = $Header/Credits
+@onready var _cardback_button: Button = $Header/Cardback
 @onready var _compendium_button: Button = $Header/Compendium
 @onready var _intro_button: Button = $Header/WatchIntro
 
@@ -28,6 +29,9 @@ func _ready() -> void:
 	_header.add_theme_font_override("font", UITheme.font_at("display", 600))
 	_credits.add_theme_color_override("font_color", UITheme.GOLD)
 
+	_cardback_button.pressed.connect(func():
+		RunState.cardback_return = "map"
+		RunState.set_screen("cardback-select"))
 	_compendium_button.pressed.connect(func(): RunState.set_screen("compendium"))
 	_intro_button.pressed.connect(func():
 		RunState.intro_replay = true

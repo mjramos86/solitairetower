@@ -924,6 +924,7 @@ func test_every_scene_loads() -> void:
 		["res://scenes/screens/shop_screen.tscn", "shop"],
 		["res://scenes/screens/end_screen.tscn", "gameover"],
 		["res://scenes/screens/compendium_screen.tscn", "compendium"],
+		["res://scenes/screens/cardback_screen.tscn", "cardback-select"],
 		["res://scenes/screens/dialogue_screen.tscn", "patron-dialogue"],
 	]
 

@@ -24,6 +24,10 @@ layout_mode = 2
 layout_mode = 2
 text = "▶ INTRO"
 
+[node name="Cardback" type="Button" parent="Header"]
+layout_mode = 2
+text = "🂠 CARDBACK"
+
 [node name="Compendium" type="Button" parent="Header"]
 layout_mode = 2
 text = "📖 COMPENDIUM"
