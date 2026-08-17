@@ -6,6 +6,9 @@ extends Control
 
 @onready var _tower_host: Control = $Body/TowerHost
 @onready var _floor_list: VBoxContainer = $Body/Side/Scroll/Floors
+@onready var _floors_title: Label = $Body/Side/FloorsTitle
+@onready var _scores_title: Label = $Body/Side/ScoresTitle
+@onready var _scores: VBoxContainer = $Body/Side/Scores
 @onready var _header: Label = $Header/Status
 @onready var _credits: Label = $Header/Credits
 @onready var _compendium_button: Button = $Header/Compendium
@@ -18,6 +21,12 @@ func _ready() -> void:
 	var tower := (load(AssetPaths.TOWER_SCENE) as PackedScene).instantiate() as Control
 	_tower_host.add_child(tower)
 	tower.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	for label in [_floors_title, _scores_title]:
+		label.add_theme_font_override("font", UITheme.font_at("display", 700))
+		label.add_theme_color_override("font_color", UITheme.GOLD)
+	_header.add_theme_font_override("font", UITheme.font_at("display", 600))
+	_credits.add_theme_color_override("font_color", UITheme.GOLD)
 
 	_compendium_button.pressed.connect(func(): RunState.set_screen("compendium"))
 	_intro_button.pressed.connect(func():
@@ -41,6 +50,40 @@ func _refresh() -> void:
 	# Listed top-down: floor 10 (index 0) first, matching the descent.
 	for i in GameData.TOTAL_FLOORS:
 		_floor_list.add_child(_build_floor_row(i))
+
+	_refresh_scores()
+
+
+## Local high scores fill the space the web build's online leaderboard occupied.
+func _refresh_scores() -> void:
+	for child in _scores.get_children():
+		child.queue_free()
+
+	if SaveManager.highscores.is_empty():
+		var none := Label.new()
+		none.text = "No runs recorded yet."
+		none.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		_scores.add_child(none)
+		return
+
+	for i in mini(8, SaveManager.highscores.size()):
+		var e: Dictionary = SaveManager.highscores[i]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var rank := Label.new()
+		rank.text = "%d." % (i + 1)
+		rank.custom_minimum_size.x = 32
+		rank.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		row.add_child(rank)
+		var who := Label.new()
+		who.text = str(e.get("name", "—"))
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(who)
+		var pts := Label.new()
+		pts.text = "%d" % int(e.get("score", 0))
+		pts.add_theme_color_override("font_color", UITheme.GOLD)
+		row.add_child(pts)
+		_scores.add_child(row)
 
 
 func _build_floor_row(index: int) -> Control:

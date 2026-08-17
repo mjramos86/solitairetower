@@ -12,18 +12,25 @@ extends Control
 
 const CARD_VIEW := preload("res://scenes/card_view.tscn")
 
-## Fraction of the board width one card occupies, per variant.
-const CARD_WIDTH_RATIO := {
-	"klondike": 0.115,
-	"spider": 0.082,
-	"tripeaks": 0.088,
-	"pyramid": 0.098,
-	"freecell": 0.100,
+## Per-variant sizing budget. `cols` is how many piles sit across; `stack` is a
+## generous guess at the tallest fanned column, so a card is sized to keep that
+## column inside the board height. `top` counts extra card-height rows above the
+## tableau (foundation/free-cell row). Cards are sized to satisfy both the width
+## and the height budget, whichever is tighter.
+const LAYOUT := {
+	"klondike": {"cols": 7, "stack": 13, "top": 1.0},
+	"spider": {"cols": 10, "stack": 20, "top": 0.6},
+	"freecell": {"cols": 8, "stack": 14, "top": 1.0},
+	"tripeaks": {"cols": 10, "stack": 7, "top": 0.0},
+	"pyramid": {"cols": 8, "stack": 9, "top": 0.0},
 }
 
 const FAN_DOWN_FACE_UP := 0.30
 const FAN_DOWN_FACE_DOWN := 0.14
 const PILE_GAP := 0.18
+
+## Margins kept clear of the board edges when centring, as a fraction.
+const BOARD_MARGIN := 0.03
 
 @onready var _board: Control = $Board
 @onready var _status: Label = $Top/Status
@@ -48,7 +55,10 @@ var _hint_timer: SceneTreeTimer
 func _ready() -> void:
 	RunState.state_changed.connect(_rebuild)
 	RunState.score_changed.connect(_on_score)
-	resized.connect(_rebuild)
+	# The board only reaches its real size after the container lays it out, which
+	# happens a frame after this screen resizes — so listen to the board's own
+	# resize, not the screen's, or the first build measures a zero-width board.
+	_board.resized.connect(_rebuild)
 	_undo_button.pressed.connect(_on_undo)
 	_abandon_button.pressed.connect(_on_abandon)
 	_banner.visible = false
@@ -305,9 +315,14 @@ func _rebuild() -> void:
 	if gs.is_empty():
 		return
 
-	var ratio: float = CARD_WIDTH_RATIO.get(gs.get("type", "klondike"), 0.115)
-	var width := maxf(40.0, _board.size.x * ratio)
-	_card_size = Vector2(width, width / UITheme.CARD_ASPECT)
+	var board_w := _board.size.x
+	var board_h := _board.size.y
+	if board_w < 1.0 or board_h < 1.0:
+		# Laid out before the board has a size; the board.resized signal will
+		# call back once it does.
+		return
+
+	_card_size = _fit_card_size(String(gs.get("type", "klondike")), board_w, board_h)
 
 	match gs["type"]:
 		"klondike": _layout_klondike(gs)
@@ -315,6 +330,55 @@ func _rebuild() -> void:
 		"freecell": _layout_freecell(gs)
 		"tripeaks": _layout_tripeaks(gs)
 		"pyramid": _layout_pyramid(gs)
+
+	_centre_board(board_w, board_h)
+
+
+## Largest card that keeps the widest row and the tallest column inside the
+## board. Width and height are solved separately and the smaller wins.
+func _fit_card_size(type: String, board_w: float, board_h: float) -> Vector2:
+	var spec: Dictionary = LAYOUT.get(type, LAYOUT["klondike"])
+	var cols: float = spec["cols"]
+	var stack: float = spec["stack"]
+	var top: float = spec["top"]
+
+	var usable_w := board_w * (1.0 - BOARD_MARGIN * 2.0)
+	var usable_h := board_h * (1.0 - BOARD_MARGIN * 2.0)
+
+	# Columns span cols cards plus a gap between each; solve for card width.
+	var width_fit := usable_w / (cols * (1.0 + PILE_GAP))
+
+	# A column is one card plus (stack-1) fanned steps, plus the header rows,
+	# all in card-height units; convert the height budget back to a card width.
+	var height_units := top + 1.0 + maxf(0.0, stack - 1.0) * FAN_DOWN_FACE_UP
+	var height_fit := (usable_h / height_units) * UITheme.CARD_ASPECT
+
+	var width := clampf(minf(width_fit, height_fit), 40.0, 240.0)
+	return Vector2(width, width / UITheme.CARD_ASPECT)
+
+
+## Shifts everything the layout built so the whole board is centred horizontally
+## and sits just below the top margin. Layouts can therefore place cards from a
+## simple (0,0) origin and stay agnostic about the board's real size.
+func _centre_board(board_w: float, board_h: float) -> void:
+	var children := _board.get_children()
+	if children.is_empty():
+		return
+	var min_x := INF
+	var max_x := -INF
+	var min_y := INF
+	for child in children:
+		if child is Control:
+			var r := (child as Control).get_rect()
+			min_x = minf(min_x, r.position.x)
+			max_x = maxf(max_x, r.end.x)
+			min_y = minf(min_y, r.position.y)
+	var content_w := max_x - min_x
+	var offset_x := (board_w - content_w) * 0.5 - min_x
+	var offset_y := board_h * BOARD_MARGIN - min_y
+	for child in children:
+		if child is Control:
+			(child as Control).position += Vector2(offset_x, offset_y)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

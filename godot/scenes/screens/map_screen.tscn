@@ -31,22 +31,41 @@ text = "📖 COMPENDIUM"
 [node name="Body" type="HBoxContainer" parent="."]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 20
+theme_override_constants/separation = 24
 
 [node name="TowerHost" type="Control" parent="Body"]
-custom_minimum_size = Vector2(420, 0)
+custom_minimum_size = Vector2(460, 0)
 layout_mode = 2
+size_flags_horizontal = 0
+clip_contents = true
 mouse_filter = 2
 
 [node name="Side" type="VBoxContainer" parent="Body"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="FloorsTitle" type="Label" parent="Body/Side"]
+layout_mode = 2
+text = "THE TOWER — choose your descent"
 
 [node name="Scroll" type="ScrollContainer" parent="Body/Side"]
+custom_minimum_size = Vector2(0, 360)
 layout_mode = 2
-size_flags_vertical = 3
 
 [node name="Floors" type="VBoxContainer" parent="Body/Side/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
+
+[node name="ScoresTitle" type="Label" parent="Body/Side"]
+layout_mode = 2
+text = "🏆 LOCAL HIGH SCORES"
+
+[node name="Scores" type="VBoxContainer" parent="Body/Side"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="RightPad" type="Control" parent="Body"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
