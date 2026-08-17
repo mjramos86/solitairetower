@@ -12,18 +12,25 @@ extends Control
 
 const CARD_VIEW := preload("res://scenes/card_view.tscn")
 
-## Fraction of the board width one card occupies, per variant.
-const CARD_WIDTH_RATIO := {
-	"klondike": 0.115,
-	"spider": 0.082,
-	"tripeaks": 0.088,
-	"pyramid": 0.098,
-	"freecell": 0.100,
+## Per-variant sizing budget. `cols` is how many piles sit across; `stack` is a
+## generous guess at the tallest fanned column, so a card is sized to keep that
+## column inside the board height. `top` counts extra card-height rows above the
+## tableau (foundation/free-cell row). Cards are sized to satisfy both the width
+## and the height budget, whichever is tighter.
+const LAYOUT := {
+	"klondike": {"cols": 7, "stack": 13, "top": 1.0},
+	"spider": {"cols": 10, "stack": 20, "top": 0.6},
+	"freecell": {"cols": 8, "stack": 14, "top": 1.0},
+	"tripeaks": {"cols": 10, "stack": 7, "top": 0.0},
+	"pyramid": {"cols": 8, "stack": 9, "top": 0.0},
 }
 
 const FAN_DOWN_FACE_UP := 0.30
 const FAN_DOWN_FACE_DOWN := 0.14
 const PILE_GAP := 0.18
+
+## Margins kept clear of the board edges when centring, as a fraction.
+const BOARD_MARGIN := 0.03
 
 @onready var _board: Control = $Board
 @onready var _status: Label = $Top/Status
@@ -44,11 +51,31 @@ var _item_mode: Dictionary = {}
 var _hint_slots: Array = []
 var _hint_timer: SceneTreeTimer
 
+## Drag-and-drop. A press records here without acting; release decides whether it
+## was a click (no movement) or a drag (moved past the threshold). Click-to-place
+## still works untouched — drag is an alternative, not a replacement.
+const DRAG_THRESHOLD := 8.0
+var _press: Dictionary = {}
+var _dragging := false
+var _drag_source: Dictionary = {}
+var _drag_cards: Array = []
+var _ghost: Control
+## Cursor position within the grabbed card, so the ghost tracks from that point.
+var _grab_offset := Vector2.ZERO
+## Pointer position at the last button-down, in canvas coords. Captured in _input
+## before the card's press signal fires, since the signal carries no event. Using
+## event positions rather than get_mouse_position keeps this working with both
+## real input and pushed test events.
+var _pending_start := Vector2.ZERO
+
 
 func _ready() -> void:
 	RunState.state_changed.connect(_rebuild)
 	RunState.score_changed.connect(_on_score)
-	resized.connect(_rebuild)
+	# The board only reaches its real size after the container lays it out, which
+	# happens a frame after this screen resizes — so listen to the board's own
+	# resize, not the screen's, or the first build measures a zero-width board.
+	_board.resized.connect(_rebuild)
 	_undo_button.pressed.connect(_on_undo)
 	_abandon_button.pressed.connect(_on_abandon)
 	_banner.visible = false
@@ -305,9 +332,14 @@ func _rebuild() -> void:
 	if gs.is_empty():
 		return
 
-	var ratio: float = CARD_WIDTH_RATIO.get(gs.get("type", "klondike"), 0.115)
-	var width := maxf(40.0, _board.size.x * ratio)
-	_card_size = Vector2(width, width / UITheme.CARD_ASPECT)
+	var board_w := _board.size.x
+	var board_h := _board.size.y
+	if board_w < 1.0 or board_h < 1.0:
+		# Laid out before the board has a size; the board.resized signal will
+		# call back once it does.
+		return
+
+	_card_size = _fit_card_size(String(gs.get("type", "klondike")), board_w, board_h)
 
 	match gs["type"]:
 		"klondike": _layout_klondike(gs)
@@ -315,6 +347,55 @@ func _rebuild() -> void:
 		"freecell": _layout_freecell(gs)
 		"tripeaks": _layout_tripeaks(gs)
 		"pyramid": _layout_pyramid(gs)
+
+	_centre_board(board_w, board_h)
+
+
+## Largest card that keeps the widest row and the tallest column inside the
+## board. Width and height are solved separately and the smaller wins.
+func _fit_card_size(type: String, board_w: float, board_h: float) -> Vector2:
+	var spec: Dictionary = LAYOUT.get(type, LAYOUT["klondike"])
+	var cols: float = spec["cols"]
+	var stack: float = spec["stack"]
+	var top: float = spec["top"]
+
+	var usable_w := board_w * (1.0 - BOARD_MARGIN * 2.0)
+	var usable_h := board_h * (1.0 - BOARD_MARGIN * 2.0)
+
+	# Columns span cols cards plus a gap between each; solve for card width.
+	var width_fit := usable_w / (cols * (1.0 + PILE_GAP))
+
+	# A column is one card plus (stack-1) fanned steps, plus the header rows,
+	# all in card-height units; convert the height budget back to a card width.
+	var height_units := top + 1.0 + maxf(0.0, stack - 1.0) * FAN_DOWN_FACE_UP
+	var height_fit := (usable_h / height_units) * UITheme.CARD_ASPECT
+
+	var width := clampf(minf(width_fit, height_fit), 40.0, 240.0)
+	return Vector2(width, width / UITheme.CARD_ASPECT)
+
+
+## Shifts everything the layout built so the whole board is centred horizontally
+## and sits just below the top margin. Layouts can therefore place cards from a
+## simple (0,0) origin and stay agnostic about the board's real size.
+func _centre_board(board_w: float, board_h: float) -> void:
+	var children := _board.get_children()
+	if children.is_empty():
+		return
+	var min_x := INF
+	var max_x := -INF
+	var min_y := INF
+	for child in children:
+		if child is Control:
+			var r := (child as Control).get_rect()
+			min_x = minf(min_x, r.position.x)
+			max_x = maxf(max_x, r.end.x)
+			min_y = minf(min_y, r.position.y)
+	var content_w := max_x - min_x
+	var offset_x := (board_w - content_w) * 0.5 - min_x
+	var offset_y := board_h * BOARD_MARGIN - min_y
+	for child in children:
+		if child is Control:
+			(child as Control).position += Vector2(offset_x, offset_y)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -547,8 +628,45 @@ func _layout_pyramid(gs: Dictionary) -> void:
 #  Interaction
 # ══════════════════════════════════════════════════════════════════════════════
 
+## A card was pressed. Record it and wait: motion past the threshold starts a
+## drag, a release in place is a click. Acting on release keeps click-to-place
+## working exactly as before.
 func _on_card_pressed(view: Control) -> void:
-	var meta: Dictionary = view.get_meta("slot")
+	if RunState.gs.is_empty():
+		return
+	_press = {
+		"view": view,
+		"meta": view.get_meta("slot"),
+		"start": _pending_start,
+	}
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			# Remember where the press landed; the card's press signal fires
+			# immediately after this and reads _pending_start.
+			_pending_start = mb.position
+		else:
+			if _dragging:
+				_end_drag(mb.position)
+			elif not _press.is_empty():
+				# No movement: treat exactly as a click.
+				_click_slot(_press["meta"])
+			_press = {}
+		return
+
+	if event is InputEventMouseMotion and (not _press.is_empty() or _dragging):
+		var pointer := (event as InputEventMouseMotion).position
+		if _dragging:
+			_ghost.global_position = pointer - _grab_offset
+		elif pointer.distance_to(_press["start"]) > DRAG_THRESHOLD and _is_draggable(_press["meta"]):
+			_begin_drag()
+
+
+## The click behaviour, unchanged — runs on a release that did not become a drag.
+func _click_slot(meta: Dictionary) -> void:
 	var gs := RunState.gs
 	if gs.is_empty():
 		return
@@ -581,6 +699,149 @@ func _on_card_pressed(view: Control) -> void:
 		_begin_selection(meta)
 	else:
 		_handle_target(meta)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Drag and drop
+# ══════════════════════════════════════════════════════════════════════════════
+
+## A source is draggable only when a plain move makes sense: one of the three
+## tableau games, no armed item or stash, and a legal movable run under the grab.
+## The checks mirror _begin_selection so drag and click accept the same moves.
+func _is_draggable(meta: Dictionary) -> bool:
+	if not _item_mode.is_empty():
+		return false
+	if RunState.toolbox_uses > 0 and RunState.toolbox_card == null:
+		return false
+	var gs := RunState.gs
+	var type: String = gs.get("type", "")
+	if not ["klondike", "spider", "freecell"].has(type):
+		return false
+
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			var idx := int(meta.get("index", pile.size() - 1))
+			if idx < 0 or idx >= pile.size() or not pile[idx]["face_up"]:
+				return false
+			if type == "klondike" and not _is_valid_run(pile, idx):
+				return false
+			if type == "spider" and pile.size() - idx > Rules.spider_sequence_length(pile):
+				return false
+			if type == "freecell" and pile.size() - idx > Rules.freecell_max_movable(gs):
+				return false
+			return true
+		"waste":
+			return not gs["waste"].is_empty()
+		"freecell":
+			return gs["freecells"][meta["col"]] != null
+	return false
+
+
+func _begin_drag() -> void:
+	var meta: Dictionary = _press["meta"]
+	var gs := RunState.gs
+	_drag_source = meta
+	_drag_cards = _cards_for_drag(gs, meta)
+	if _drag_cards.is_empty():
+		_press = {}
+		return
+
+	_selection = {}
+	_dragging = true
+	var source_view: Control = _press["view"]
+	_grab_offset = _press["start"] - source_view.global_position
+
+	# Dim the cards being carried so the board shows where they came from.
+	for child in _board.get_children():
+		if child is Control and _belongs_to_drag(child.get_meta("slot", {})):
+			(child as Control).modulate.a = 0.3
+
+	# A floating stack of the dragged cards that follows the cursor.
+	_ghost = Control.new()
+	_ghost.top_level = true
+	_ghost.z_index = 100
+	_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_ghost)
+	for i in _drag_cards.size():
+		var card_view := CARD_VIEW.instantiate()
+		_ghost.add_child(card_view)
+		card_view.position = Vector2(0, i * _card_size.y * FAN_DOWN_FACE_UP)
+		card_view.custom_minimum_size = _card_size
+		card_view.size = _card_size
+		card_view.setup(_drag_cards[i])
+		card_view.face_up = true
+		card_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ghost.global_position = source_view.global_position
+	AudioManager.card_taken()
+
+
+## The run that would be picked up from a slot, without removing it yet.
+func _cards_for_drag(gs: Dictionary, meta: Dictionary) -> Array:
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			return pile.slice(int(meta.get("index", pile.size() - 1)))
+		"waste":
+			return [gs["waste"][gs["waste"].size() - 1]] if not gs["waste"].is_empty() else []
+		"freecell":
+			var c = gs["freecells"][meta["col"]]
+			return [c] if c != null else []
+	return []
+
+
+## Whether a board slot is part of the run currently being dragged.
+func _belongs_to_drag(meta: Dictionary) -> bool:
+	if meta.get("kind") != _drag_source.get("kind"):
+		return false
+	if meta.get("col", -1) != _drag_source.get("col", -1):
+		return false
+	if _drag_source.get("kind") == "tableau":
+		return int(meta.get("index", -1)) >= int(_drag_source.get("index", 0))
+	return true
+
+
+## `drop_point` is in canvas coords; convert to board-local for the hit test.
+func _end_drag(drop_point: Vector2) -> void:
+	var target := _target_at(drop_point - _board.global_position)
+	if is_instance_valid(_ghost):
+		_ghost.queue_free()
+	_ghost = null
+	_dragging = false
+
+	if target.is_empty() or _same_slot(target, _drag_source):
+		_rebuild()  # snap back
+		return
+
+	if _try_move(_drag_source, target):
+		AudioManager.card_moved()
+		_after_move()
+	else:
+		_rebuild()  # rejected: snap back
+	_drag_source = {}
+	_drag_cards = []
+
+
+func _same_slot(a: Dictionary, b: Dictionary) -> bool:
+	return a.get("kind") == b.get("kind") and a.get("col", -1) == b.get("col", -1)
+
+
+## The drop target under a board-local point: the topmost card or empty slot
+## there, reduced to the pile it belongs to. Dragged source cards are skipped so
+## dropping onto a column always finds the resting cards beneath the ghost.
+func _target_at(local_pos: Vector2) -> Dictionary:
+	var children := _board.get_children()
+	for i in range(children.size() - 1, -1, -1):
+		var child = children[i]
+		if not (child is Control):
+			continue
+		var meta: Dictionary = child.get_meta("slot", {})
+		if meta.is_empty() or _belongs_to_drag(meta):
+			continue
+		if (child as Control).get_rect().has_point(local_pos):
+			return {"kind": meta.get("kind", ""), "col": meta.get("col", -1),
+				"index": meta.get("index", -1)}
+	return {}
 
 
 func _begin_selection(meta: Dictionary) -> void:

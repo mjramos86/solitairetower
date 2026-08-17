@@ -3,11 +3,11 @@ extends Control
 ## Between-floor shop. Shows the time credits earned for the floor just cleared,
 ## three purchasable items, and the inventory. Ported from renderShop.
 
-@onready var _breakdown: VBoxContainer = $Scroll/Body/Credits/Rows
-@onready var _items: HBoxContainer = $Scroll/Body/Items/Grid
-@onready var _inventory: HBoxContainer = $Scroll/Body/Inventory/Slots
-@onready var _balance: Label = $Scroll/Body/Credits/Balance
-@onready var _continue_button: Button = $Scroll/Body/Continue
+@onready var _breakdown: VBoxContainer = $Margin/Scroll/Body/Credits/Rows
+@onready var _items: HBoxContainer = $Margin/Scroll/Body/Items/Grid
+@onready var _inventory: HBoxContainer = $Margin/Scroll/Body/Inventory/Slots
+@onready var _balance: Label = $Margin/Scroll/Body/Credits/Balance
+@onready var _continue_button: Button = $Margin/Scroll/Body/Continue
 
 
 func _ready() -> void:
