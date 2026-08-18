@@ -6,7 +6,7 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 script = ExtResource("1")
 
 [node name="Top" type="HBoxContainer" parent="."]
@@ -17,13 +17,26 @@ theme_override_constants/separation = 16
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="Moves" type="Label" parent="Top"]
+layout_mode = 2
+
+[node name="Gold" type="Label" parent="Top"]
+layout_mode = 2
+
 [node name="Progress" type="ProgressBar" parent="Top"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 show_percentage = false
 
-[node name="Score" type="Label" parent="Top"]
+[node name="Score" type="Button" parent="Top"]
 layout_mode = 2
+flat = true
+text = "★ 0 pts"
+
+[node name="Rules" type="Label" parent="."]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.62, 0.72, 1)
+autowrap_mode = 3
 
 [node name="Banner" type="Label" parent="."]
 layout_mode = 2
@@ -48,6 +61,16 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = "UNDO"
 
+[node name="Shuffle" type="Button" parent="Bottom"]
+layout_mode = 2
+text = "⟳ SHUFFLE"
+
+[node name="Pause" type="Button" parent="Bottom"]
+layout_mode = 2
+text = "⏸ PAUSE"
+
 [node name="Abandon" type="Button" parent="Bottom"]
 layout_mode = 2
 text = "ABANDON FLOOR"
+
+[node name="Overlays" type="CanvasLayer" parent="."]

@@ -34,12 +34,18 @@ const BOARD_MARGIN := 0.03
 
 @onready var _board: Control = $Board
 @onready var _status: Label = $Top/Status
-@onready var _score_label: Label = $Top/Score
+@onready var _moves_label: Label = $Top/Moves
+@onready var _gold_label: Label = $Top/Gold
+@onready var _score_label: Button = $Top/Score
 @onready var _progress: ProgressBar = $Top/Progress
+@onready var _rules_label: Label = $Rules
 @onready var _inventory_bar: HBoxContainer = $Bottom/Inventory
 @onready var _undo_button: Button = $Bottom/Undo
+@onready var _shuffle_button: Button = $Bottom/Shuffle
+@onready var _pause_button: Button = $Bottom/Pause
 @onready var _abandon_button: Button = $Bottom/Abandon
 @onready var _banner: Label = $Banner
+@onready var _overlays: CanvasLayer = $Overlays
 
 ## {"kind": "tableau"/"waste"/"freecell"/"pyramid", "col": int, "index": int}
 var _selection: Dictionary = {}
@@ -77,13 +83,39 @@ func _ready() -> void:
 	# resize, not the screen's, or the first build measures a zero-width board.
 	_board.resized.connect(_rebuild)
 	_undo_button.pressed.connect(_on_undo)
+	_shuffle_button.pressed.connect(_on_shuffle)
+	_pause_button.pressed.connect(_on_pause)
 	_abandon_button.pressed.connect(_on_abandon)
+	_score_label.pressed.connect(_show_score_history)
+	_score_label.tooltip_text = "View this floor's score history"
 	_banner.visible = false
+	_rules_label.add_theme_font_override("font", UITheme.font("body"))
+	_rules_label.add_theme_font_size_override("font_size", 13)
 	_rebuild()
 
 
 func _on_undo() -> void:
 	RunState.undo_move()
+
+
+## Re-deals the current floor from scratch. Like abandoning, it costs a life —
+## RunState.new_shuffle enforces that — so it is behind a confirmation.
+func _on_shuffle() -> void:
+	var confirm := ConfirmationDialog.new()
+	confirm.title = "Shuffle"
+	confirm.dialog_text = "Re-deal this floor with a fresh shuffle?\n\nYou will lose a life."
+	add_child(confirm)
+	confirm.popup_centered()
+	confirm.confirmed.connect(func():
+		RunState.new_shuffle()
+		confirm.queue_free())
+	confirm.canceled.connect(confirm.queue_free)
+
+
+## Pauses the clock and covers the board, matching the web build's togglePause.
+func _on_pause() -> void:
+	RunState.stop_timer()
+	_show_pause_overlay()
 
 
 func _on_abandon() -> void:
@@ -111,15 +143,24 @@ func _refresh_header() -> void:
 	var hearts := ""
 	for i in RunState.lives:
 		hearts += "♥"
-	_status.text = "%s   Floor %d   %s   %s" % [
+	_status.text = "%s   %s Floor %d   %s   ⏱ %s" % [
 		hearts,
+		GameData.ICONS.get(RunState.gtype, ""),
 		GameData.TOTAL_FLOORS - RunState.floor_index,
 		GameData.NAMES.get(RunState.gtype, RunState.gtype),
 		RunState.format_elapsed(),
 	]
+	_moves_label.text = "%d mv" % RunState.moves
+	_moves_label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	_gold_label.text = "⏳ %d" % RunState.gold
+	_gold_label.add_theme_color_override("font_color", UITheme.GOLD)
 	_score_label.text = "★ %d pts" % RunState.score
 	_progress.max_value = GameData.MAX_CARD_POINTS
 	_progress.value = RunState.total_card_points()
+	var rule_items := PackedStringArray()
+	for r in GameData.RULES.get(RunState.gtype, []):
+		rule_items.append("▸ " + str(r))
+	_rules_label.text = "    ".join(rule_items)
 	_undo_button.text = "UNDO (%d)" % RunState.undos_remaining()
 	_undo_button.disabled = RunState.undo_stack.is_empty() or RunState.undos_remaining() <= 0
 
@@ -1229,3 +1270,151 @@ func _check_win() -> void:
 	if Rules.is_won(RunState.gs):
 		RunState.win_overlay = true
 		RunState.next_floor()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Overlays (pause, score history)
+# ══════════════════════════════════════════════════════════════════════════════
+
+func _clear_overlays() -> void:
+	for child in _overlays.get_children():
+		child.queue_free()
+
+
+## A full-screen dimmer that swallows board input while an overlay is up.
+func _overlay_root(dim: float) -> Control:
+	_clear_overlays()
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, dim)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(bg)
+	_overlays.add_child(root)
+	return root
+
+
+func _framed_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UITheme.occult_panel())
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	return panel
+
+
+func _show_pause_overlay() -> void:
+	var root := _overlay_root(0.9)
+	var panel := _framed_panel()
+	root.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 24)
+	box.custom_minimum_size = Vector2(360, 0)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 40)
+	margin.add_child(box)
+	panel.add_child(margin)
+
+	var title := Label.new()
+	title.text = "⏸ PAUSED"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_override("font", UITheme.font_at("display", 700))
+	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_color_override("font_color", UITheme.GOLD)
+	box.add_child(title)
+
+	var resume := Button.new()
+	resume.text = "▶ Continue"
+	resume.pressed.connect(func():
+		RunState.start_timer()
+		_clear_overlays())
+	box.add_child(resume)
+
+
+## The floor's scoring ledger, opened by clicking the score. Ported from
+## scoreHistOverlayHTML — only this floor's events, most recent first, with a
+## running floor total.
+func _show_score_history() -> void:
+	var root := _overlay_root(0.75)
+	# Clicking the dim area outside the panel closes it. The background rect (the
+	# root's first child) is what actually receives the click, so listen there.
+	var bg := root.get_child(0) as Control
+	bg.gui_input.connect(func(e):
+		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
+			_clear_overlays())
+
+	var panel := _framed_panel()
+	root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	box.custom_minimum_size = Vector2(440, 0)
+	# Stop clicks inside the panel from bubbling up to the close-on-outside handler.
+	box.mouse_filter = Control.MOUSE_FILTER_STOP
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "★ Score History — Floor %d" % (GameData.TOTAL_FLOORS - RunState.floor_index)
+	title.add_theme_font_override("font", UITheme.font_at("display", 700))
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", UITheme.GOLD)
+	box.add_child(title)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 320)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var rows := VBoxContainer.new()
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_theme_constant_override("separation", 2)
+	scroll.add_child(rows)
+
+	var floor_total := 0
+	var count := 0
+	for e in RunState.score_log:
+		if int(e.get("floor", -1)) != RunState.floor_index:
+			continue
+		count += 1
+		var amount := int(e.get("amount", 0))
+		floor_total += amount
+		rows.add_child(_score_row(str(e.get("reason", "score")),
+			"%s%d pts" % ["+" if amount >= 0 else "", amount],
+			UITheme.GOLD if amount >= 0 else UITheme.DANGER))
+
+	if count == 0:
+		var none := Label.new()
+		none.text = "No scoring events this floor yet."
+		none.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		rows.add_child(none)
+	else:
+		var sep := HSeparator.new()
+		box.add_child(sep)
+		box.add_child(_score_row("Floor total",
+			"%s%d pts" % ["+" if floor_total >= 0 else "", floor_total], UITheme.TEXT))
+
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(_clear_overlays)
+	box.add_child(close)
+
+
+func _score_row(label_text: String, value_text: String, value_color: Color) -> Control:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var name_label := Label.new()
+	name_label.text = label_text
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.add_theme_color_override("font_color", UITheme.TEXT)
+	row.add_child(name_label)
+	var value_label := Label.new()
+	value_label.text = value_text
+	value_label.add_theme_color_override("font_color", value_color)
+	row.add_child(value_label)
+	return row

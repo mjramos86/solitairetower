@@ -25,6 +25,7 @@ func _ready() -> void:
 	test_freecell()
 	test_scoring()
 	test_variant_scoring()
+	await test_game_hud()
 	test_tp_streak_undo()
 	test_shop_and_choices()
 	test_save_round_trip()
@@ -406,6 +407,54 @@ func test_variant_scoring() -> void:
 	screen._selection = {}
 	screen._pyramid_click({"kind": "pyramid", "index": 23})  # a King clears alone
 	check_eq(RunState.score, 5, "pyramid king scores a flat 5")
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+
+
+## The in-game screen carries every element the web build showed during play:
+## the moves counter, gold, the per-variant rules strip, and the shuffle / pause
+## controls, plus the pause and score-history overlays.
+func test_game_hud() -> void:
+	suite("in-game HUD elements")
+	RunState.new_run()
+	RunState.gtype = "klondike"
+	RunState.start_game("klondike", 4)
+	RunState.gold = 320
+	RunState.add_score(20, "card points")
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+
+	# Every required readout and control is wired into the scene.
+	check(screen.get_node_or_null("Top/Moves") != null, "moves counter present")
+	check(screen.get_node_or_null("Top/Gold") != null, "gold display present")
+	check(screen.get_node_or_null("Rules") != null, "rules strip present")
+	check(screen.get_node_or_null("Top/Score") is Button, "score is a clickable button")
+	check(screen.get_node_or_null("Bottom/Shuffle") != null, "shuffle button present")
+	check(screen.get_node_or_null("Bottom/Pause") != null, "pause button present")
+	check(screen.get_node_or_null("Bottom/Abandon") != null, "abandon button present")
+	check(screen.get_node_or_null("Overlays") is CanvasLayer, "overlay layer present")
+
+	check(GameData.RULES.has("klondike"), "rules data exists for klondike")
+	check(not screen._rules_label.text.is_empty(), "rules strip is populated")
+	check("320" in screen._gold_label.text, "gold shows the current amount")
+
+	# The score-history overlay builds its rows and clears cleanly.
+	var overlays: CanvasLayer = screen.get_node("Overlays")
+	screen._show_score_history()
+	check_eq(overlays.get_child_count(), 1, "score history opens one overlay")
+	screen._clear_overlays()
+	await get_tree().process_frame
+	check_eq(overlays.get_child_count(), 0, "clearing removes the overlay")
+
+	# The pause overlay stops the clock; resuming is available on it.
+	screen._on_pause()
+	check_eq(overlays.get_child_count(), 1, "pause opens one overlay")
+	screen._clear_overlays()
+	await get_tree().process_frame
 
 	remove_child(screen)
 	screen.queue_free()
