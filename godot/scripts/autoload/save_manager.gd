@@ -241,8 +241,17 @@ func reveal_patron(id: String) -> void:
 	mark_seen("revealed_patrons", id)
 
 
+## Whether a patron's identity is revealed. Ported from the web build, where
+## `marie.revealed` is not stored on its own — it is derived from John Dee's
+## connection being uncovered (unlockConnection/applyProfileToPatrons both do
+## `if id == "johndee": mary.revealed = true`). Deriving it here means the link
+## holds however the save was written, exactly as the web recompute-on-load did.
 func is_patron_revealed(id: String) -> bool:
-	return has_seen("revealed_patrons", id)
+	if has_seen("revealed_patrons", id):
+		return true
+	if id == "marie":
+		return has_seen("unlocked_connections", "johndee")
+	return false
 
 
 # ══════════════════════════════════════════════════════════════════════════════

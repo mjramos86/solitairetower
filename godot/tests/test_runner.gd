@@ -24,6 +24,10 @@ func _ready() -> void:
 	test_pyramid()
 	test_freecell()
 	test_scoring()
+	test_variant_scoring()
+	await test_game_hud()
+	await test_win_overlay()
+	test_tp_streak_undo()
 	test_shop_and_choices()
 	test_save_round_trip()
 	test_full_run()
@@ -31,6 +35,7 @@ func _ready() -> void:
 	test_item_effects()
 	test_narrative()
 	test_every_scene_loads()
+	test_unlockables()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -317,6 +322,211 @@ func test_scoring() -> void:
 	check_eq(RunState.score, 1000, "clearing floor 0 awards 1000")
 
 	check_eq(GameData.MAX_CARD_POINTS, 1040, "perfect card score is 52 x 20")
+
+
+## Each variant scores a move the way the web build did — not with the uniform
+## 20-point-per-card model, which only Klondike uses. Drives the real game-screen
+## scoring methods so a regression in _score_move / _tripeaks_play / _pyramid_click
+## is caught, not just the constants.
+func test_variant_scoring() -> void:
+	suite("per-variant scoring")
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)  # resolves @onready nodes; the zero-size board no-ops _rebuild
+
+	# ── Klondike: waste→tableau is 5, →foundation fills to the 20 cap. ──
+	RunState.new_run()
+	RunState.gtype = "klondike"
+	RunState.gs = {"type": "klondike", "card_points": {}}
+	RunState.score = 0
+	var kc := Cards.make_card(Cards.Suit.SPADES, 5)
+	screen._score_move(RunState.gs, {"kind": "waste"}, {"kind": "tableau", "col": 0}, [kc])
+	check_eq(RunState.score, 5, "klondike waste→tableau scores 5")
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 0}, {"kind": "foundation", "col": 0}, [kc])
+	check_eq(RunState.score, 20, "klondike →foundation tops the same card up to 20")
+
+	# Tableau→tableau earns nothing.
+	RunState.score = 0
+	RunState.gs = {"type": "klondike", "card_points": {}}
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 1}, {"kind": "tableau", "col": 2},
+		[Cards.make_card(Cards.Suit.HEARTS, 9)])
+	check_eq(RunState.score, 0, "klondike tableau→tableau scores nothing")
+
+	# ── FreeCell: a flat 5 to a foundation, never touching the card ledger. ──
+	RunState.gtype = "freecell"
+	RunState.gs = {"type": "freecell", "card_points": {}}
+	RunState.score = 0
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 0}, {"kind": "foundation", "col": 0},
+		[Cards.make_card(Cards.Suit.CLUBS, 1)])
+	check_eq(RunState.score, 5, "freecell →foundation scores a flat 5")
+	check_eq(RunState.total_card_points(), 0, "freecell does not use the 20-point ledger")
+
+	# ── Spider: only the +100 suit bonus; a plain move scores nothing. ──
+	RunState.gtype = "spider"
+	RunState.gs = {"type": "spider", "card_points": {}}
+	RunState.score = 0
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 0}, {"kind": "tableau", "col": 1},
+		[Cards.make_card(Cards.Suit.SPADES, 10)])
+	check_eq(RunState.score, 0, "spider tableau move scores nothing on its own")
+
+	# ── TriPeaks: streak length per card, +15 for a peak; a failed play resets. ──
+	RunState.gtype = "tripeaks"
+	RunState.score = 0
+	RunState.tp_streak = 0
+	var pyr := []
+	for i in 28:
+		pyr.append(null)
+	pyr[0] = Cards.make_card(Cards.Suit.HEARTS, 6)   # a peak (index < 3)
+	pyr[27] = Cards.make_card(Cards.Suit.SPADES, 2)  # keeps the board unwon
+	RunState.gs = {"type": "tripeaks", "pyramid": pyr,
+		"waste": [Cards.make_card(Cards.Suit.CLUBS, 5)], "card_points": {}}
+	screen._tripeaks_play({"kind": "pyramid", "index": 0})
+	check_eq(RunState.tp_streak, 1, "first tripeaks play sets streak to 1")
+	check_eq(RunState.score, 16, "peak play scores streak(1) + 15 bonus")
+
+	# A failed play (an unplayable free card) resets the streak.
+	screen._tripeaks_play({"kind": "pyramid", "index": 27})  # rank 2 vs waste top rank 6
+	check_eq(RunState.tp_streak, 0, "a failed tripeaks play resets the streak")
+
+	# ── Pyramid: any pair summing to 13 is +10; a King clears alone for +5. ──
+	RunState.gtype = "pyramid"
+	RunState.score = 0
+	screen._selection = {}
+	var ppyr := []
+	for i in 28:
+		ppyr.append(Cards.make_card(Cards.Suit.SPADES, 4))  # filler, never clicked
+	ppyr[21] = Cards.make_card(Cards.Suit.HEARTS, 6)
+	ppyr[22] = Cards.make_card(Cards.Suit.CLUBS, 7)
+	ppyr[23] = Cards.make_card(Cards.Suit.DIAMONDS, 13)
+	RunState.gs = {"type": "pyramid", "pyramid": ppyr, "waste": [], "card_points": {}}
+	screen._pyramid_click({"kind": "pyramid", "index": 21})  # selects the 6
+	screen._pyramid_click({"kind": "pyramid", "index": 22})  # 6 + 7 = 13
+	check_eq(RunState.score, 10, "pyramid pair scores a flat 10")
+
+	RunState.score = 0
+	screen._selection = {}
+	screen._pyramid_click({"kind": "pyramid", "index": 23})  # a King clears alone
+	check_eq(RunState.score, 5, "pyramid king scores a flat 5")
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+
+
+## The in-game screen carries every element the web build showed during play:
+## the moves counter, gold, the per-variant rules strip, and the shuffle / pause
+## controls, plus the pause and score-history overlays.
+func test_game_hud() -> void:
+	suite("in-game HUD elements")
+	RunState.new_run()
+	RunState.gtype = "klondike"
+	RunState.start_game("klondike", 4)
+	RunState.gold = 320
+	RunState.add_score(20, "card points")
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+
+	# Every required readout and control is wired into the scene.
+	check(screen.get_node_or_null("Top/Moves") != null, "moves counter present")
+	check(screen.get_node_or_null("Top/Gold") != null, "gold display present")
+	check(screen.get_node_or_null("Rules") != null, "rules strip present")
+	check(screen.get_node_or_null("Top/Score") is Button, "score is a clickable button")
+	check(screen.get_node_or_null("Bottom/Shuffle") != null, "shuffle button present")
+	check(screen.get_node_or_null("Bottom/Pause") != null, "pause button present")
+	check(screen.get_node_or_null("Bottom/Abandon") != null, "abandon button present")
+	check(screen.get_node_or_null("Overlays") is CanvasLayer, "overlay layer present")
+
+	check(GameData.RULES.has("klondike"), "rules data exists for klondike")
+	check(not screen._rules_label.text.is_empty(), "rules strip is populated")
+	check("320" in screen._gold_label.text, "gold shows the current amount")
+
+	# The score-history overlay builds its rows and clears cleanly.
+	var overlays: CanvasLayer = screen.get_node("Overlays")
+	screen._show_score_history()
+	check_eq(overlays.get_child_count(), 1, "score history opens one overlay")
+	screen._clear_overlays()
+	await get_tree().process_frame
+	check_eq(overlays.get_child_count(), 0, "clearing removes the overlay")
+
+	# The pause overlay stops the clock; resuming is available on it.
+	screen._on_pause()
+	check_eq(overlays.get_child_count(), 1, "pause opens one overlay")
+	screen._clear_overlays()
+	await get_tree().process_frame
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+
+
+## Clearing a floor raises the floor-clear overlay and holds there; the
+## floor-clear bonus and the routing onward happen only when the player descends,
+## matching the web build's winOverlay → nextFloor flow.
+func test_win_overlay() -> void:
+	suite("floor-clear overlay")
+	SaveManager.erase_all()
+	RunState.new_run()
+	RunState.start_game("klondike", 0)
+
+	# A solved Klondike board: every foundation complete A→K.
+	var won := {"type": "klondike", "tableau": [[], [], [], [], [], [], []],
+		"stock": [], "waste": [], "foundations": [[], [], [], []], "card_points": {}}
+	for suit in 4:
+		for rank in range(1, 14):
+			won["foundations"][suit].append(Cards.make_card(suit, rank))
+	RunState.gs = won
+	check(Rules.is_won(won), "board is solved")
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+	var overlays: CanvasLayer = screen.get_node("Overlays")
+
+	# Winning raises exactly one overlay and does not advance on its own.
+	screen._check_win()
+	check(RunState.win_overlay, "win sets the overlay flag")
+	check_eq(overlays.get_child_count(), 1, "win raises exactly one overlay")
+	check(not RunState.done.has(0), "the floor is not cleared until the player descends")
+
+	# Descending clears the floor and routes onward (to the shop from floor 0).
+	var button := _first_button(overlays)
+	check(button != null, "overlay carries a descend button")
+	if button != null:
+		button.pressed.emit()
+	check(RunState.done.has(0), "descending marks the floor cleared")
+	check_eq(RunState.screen, "shop", "descending from floor 0 routes to the shop")
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+	SaveManager.erase_all()
+
+
+func _first_button(node: Node) -> Button:
+	for c in node.get_children():
+		if c is Button:
+			return c
+		var found := _first_button(c)
+		if found != null:
+			return found
+	return null
+
+
+## The TriPeaks streak survives undo, so rewinding a play restores the streak the
+## board had before it — matching the web build's undo snapshot.
+func test_tp_streak_undo() -> void:
+	suite("tripeaks streak undo")
+	RunState.new_run()
+	RunState.gs = {"type": "tripeaks", "card_points": {}}
+	RunState.tp_streak = 3
+	RunState.push_undo()
+	RunState.tp_streak = 4
+	check(RunState.undo_move(), "undo succeeds")
+	check_eq(RunState.tp_streak, 3, "undo restores the streak to its pre-move value")
+	RunState.new_run()
 
 
 func test_shop_and_choices() -> void:
@@ -762,13 +972,19 @@ func test_item_effects() -> void:
 	check_eq(Cards.key(RunState.gs["waste"][RunState.gs["waste"].size() - 1]), Cards.key(wanted),
 		"the chosen card is on the waste")
 
-	# ── Queen's Patronage: clears the floor outright ──
+	# ── Queen's Patronage: auto-clears the floor via the win overlay ──
+	# Like a real win, it raises the floor-clear overlay and holds; the clear and
+	# the routing happen when the player descends (web skip-floor calls handleWin).
 	RunState.new_run()
 	RunState.start_game("klondike", 0)
 	r = ItemEffects.activate(GameData.item_by_id("exec-chair"), 0)
 	check(r["consumed"], "patronage is consumed")
-	check(RunState.done.has(0), "the floor counts as cleared")
-	check_eq(RunState.screen, "shop", "patronage routes to the shop")
+	check(bool(r.get("win", false)), "patronage raises the floor-clear overlay")
+	check(RunState.win_overlay, "patronage sets the win-overlay flag")
+	check(not RunState.done.has(0), "the floor clears only when the player descends")
+	RunState.next_floor()  # simulate the descend button
+	check(RunState.done.has(0), "descending clears the floor")
+	check_eq(RunState.screen, "shop", "patronage routes to the shop after descending")
 
 	# ── Vial of Quicksilver: retreat with no life lost ──
 	RunState.new_run()
@@ -891,15 +1107,16 @@ func test_narrative() -> void:
 	check(SaveManager.has_seen("unlocked_connections", "johndee"),
 		"connection survives a reload")
 
-	# The revealed patron shows her true name.
+	# The revealed patron shows her true name. (The reveal *chain* — John Dee's
+	# connection revealing Mary — is covered in full by test_unlockables; here
+	# the save already has that connection unlocked, so she is revealed.)
 	var marie := {}
 	for p in Narrative.PATRONS:
 		if String(p["id"]) == "marie":
 			marie = p
 	check(marie.has("true_name"), "the other queen has a true name")
-	check(not SaveManager.is_patron_revealed("marie"), "she starts unrevealed")
-	SaveManager.reveal_patron("marie")
-	check(SaveManager.is_patron_revealed("marie"), "reveal persists")
+	check(SaveManager.is_patron_revealed("marie"),
+		"Mary is revealed once John Dee's connection is unlocked")
 
 	SaveManager.erase_all()
 
@@ -967,5 +1184,85 @@ func test_every_scene_loads() -> void:
 	# Every screen the router can reach must have a scene registered.
 	var app_script := load("res://scripts/ui/app.gd")
 	check(app_script != null, "app.gd loads")
+
+	SaveManager.erase_all()
+
+
+## Verifies the unlock chain matches the web build exactly:
+##   John Dee's connection (gated behind his third transmission, costs Time
+##   Energy) reveals Mary, and Mary's reveal is the only thing that unlocks the
+##   Mary's Cipher card back. In-development patrons cannot be bought.
+func test_unlockables() -> void:
+	suite("unlockables")
+	SaveManager.erase_all()
+
+	# Mirrors cardback_screen._is_unlocked and the web cardbackUnlocked.
+	var cardback_unlocked := func(id: String) -> bool:
+		for cb in GameData.CARDBACKS:
+			if cb["id"] == id:
+				if bool(cb.get("unlocked", false)):
+					return true
+				if cb.has("requires_reveal"):
+					return SaveManager.is_patron_revealed(String(cb["requires_reveal"]))
+				return false
+		return false
+
+	# The three free backs are always available; Mary's starts locked.
+	check(cardback_unlocked.call("classic"), "classic back is always unlocked")
+	check(cardback_unlocked.call("cult"), "cult back is always unlocked")
+	check(cardback_unlocked.call("dee"), "dee back is always unlocked")
+	check(not cardback_unlocked.call("marie"), "Mary's Cipher starts locked")
+	check(not SaveManager.is_patron_revealed("marie"), "Mary starts unrevealed")
+
+	# John Dee's connection is unavailable until his third transmission.
+	check(not bool(SaveManager.profile.get("dee_dialogue3_done", false)),
+		"third transmission not seen yet")
+
+	# Reveal is derived from John Dee's connection, so before it is uncovered
+	# Mary is not revealed even though the flag is checked directly.
+	check(not SaveManager.has_seen("unlocked_connections", "johndee"),
+		"John Dee's connection starts locked")
+
+	# Not enough Time Energy: the connection cannot be uncovered.
+	SaveManager.profile["dee_dialogue3_done"] = true
+	SaveManager.add_banked_credits(400)
+	check(not SaveManager.spend_banked_credits(500), "cannot afford the 500 connection")
+	check(not SaveManager.is_patron_revealed("marie"), "Mary still hidden after a failed buy")
+
+	# Uncover John Dee's connection: this is the sole trigger for Mary's reveal.
+	SaveManager.add_banked_credits(200)  # now 600
+	check(SaveManager.spend_banked_credits(500), "can afford the connection now")
+	SaveManager.mark_seen("unlocked_connections", "johndee")
+
+	check(SaveManager.is_patron_revealed("marie"),
+		"uncovering John Dee's connection reveals Mary")
+	check(cardback_unlocked.call("marie"),
+		"Mary's reveal unlocks the Mary's Cipher card back")
+	check_eq(int(SaveManager.profile["banked_credits"]), 100, "connection cost was deducted")
+
+	# The link survives a save/reload, since it is derived from the stored
+	# connection rather than a separate reveal flag.
+	SaveManager.save_game()
+	SaveManager.load_game()
+	check(SaveManager.has_seen("unlocked_connections", "johndee"), "connection persists")
+	check(SaveManager.is_patron_revealed("marie"), "Mary stays revealed after reload")
+	check(cardback_unlocked.call("marie"), "Mary's Cipher stays unlocked after reload")
+
+	# In-development patrons carry a cost in the data but cannot be bought — the
+	# only reveal path is the connection above.
+	var marie := {}
+	for entry in Narrative.PATRONS:
+		if String(entry["id"]) == "marie":
+			marie = entry
+	check(bool(marie.get("in_development", false)), "Mary is flagged in development")
+	check(marie.has("patron_unlock_cost"), "Mary carries a patron unlock cost in the data")
+
+	# A fresh save with no John Dee connection keeps Mary locked regardless of
+	# how much Time Energy is banked — there is no direct purchase.
+	SaveManager.erase_all()
+	SaveManager.add_banked_credits(5000)
+	check(not SaveManager.is_patron_revealed("marie"),
+		"Time Energy alone cannot reveal an in-development patron")
+	check(not cardback_unlocked.call("marie"), "Mary's Cipher stays locked without the connection")
 
 	SaveManager.erase_all()

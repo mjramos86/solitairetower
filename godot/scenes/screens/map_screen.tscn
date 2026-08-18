@@ -1,75 +1,67 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 [ext_resource type="Script" path="res://scripts/ui/map_screen.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/tower_map.gd" id="2"]
 
 [node name="MapScreen" type="VBoxContainer"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 script = ExtResource("1")
 
-[node name="Header" type="HBoxContainer" parent="."]
+[node name="Head" type="VBoxContainer" parent="."]
 layout_mode = 2
-theme_override_constants/separation = 20
+theme_override_constants/separation = 2
 
-[node name="Status" type="Label" parent="Header"]
+[node name="Title" type="Label" parent="Head"]
 layout_mode = 2
-size_flags_horizontal = 3
+horizontal_alignment = 1
+text = "The Solitaire Tower of Doom"
 
-[node name="Credits" type="Label" parent="Header"]
+[node name="Sub" type="Label" parent="Head"]
 layout_mode = 2
-
-[node name="WatchIntro" type="Button" parent="Header"]
-layout_mode = 2
-text = "▶ INTRO"
-
-[node name="Cardback" type="Button" parent="Header"]
-layout_mode = 2
-text = "🂠 CARDBACK"
-
-[node name="Compendium" type="Button" parent="Header"]
-layout_mode = 2
-text = "📖 COMPENDIUM"
+horizontal_alignment = 1
+text = "A horror roguelike Solitaire game"
 
 [node name="Body" type="HBoxContainer" parent="."]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 24
+theme_override_constants/separation = 16
 
-[node name="TowerHost" type="Control" parent="Body"]
-custom_minimum_size = Vector2(460, 0)
+[node name="SidePanel" type="ScrollContainer" parent="Body"]
+custom_minimum_size = Vector2(230, 0)
 layout_mode = 2
-size_flags_horizontal = 0
-clip_contents = true
-mouse_filter = 2
 
-[node name="Side" type="VBoxContainer" parent="Body"]
+[node name="Side" type="VBoxContainer" parent="Body/SidePanel"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="FloorsTitle" type="Label" parent="Body/Side"]
-layout_mode = 2
-text = "THE TOWER — choose your descent"
-
-[node name="Scroll" type="ScrollContainer" parent="Body/Side"]
-custom_minimum_size = Vector2(0, 360)
-layout_mode = 2
-
-[node name="Floors" type="VBoxContainer" parent="Body/Side/Scroll"]
+[node name="Tower" type="Control" parent="Body"]
+custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
+script = ExtResource("2")
 
-[node name="ScoresTitle" type="Label" parent="Body/Side"]
+[node name="ScoresPad" type="MarginContainer" parent="Body"]
+custom_minimum_size = Vector2(330, 0)
 layout_mode = 2
-text = "🏆 LOCAL HIGH SCORES"
+theme_override_constants/margin_right = 30
 
-[node name="Scores" type="VBoxContainer" parent="Body/Side"]
+[node name="ScoresPanel" type="VBoxContainer" parent="Body/ScoresPad"]
 layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ScoresTitle" type="Label" parent="Body/ScoresPad/ScoresPanel"]
+layout_mode = 2
+text = "🏆 HIGH SCORES"
+
+[node name="ScoresScroll" type="ScrollContainer" parent="Body/ScoresPad/ScoresPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Scores" type="VBoxContainer" parent="Body/ScoresPad/ScoresPanel/ScoresScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 3
-
-[node name="RightPad" type="Control" parent="Body"]
-custom_minimum_size = Vector2(48, 0)
-layout_mode = 2

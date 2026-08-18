@@ -1,64 +1,126 @@
 extends Control
 
-## Tower map. Ten floors, each offering a choice of two solitaire variants;
-## the player descends from floor 10 to floor 1. Ported from renderMap and
-## buildTowerPath.
+## Tower map. The centre is the tower with its floor nodes (tower_map.gd); this
+## script fills the left info panel and the right high-score list, matching the
+## layout of renderMap in index.html: a descent from floor 10 down to floor 1.
 
-@onready var _tower_host: Control = $Body/TowerHost
-@onready var _floor_list: VBoxContainer = $Body/Side/Scroll/Floors
-@onready var _floors_title: Label = $Body/Side/FloorsTitle
-@onready var _scores_title: Label = $Body/Side/ScoresTitle
-@onready var _scores: VBoxContainer = $Body/Side/Scores
-@onready var _header: Label = $Header/Status
-@onready var _credits: Label = $Header/Credits
-@onready var _cardback_button: Button = $Header/Cardback
-@onready var _compendium_button: Button = $Header/Compendium
-@onready var _intro_button: Button = $Header/WatchIntro
+@onready var _title: Label = $Head/Title
+@onready var _sub: Label = $Head/Sub
+@onready var _side: VBoxContainer = $Body/SidePanel/Side
+@onready var _tower = $Body/Tower
+@onready var _scores_title: Label = $Body/ScoresPad/ScoresPanel/ScoresTitle
+@onready var _scores: VBoxContainer = $Body/ScoresPad/ScoresPanel/ScoresScroll/Scores
 
 
 func _ready() -> void:
-	# load() returns an untyped Resource, so cast to PackedScene before
-	# instantiating — otherwise the result has no static type to infer from.
-	var tower := (load(AssetPaths.TOWER_SCENE) as PackedScene).instantiate() as Control
-	_tower_host.add_child(tower)
-	tower.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_title.add_theme_font_override("font", UITheme.font_at("title", 900))
+	_title.add_theme_font_size_override("font_size", 40)
+	_title.add_theme_color_override("font_color", UITheme.GOLD)
+	_sub.add_theme_font_override("font", UITheme.font_at("display", 500))
+	_sub.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	_scores_title.add_theme_font_override("font", UITheme.font_at("display", 700))
+	_scores_title.add_theme_color_override("font_color", UITheme.GOLD)
 
-	for label in [_floors_title, _scores_title]:
-		label.add_theme_font_override("font", UITheme.font_at("display", 700))
-		label.add_theme_color_override("font_color", UITheme.GOLD)
-	_header.add_theme_font_override("font", UITheme.font_at("display", 600))
-	_credits.add_theme_color_override("font_color", UITheme.GOLD)
-
-	_cardback_button.pressed.connect(func():
-		RunState.cardback_return = "map"
-		RunState.set_screen("cardback-select"))
-	_compendium_button.pressed.connect(func(): RunState.set_screen("compendium"))
-	_intro_button.pressed.connect(func():
-		RunState.intro_replay = true
-		RunState.set_screen("patron-dialogue"))
+	_tower.game_chosen.connect(func(type, floor_index): RunState.start_game(type, floor_index))
 
 	RunState.state_changed.connect(_refresh)
 	_refresh()
 
 
 func _refresh() -> void:
-	var hearts := ""
-	for i in RunState.lives:
-		hearts += "♥"
-	_header.text = "%s   ★ %d pts   ⏳ %d" % [hearts, RunState.score, RunState.gold]
-	_credits.text = "⚡ %d banked" % int(SaveManager.profile.get("banked_credits", 0))
-
-	for child in _floor_list.get_children():
-		child.queue_free()
-
-	# Listed top-down: floor 10 (index 0) first, matching the descent.
-	for i in GameData.TOTAL_FLOORS:
-		_floor_list.add_child(_build_floor_row(i))
-
+	_build_side()
 	_refresh_scores()
 
 
-## Local high scores fill the space the web build's online leaderboard occupied.
+# ══════════════════════════════════════════════════════════════════════════════
+#  Left info panel
+# ══════════════════════════════════════════════════════════════════════════════
+
+func _build_side() -> void:
+	for child in _side.get_children():
+		child.queue_free()
+
+	_add_section("Time Patron", _patron_badge())
+
+	var hearts := ""
+	for i in RunState.lives:
+		hearts += "♥"
+	if hearts == "":
+		hearts = "—"
+	_add_section("Lives", _text_value(hearts, UITheme.DANGER, 22))
+
+	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD))
+	_add_section("Time Energy",
+		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD))
+
+	_add_section("Inventory", _inventory_slots())
+
+	_add_section("Lore", _panel_button("📖 Compendium",
+		func(): RunState.set_screen("compendium")))
+	_add_section("Customize", _panel_button("🂠 Cardback", func():
+		RunState.cardback_return = "map"
+		RunState.set_screen("cardback-select")))
+	_side.add_child(_panel_button("▶ Watch Intro", func():
+		RunState.intro_replay = true
+		RunState.set_screen("patron-dialogue")))
+
+
+func _add_section(label_text: String, content: Control) -> void:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	var label := Label.new()
+	label.text = label_text.to_upper()
+	label.add_theme_font_override("font", UITheme.font_at("display", 600))
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	box.add_child(label)
+	box.add_child(content)
+	_side.add_child(box)
+
+
+func _text_value(text: String, color: Color, font_size := 18) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	return label
+
+
+func _patron_badge() -> Control:
+	var portrait := TextureRect.new()
+	portrait.texture = load(AssetPaths.PATRONS["johndee"])
+	portrait.custom_minimum_size = Vector2(72, 72)
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	return portrait
+
+
+func _inventory_slots() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 3)
+	for i in GameData.INVENTORY_SLOTS:
+		var label := Label.new()
+		if i < RunState.inventory.size():
+			var item: Dictionary = RunState.inventory[i]
+			label.text = "%s %s" % [item["icon"], item["name"]]
+		else:
+			label.text = "[ empty ]"
+			label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		box.add_child(label)
+	return box
+
+
+func _panel_button(text: String, action: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.pressed.connect(action)
+	return button
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  High scores
+# ══════════════════════════════════════════════════════════════════════════════
+
 func _refresh_scores() -> void:
 	for child in _scores.get_children():
 		child.queue_free()
@@ -70,13 +132,13 @@ func _refresh_scores() -> void:
 		_scores.add_child(none)
 		return
 
-	for i in mini(8, SaveManager.highscores.size()):
+	for i in mini(16, SaveManager.highscores.size()):
 		var e: Dictionary = SaveManager.highscores[i]
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
+		row.add_theme_constant_override("separation", 8)
 		var rank := Label.new()
 		rank.text = "%d." % (i + 1)
-		rank.custom_minimum_size.x = 32
+		rank.custom_minimum_size.x = 30
 		rank.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		row.add_child(rank)
 		var who := Label.new()
@@ -88,48 +150,3 @@ func _refresh_scores() -> void:
 		pts.add_theme_color_override("font_color", UITheme.GOLD)
 		row.add_child(pts)
 		_scores.add_child(row)
-
-
-func _build_floor_row(index: int) -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-
-	var label := Label.new()
-	label.text = "Floor %d" % (GameData.TOTAL_FLOORS - index)
-	label.custom_minimum_size.x = 90
-	label.add_theme_font_override("font", UITheme.font_at("display", 600))
-	label.add_theme_color_override("font_color", UITheme.GOLD)
-	row.add_child(label)
-
-	var cleared := RunState.done.has(index)
-	var current := index == RunState.floor_index
-
-	if cleared:
-		var done := Label.new()
-		done.text = "✓ cleared"
-		done.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-		row.add_child(done)
-		return row
-
-	if not current:
-		var locked := Label.new()
-		locked.text = "—"
-		locked.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-		row.add_child(locked)
-		return row
-
-	# Only the current floor is playable, and only its two offered variants.
-	var choice: Dictionary = RunState.choices[index] if index < RunState.choices.size() else {}
-	var options := []
-	if choice.has("left"):
-		options.append(choice["left"])
-	if choice.has("right") and choice["right"] != choice.get("left"):
-		options.append(choice["right"])
-
-	for type in options:
-		var button := Button.new()
-		button.text = "%s %s" % [GameData.ICONS.get(type, ""), GameData.NAMES.get(type, type)]
-		button.pressed.connect(func(): RunState.start_game(type, index))
-		row.add_child(button)
-
-	return row

@@ -22,6 +22,40 @@ const ICONS := {
 	"freecell": "👑",
 }
 
+## Per-variant rules shown as a reference strip during play. Ported from RULES.
+const RULES := {
+	"klondike": [
+		"Build 4 foundation piles A→K by suit",
+		"Tableau: descending rank, alternating colour",
+		"Draw from stock to waste; move waste top card to play",
+		"Flip hidden cards by clearing cards above them",
+	],
+	"spider": [
+		"Build complete K→A sequences of the same suit",
+		"Completed sequences removed to foundations",
+		"Deal 10 new cards from stock when stuck",
+		"Clear all 8 sequences to win",
+	],
+	"tripeaks": [
+		"Play cards +1 or -1 rank from waste top (A↔K wrap)",
+		"Click pyramid cards to chain onto the waste",
+		"Draw from stock when no move available",
+		"Clear all 28 pyramid cards to win",
+	],
+	"pyramid": [
+		"Pair cards that sum to 13 (A=1, J=11, Q=12, K=13)",
+		"Kings are removed alone",
+		"Use the waste top to pair with pyramid cards",
+		"Clear all pyramid cards to win",
+	],
+	"freecell": [
+		"All cards dealt face-up — every deal is solvable",
+		"Build foundations A→K by suit",
+		"Use free cells as temporary card parking",
+		"Tableau: descending rank, alternating colour",
+	],
+}
+
 const TOTAL_FLOORS := 10
 const STARTING_LIVES := 3
 const INVENTORY_SLOTS := 3
