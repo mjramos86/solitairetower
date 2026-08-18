@@ -1,4 +1,4 @@
-extends Control
+extends PanelContainer
 
 ## The card table. Lays out and drives all five variants.
 ##
@@ -32,20 +32,33 @@ const PILE_GAP := 0.18
 ## Margins kept clear of the board edges when centring, as a fraction.
 const BOARD_MARGIN := 0.03
 
-@onready var _board: Control = $Board
-@onready var _status: Label = $Top/Status
-@onready var _moves_label: Label = $Top/Moves
-@onready var _gold_label: Label = $Top/Gold
-@onready var _score_label: Button = $Top/Score
-@onready var _progress: ProgressBar = $Top/Progress
-@onready var _rules_label: Label = $Rules
-@onready var _inventory_bar: HBoxContainer = $Bottom/Inventory
-@onready var _undo_button: Button = $Bottom/Undo
-@onready var _shuffle_button: Button = $Bottom/Shuffle
-@onready var _pause_button: Button = $Bottom/Pause
-@onready var _abandon_button: Button = $Bottom/Abandon
-@onready var _banner: Label = $Banner
+@onready var _window: PanelContainer = self as PanelContainer
+@onready var _title_bar: PanelContainer = $Rows/TitleBar
+@onready var _title_icon: Label = $Rows/TitleBar/TitleRow/TitleIcon
+@onready var _title_text: Label = $Rows/TitleBar/TitleRow/TitleText
+@onready var _win_btns: HBoxContainer = $Rows/TitleBar/TitleRow/WinBtns
+@onready var _toolbar: PanelContainer = $Rows/Toolbar
+@onready var _moves_label: Label = $Rows/Toolbar/ToolRow/Moves
+@onready var _gold_label: Label = $Rows/Toolbar/ToolRow/Gold
+@onready var _hearts_label: Label = $Rows/Toolbar/ToolRow/Hearts
+@onready var _progress: ProgressBar = $Rows/ScoreBar
+@onready var _rules_label: Label = $Rows/Rules
+@onready var _inventory_bar: HBoxContainer = $Rows/Toolbar/ToolRow/Inventory
+@onready var _undo_button: Button = $Rows/Toolbar/ToolRow/Undo
+@onready var _shuffle_button: Button = $Rows/Toolbar/ToolRow/Shuffle
+@onready var _pause_button: Button = $Rows/Toolbar/ToolRow/Pause
+@onready var _abandon_button: Button = $Rows/Toolbar/ToolRow/Abandon
+@onready var _banner: Label = $Rows/Banner
+@onready var _board: Control = $Rows/Board/Felt
+@onready var _board_frame: PanelContainer = $Rows/Board
+@onready var _status_bar: PanelContainer = $Rows/StatusBar
+@onready var _status_row: HBoxContainer = $Rows/StatusBar/StatusRow
 @onready var _overlays: CanvasLayer = $Overlays
+
+## The clickable "★ N pts" status pane, built in code so it can open the ledger.
+var _score_pane: Button
+## The five status-bar text panes: floor, variant, lives, score, timer.
+var _status_panes: Array = []
 
 ## {"kind": "tableau"/"waste"/"freecell"/"pyramid", "col": int, "index": int}
 var _selection: Dictionary = {}
@@ -86,12 +99,176 @@ func _ready() -> void:
 	_shuffle_button.pressed.connect(_on_shuffle)
 	_pause_button.pressed.connect(_on_pause)
 	_abandon_button.pressed.connect(_on_abandon)
-	_score_label.pressed.connect(_show_score_history)
-	_score_label.tooltip_text = "View this floor's score history"
 	_banner.visible = false
-	_rules_label.add_theme_font_override("font", UITheme.font("body"))
-	_rules_label.add_theme_font_size_override("font_size", 13)
+	_style_chrome()
+	_build_window_buttons()
+	_build_status_panes()
 	_rebuild()
+
+
+## Applies the Windows-95 desktop look the web build wrapped the table in: a
+## beveled grey window, a dark gradient title bar, a toolbar, a sunken felt board
+## and a status bar. Done here rather than in the .tscn so the exact CSS colours
+## live next to the palette that named them.
+func _style_chrome() -> void:
+	var pixel := UITheme.font("pixel")
+
+	# The window frame: raised bevel, grey fill.
+	_window.add_theme_stylebox_override("panel", UITheme.bevel_raised(UITheme.W95_BG, Vector2(2, 2)))
+
+	# Title bar: the --w95-titlebar gradient, white pixel text.
+	var grad := Gradient.new()
+	grad.set_color(0, UITheme.W95_TITLEBAR1)
+	grad.set_color(1, UITheme.W95_TITLEBAR2)
+	var grad_tex := GradientTexture2D.new()
+	grad_tex.gradient = grad
+	grad_tex.width = 256
+	grad_tex.height = 8
+	var title_box := StyleBoxTexture.new()
+	title_box.texture = grad_tex
+	title_box.content_margin_left = 6
+	title_box.content_margin_right = 4
+	title_box.content_margin_top = 3
+	title_box.content_margin_bottom = 3
+	_title_bar.add_theme_stylebox_override("panel", title_box)
+	for label in [_title_icon, _title_text]:
+		label.add_theme_font_override("font", pixel)
+		label.add_theme_font_size_override("font_size", 20)
+		label.add_theme_color_override("font_color", Color.WHITE)
+
+	# Toolbar: flat grey with a dark bottom rule.
+	var tool_box := UITheme.bevel_raised(UITheme.W95_BG, Vector2(6, 4))
+	tool_box.light_color = UITheme.W95_BG  # no top/left highlight, just the fill
+	_toolbar.add_theme_stylebox_override("panel", tool_box)
+	for label in [_moves_label, _gold_label, _hearts_label]:
+		label.add_theme_font_override("font", pixel)
+		label.add_theme_font_size_override("font_size", 18)
+	_hearts_label.add_theme_color_override("font_color", UITheme.CARD_RED)
+	# The gold "time credits" pill: yellow, sunken.
+	_gold_label.add_theme_stylebox_override("normal", _pill_box())
+	_gold_label.add_theme_color_override("font_color", UITheme.GOLD_PILL_TEXT)
+
+	# Rules strip: light grey band, small pixel text.
+	var rules_box := StyleBoxFlat.new()
+	rules_box.bg_color = UITheme.W95_HOVER
+	rules_box.border_width_top = 1
+	rules_box.border_width_bottom = 1
+	rules_box.border_color = UITheme.W95_DARKER
+	rules_box.content_margin_left = 8
+	rules_box.content_margin_right = 8
+	rules_box.content_margin_top = 3
+	rules_box.content_margin_bottom = 3
+	_rules_label.add_theme_stylebox_override("normal", rules_box)
+	_rules_label.add_theme_font_override("font", pixel)
+	_rules_label.add_theme_font_size_override("font_size", 15)
+	_rules_label.add_theme_color_override("font_color", Color("333333"))
+
+	# The felt board: sunken well, dark purple fill.
+	_board_frame.add_theme_stylebox_override("panel",
+		UITheme.bevel_sunken(UITheme.FELT, Vector2(4, 4)))
+
+	# Status bar: grey band of sunken panes.
+	var status_box := UITheme.bevel_raised(UITheme.W95_BG, Vector2(2, 2))
+	status_box.light_color = UITheme.W95_DARK  # just a top rule
+	status_box.dark_color = UITheme.W95_BG
+	_status_bar.add_theme_stylebox_override("panel", status_box)
+
+	# The klondike score bar sits flush under the rules strip.
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = UITheme.GOLD
+	_progress.add_theme_stylebox_override("fill", fill)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(1, 1, 1, 0.06)
+	_progress.add_theme_stylebox_override("background", track)
+
+
+## A yellow, sunken pixel-text pill, shared by the gold display.
+func _pill_box() -> BevelStyleBox:
+	var s := UITheme.bevel_sunken(UITheme.GOLD_PILL_BG, Vector2(8, 2))
+	return s
+
+
+## The three decorative title-bar window buttons (_ □ ✕).
+func _build_window_buttons() -> void:
+	for glyph in ["_", "□", "✕"]:
+		var b := Label.new()
+		b.text = glyph
+		b.custom_minimum_size = Vector2(18, 16)
+		b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		b.add_theme_font_override("font", UITheme.font("mono"))
+		b.add_theme_font_size_override("font_size", 10)
+		b.add_theme_color_override("font_color", Color.BLACK)
+		b.add_theme_stylebox_override("normal", UITheme.bevel_raised(UITheme.W95_BG, Vector2(0, 0), 1.5))
+		# Label has no "normal" stylebox slot; wrap it in a PanelContainer instead.
+		var frame := PanelContainer.new()
+		frame.add_theme_stylebox_override("panel", UITheme.bevel_raised(UITheme.W95_BG, Vector2(4, 1), 1.5))
+		frame.add_child(b)
+		_win_btns.add_child(frame)
+
+
+## Builds the bottom status bar's sunken panes. The score pane is a button so it
+## opens the score history, matching the web's clickable score pane. Text is set
+## later by _refresh_header; the panes themselves are built once.
+func _build_status_panes() -> void:
+	for child in _status_row.get_children():
+		child.queue_free()
+	_status_panes = []
+
+	# Floor / variant / lives / score / timer, then the version, pushed right.
+	for i in 5:
+		_status_panes.append(_add_status_pane(i == 3))
+	_score_pane = _status_panes[3]
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status_row.add_child(spacer)
+
+	var version := _make_status_label()
+	version.text = "Solitaire Tower of Doom v2.0"
+	_status_row.add_child(_wrap_pane(version))
+
+
+func _make_status_label() -> Label:
+	var label := Label.new()
+	label.add_theme_font_override("font", UITheme.font("pixel"))
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", UITheme.W95_DARKER)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return label
+
+
+## A pane's sunken frame: 1px dark top-left, white bottom-right, per .win95-status-pane.
+func _pane_box() -> BevelStyleBox:
+	var s := UITheme.bevel_sunken(UITheme.W95_BG, Vector2(10, 3), 1.0)
+	s.light_color = UITheme.W95_DARK
+	s.dark_color = UITheme.W95_WHITE
+	return s
+
+
+func _wrap_pane(child: Control) -> PanelContainer:
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", _pane_box())
+	frame.add_child(child)
+	return frame
+
+
+## Adds a text pane; when `clickable` it is a Button that opens the score history.
+func _add_status_pane(clickable: bool) -> Control:
+	if clickable:
+		var button := Button.new()
+		button.flat = true
+		button.add_theme_font_override("font", UITheme.font("pixel"))
+		button.add_theme_font_size_override("font_size", 18)
+		button.add_theme_color_override("font_color", UITheme.W95_DARKER)
+		button.add_theme_color_override("font_hover_color", UITheme.W95_TITLE)
+		button.tooltip_text = "View this floor's score history"
+		button.pressed.connect(_show_score_history)
+		_status_row.add_child(_wrap_pane(button))
+		return button
+	var label := _make_status_label()
+	_status_row.add_child(_wrap_pane(label))
+	return label
 
 
 func _on_undo() -> void:
@@ -140,29 +317,53 @@ func _on_score(total: int, _delta: int, _reason: String) -> void:
 
 
 func _refresh_header() -> void:
+	var floor_no := GameData.TOTAL_FLOORS - RunState.floor_index
+	var name: String = GameData.NAMES.get(RunState.gtype, RunState.gtype)
+	var icon: String = GameData.ICONS.get(RunState.gtype, "")
+
+	_title_text.text = "Solitaire Tower of Doom — %s (Floor %d)" % [name, floor_no]
+
 	var hearts := ""
 	for i in RunState.lives:
 		hearts += "♥"
-	_status.text = "%s   %s Floor %d   %s   ⏱ %s" % [
-		hearts,
-		GameData.ICONS.get(RunState.gtype, ""),
-		GameData.TOTAL_FLOORS - RunState.floor_index,
-		GameData.NAMES.get(RunState.gtype, RunState.gtype),
-		RunState.format_elapsed(),
-	]
-	_moves_label.text = "%d mv" % RunState.moves
-	_moves_label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-	_gold_label.text = "⏳ %d" % RunState.gold
-	_gold_label.add_theme_color_override("font_color", UITheme.GOLD)
-	_score_label.text = "★ %d pts" % RunState.score
+	_hearts_label.text = hearts if hearts != "" else "—"
+	_moves_label.text = "%dmv" % RunState.moves
+	_gold_label.text = "⏳%d" % RunState.gold
+
+	if _status_panes.size() >= 5:
+		_status_panes[0].text = "Floor %d of 10" % floor_no
+		_status_panes[1].text = "%s %s" % [icon, name]
+		_status_panes[2].text = "♥ %d" % RunState.lives
+		_status_panes[3].text = "★ %s pts" % _comma(RunState.score)
+		_status_panes[4].text = "⏱ %s" % RunState.format_elapsed()
+
+	# The card-point bar only means anything in Klondike, as in the web build.
+	_progress.visible = RunState.gtype == "klondike"
 	_progress.max_value = GameData.MAX_CARD_POINTS
 	_progress.value = RunState.total_card_points()
+
 	var rule_items := PackedStringArray()
 	for r in GameData.RULES.get(RunState.gtype, []):
 		rule_items.append("▸ " + str(r))
-	_rules_label.text = "    ".join(rule_items)
-	_undo_button.text = "UNDO (%d)" % RunState.undos_remaining()
+	_rules_label.text = "  ".join(rule_items)
+
+	_undo_button.text = "↩ Undo (%d)" % RunState.undos_remaining()
 	_undo_button.disabled = RunState.undo_stack.is_empty() or RunState.undos_remaining() <= 0
+	_abandon_button.add_theme_color_override("font_color", UITheme.MAROON)
+	_shuffle_button.add_theme_color_override("font_color", UITheme.MAROON)
+
+
+## Thousands separators, matching the web's toLocaleString on the score.
+func _comma(n: int) -> String:
+	var s := str(absi(n))
+	var out := ""
+	var c := 0
+	for i in range(s.length() - 1, -1, -1):
+		out = s[i] + out
+		c += 1
+		if c % 3 == 0 and i > 0:
+			out = "," + out
+	return ("-" if n < 0 else "") + out
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -173,25 +374,42 @@ func _refresh_inventory() -> void:
 	for child in _inventory_bar.get_children():
 		child.queue_free()
 
-	for i in RunState.inventory.size():
-		var item: Dictionary = RunState.inventory[i]
-		var button := Button.new()
-		button.text = "%s %s" % [item["icon"], item["name"]]
-		button.tooltip_text = "%s\n\n%s" % [item["desc"], item["use"]]
-		# Re-clicking an armed item cancels it, as the web build did.
-		if not _item_mode.is_empty() and int(_item_mode.get("inv_index", -1)) == i:
-			button.text = "✕ CANCEL"
-		button.pressed.connect(_on_item_pressed.bind(i))
-		_inventory_bar.add_child(button)
-
-	if RunState.inventory.is_empty():
-		var empty := Label.new()
-		empty.text = "No items — buy some in the shop"
-		empty.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-		_inventory_bar.add_child(empty)
+	# Three fixed Win95 slots, icon-only, like the web toolbar's .inv-slot-btn.
+	for i in GameData.INVENTORY_SLOTS:
+		if i < RunState.inventory.size():
+			var item: Dictionary = RunState.inventory[i]
+			var armed := not _item_mode.is_empty() and int(_item_mode.get("inv_index", -1)) == i
+			var button := _make_inv_slot(String(item["icon"]), armed)
+			button.tooltip_text = "%s: %s" % [item["name"], item["use"]]
+			button.pressed.connect(_on_item_pressed.bind(i))
+			_inventory_bar.add_child(button)
+		else:
+			_inventory_bar.add_child(_make_inv_slot("·", false, true))
 
 	if RunState.toolbox_uses > 0 or RunState.toolbox_card != null:
 		_inventory_bar.add_child(_build_toolbox_slot())
+
+
+## A compact 34×28 Win95 inventory slot. Empty slots are dim and inert; an armed
+## item glows yellow, matching .inv-slot-btn / .empty-inv / .armed.
+func _make_inv_slot(glyph: String, armed: bool, empty := false) -> Button:
+	var button := Button.new()
+	button.text = glyph
+	button.custom_minimum_size = Vector2(34, 28)
+	button.focus_mode = Control.FOCUS_NONE
+	var bg := UITheme.W95_BG
+	if empty:
+		bg = Color("a0a0a0")
+	elif armed:
+		bg = UITheme.ITEM_ARMED
+	var box := UITheme.bevel_sunken(bg, Vector2(2, 2)) if armed \
+		else UITheme.bevel_raised(bg, Vector2(2, 2))
+	button.add_theme_stylebox_override("normal", box)
+	button.add_theme_stylebox_override("hover", UITheme.bevel_raised(UITheme.W95_HOVER, Vector2(2, 2)))
+	button.add_theme_stylebox_override("pressed", UITheme.bevel_sunken(bg, Vector2(2, 2)))
+	button.add_theme_font_size_override("font_size", 16)
+	button.add_theme_color_override("font_color", Color.BLACK)
+	return button
 
 
 ## The Alchemist's Cabinet: an off-board slot holding one card for 8 uses.
@@ -274,6 +492,19 @@ func _cancel_item_mode() -> void:
 func _show_banner() -> void:
 	_banner.text = String(_item_mode.get("banner", ""))
 	_banner.visible = _banner.text != ""
+	# The web item-mode banner is a bright yellow bar with black pixel text.
+	var box := StyleBoxFlat.new()
+	box.bg_color = UITheme.ITEM_BANNER_BG
+	box.border_width_bottom = 2
+	box.border_color = Color("cccc00")
+	box.content_margin_left = 12
+	box.content_margin_right = 12
+	box.content_margin_top = 4
+	box.content_margin_bottom = 4
+	_banner.add_theme_stylebox_override("normal", box)
+	_banner.add_theme_font_override("font", UITheme.font("pixel"))
+	_banner.add_theme_font_size_override("font_size", 18)
+	_banner.add_theme_color_override("font_color", Color.BLACK)
 
 
 ## Hint glow, temporary reveal and stock peek all expire on a timer.
