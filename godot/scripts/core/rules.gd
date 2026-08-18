@@ -13,11 +13,22 @@ extends RefCounted
 
 const MAX_CARD_POINTS := 20
 
-## Points awarded per event, from klondike.md.
+## Points awarded per event, from klondike.md (Klondike) and the per-variant
+## handlers in index.html.
+##
+## Klondike is the only variant scored through the 20-point-per-card ledger
+## (award_card_points); the others award flat amounts via add_score:
+##   FreeCell   +5 for any card sent to a foundation
+##   TriPeaks   the running streak length per peak card, +15 for a top card
+##   Pyramid    +10 for any pair summing to 13, +5 for a King cleared alone
 const PTS_WASTE_TO_TABLEAU := 5
 const PTS_REVEAL := 5
 const PTS_FOUNDATION := 20
 const PTS_SUIT_COMPLETED := 100
+const PTS_FREECELL_FOUNDATION := 5
+const PTS_TRIPEAKS_PEAK := 15
+const PTS_PYRAMID_PAIR := 10
+const PTS_PYRAMID_KING := 5
 
 
 ## Difficulty band for a floor index (0 = floor 10, 9 = floor 1).

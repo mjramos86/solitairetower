@@ -157,6 +157,7 @@ static func activate(item: Dictionary, inv_index: int) -> Dictionary:
 				RunState.gs = prev["gs"]
 				RunState.moves = int(prev["moves"])
 				RunState.score = int(prev["score"])
+				RunState.tp_streak = int(prev.get("tp_streak", 0))
 				steps += 1
 			RunState.win_overlay = false
 			return _result(true, "Rewound %d moves!" % steps)
@@ -258,7 +259,9 @@ static func _ace_to_foundation(type: String, gs: Dictionary) -> Dictionary:
 				s["foundations"][top["suit"]].append(top)
 				RunState.push_undo()
 				RunState.gs = s
-				Rules.klondike_auto_reveal(s)
+				# klAutoReveal both flips and scores the exposed card, as in the web.
+				for revealed in Rules.klondike_auto_reveal(s):
+					RunState.award_card_points(revealed, Rules.PTS_REVEAL)
 				RunState.add_score(15, "ace to foundation")
 				return _result(true, "Ace sent to its foundation.")
 		if not s["waste"].is_empty():

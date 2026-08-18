@@ -34,6 +34,12 @@ var win_overlay := false
 var score := 0
 var score_log: Array = []
 
+## TriPeaks streak counter. Each card played from the pyramid scores the current
+## streak length and lengthens it; a failed play resets it to zero. Ported from
+## A.tpStreak — note the web build does NOT reset it on a stock draw, only on a
+## failed play or leaving the board, so neither does this.
+var tp_streak := 0
+
 var gold := 0
 var inventory: Array = []
 var shop_items: Array = []
@@ -82,6 +88,7 @@ func new_run() -> void:
 	win_overlay = false
 	score = 0
 	score_log = []
+	tp_streak = 0
 	gold = 0
 	inventory = []
 	shop_items = []
@@ -118,6 +125,7 @@ func start_game(type: String, target_floor: int) -> void:
 	toolbox_card = null
 	toolbox_uses = 0
 	extra_freecell = false
+	tp_streak = 0
 
 	gs = Rules.init_game(type, target_floor, extra_freecell)
 	start_timer()
@@ -130,6 +138,7 @@ func start_game(type: String, target_floor: int) -> void:
 func next_floor() -> void:
 	if not done.has(floor_index):
 		done.append(floor_index)
+	tp_streak = 0
 	SaveManager.record_game_result(gtype, true)
 	add_score(100 * (GameData.TOTAL_FLOORS - floor_index), "floor cleared")
 	floor_cleared.emit(floor_index)
@@ -201,6 +210,7 @@ func abandon_floor() -> bool:
 	var free_idx := _find_item_by_effect("no-life-abandon")
 	if free_idx >= 0:
 		inventory.remove_at(free_idx)
+		tp_streak = 0
 		_reset_board_flags()
 		set_screen("map")
 		state_changed.emit()
@@ -225,6 +235,7 @@ func new_shuffle() -> bool:
 func _lose_life() -> bool:
 	lives -= 1
 	lives_changed.emit(lives)
+	tp_streak = 0
 	_reset_board_flags()
 	if lives <= 0:
 		stop_timer()
@@ -305,6 +316,7 @@ func push_undo() -> void:
 		"gs": Cards.clone_state(gs),
 		"moves": moves,
 		"score": score,
+		"tp_streak": tp_streak,
 	})
 	if undo_stack.size() > MAX_UNDO_STACK:
 		undo_stack.pop_front()
@@ -324,6 +336,7 @@ func undo_move() -> bool:
 	gs = prev["gs"]
 	moves = int(prev["moves"])
 	score = int(prev["score"])
+	tp_streak = int(prev.get("tp_streak", 0))
 	win_overlay = false
 	if bonus_undos > 0:
 		bonus_undos -= 1
@@ -378,6 +391,7 @@ func to_snapshot() -> Dictionary:
 		"gs": gs,
 		"score": score,
 		"score_log": score_log,
+		"tp_streak": tp_streak,
 		"gold": gold,
 		"inventory": inventory,
 		"shop_items": shop_items,
@@ -407,6 +421,7 @@ func from_snapshot(snap: Dictionary) -> void:
 	gs = snap.get("gs", {})
 	score = int(snap.get("score", 0))
 	score_log = snap.get("score_log", [])
+	tp_streak = int(snap.get("tp_streak", 0))
 	gold = int(snap.get("gold", 0))
 	inventory = snap.get("inventory", [])
 	shop_items = snap.get("shop_items", [])

@@ -938,10 +938,16 @@ func _try_move(from: Dictionary, to: Dictionary) -> bool:
 	RunState.push_undo()
 	_score_move(gs, from, to, cards)
 	_take_cards(gs, from, false)
-	if gs["type"] == "klondike" or gs["type"] == "spider":
-		for revealed in Rules.klondike_auto_reveal(gs):
-			RunState.gs = gs
-			RunState.award_card_points(revealed, Rules.PTS_REVEAL)
+	# Klondike scores +5 for each card it flips face-up (klAutoReveal). Spider
+	# flips its newly-exposed cards too but awards nothing for it, matching the
+	# web build's silent reveal.
+	match gs["type"]:
+		"klondike":
+			for revealed in Rules.klondike_auto_reveal(gs):
+				RunState.gs = gs
+				RunState.award_card_points(revealed, Rules.PTS_REVEAL)
+		"spider":
+			Rules.klondike_auto_reveal(gs)
 	if gs["type"] == "spider":
 		for c in 10:
 			var suit := Rules.spider_check_complete(gs["tableau"][c])
@@ -985,12 +991,24 @@ func _take_cards(gs: Dictionary, from: Dictionary, peek: bool) -> Array:
 	return []
 
 
+## Each variant scores a move differently, exactly as the web build did:
+##   Klondike  waste→tableau earns 5 card-points per card; →foundation earns up
+##             to the 20-point cap. Tableau→tableau earns nothing.
+##   FreeCell  →foundation is a flat +5 ('card to foundation'); nothing else.
+##   Spider    no per-move points at all — only the +100 suit-complete bonus,
+##             which _try_move awards separately.
 func _score_move(gs: Dictionary, from: Dictionary, to: Dictionary, cards: Array) -> void:
 	RunState.gs = gs
-	if to.get("kind") == "foundation":
-		RunState.award_card_points(cards[0], Rules.PTS_FOUNDATION)
-	elif from.get("kind") == "waste" and to.get("kind") == "tableau":
-		RunState.award_card_points(cards[0], Rules.PTS_WASTE_TO_TABLEAU)
+	match gs.get("type", ""):
+		"klondike":
+			if to.get("kind") == "foundation":
+				RunState.award_card_points(cards[0], Rules.PTS_FOUNDATION)
+			elif from.get("kind") == "waste" and to.get("kind") == "tableau":
+				for c in cards:
+					RunState.award_card_points(c, Rules.PTS_WASTE_TO_TABLEAU)
+		"freecell":
+			if to.get("kind") == "foundation":
+				RunState.add_score(Rules.PTS_FREECELL_FOUNDATION, "card to foundation")
 
 
 func _draw_stock() -> void:
@@ -1010,18 +1028,24 @@ func _draw_stock() -> void:
 	_after_move()
 
 
+## TriPeaks scores an ascending streak: each card taken from the peaks scores the
+## running streak length and lengthens it, with a +15 bonus for a peak (a top
+## card, index < 3). A click on a card that cannot be taken breaks the streak.
+## Ported from the src==='pycard' branch of handleClick. Note a stock draw does
+## NOT reset the streak in the web build, so _draw_stock leaves it untouched.
 func _tripeaks_play(meta: Dictionary) -> void:
 	var gs := Cards.clone_state(RunState.gs)
 	if meta.get("kind") != "pyramid":
 		return
 	var idx := int(meta["index"])
-	if not Rules.tripeaks_free(gs["pyramid"], idx):
-		return
 	var waste_top = null
 	if not gs["waste"].is_empty():
 		waste_top = gs["waste"][gs["waste"].size() - 1]
-	var card: Dictionary = gs["pyramid"][idx]
-	if not Rules.tripeaks_can_play(card, waste_top):
+	var card = gs["pyramid"][idx] if Rules.tripeaks_free(gs["pyramid"], idx) else null
+	if card == null or not Rules.tripeaks_can_play(card, waste_top):
+		# A failed play resets the streak.
+		RunState.tp_streak = 0
+		_rebuild()
 		return
 	RunState.push_undo()
 	gs["pyramid"][idx] = null
@@ -1029,7 +1053,10 @@ func _tripeaks_play(meta: Dictionary) -> void:
 	gs["waste"].append(card)
 	Rules.tripeaks_update_face_up(gs["pyramid"])
 	RunState.gs = gs
-	RunState.award_card_points(card, Rules.PTS_FOUNDATION)
+	RunState.tp_streak += 1
+	RunState.add_score(RunState.tp_streak, "streak x%d" % RunState.tp_streak)
+	if idx < 3:
+		RunState.add_score(Rules.PTS_TRIPEAKS_PEAK, "top card bonus")
 	AudioManager.card_moved()
 	_after_move()
 
@@ -1045,7 +1072,9 @@ func _pyramid_click(meta: Dictionary) -> void:
 		RunState.push_undo()
 		_pyramid_remove(gs, meta)
 		RunState.gs = gs
-		RunState.award_card_points(picked, Rules.PTS_FOUNDATION)
+		# A King clears alone for a flat +5, logged by its source as the web did.
+		var reason := "waste pair" if meta.get("kind") == "waste" else "king removed"
+		RunState.add_score(Rules.PTS_PYRAMID_KING, reason)
 		_selection = {}
 		AudioManager.card_moved()
 		_after_move()
@@ -1068,8 +1097,8 @@ func _pyramid_click(meta: Dictionary) -> void:
 		_pyramid_remove(gs, _selection)
 		_pyramid_remove(gs, meta)
 		RunState.gs = gs
-		RunState.award_card_points(first, Rules.PTS_FOUNDATION)
-		RunState.award_card_points(picked, Rules.PTS_FOUNDATION)
+		# Any pair summing to 13 scores a flat +10, regardless of source.
+		RunState.add_score(Rules.PTS_PYRAMID_PAIR, "pair matched")
 		_selection = {}
 		AudioManager.card_moved()
 		_after_move()

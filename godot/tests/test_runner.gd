@@ -24,6 +24,8 @@ func _ready() -> void:
 	test_pyramid()
 	test_freecell()
 	test_scoring()
+	test_variant_scoring()
+	test_tp_streak_undo()
 	test_shop_and_choices()
 	test_save_round_trip()
 	test_full_run()
@@ -318,6 +320,110 @@ func test_scoring() -> void:
 	check_eq(RunState.score, 1000, "clearing floor 0 awards 1000")
 
 	check_eq(GameData.MAX_CARD_POINTS, 1040, "perfect card score is 52 x 20")
+
+
+## Each variant scores a move the way the web build did — not with the uniform
+## 20-point-per-card model, which only Klondike uses. Drives the real game-screen
+## scoring methods so a regression in _score_move / _tripeaks_play / _pyramid_click
+## is caught, not just the constants.
+func test_variant_scoring() -> void:
+	suite("per-variant scoring")
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)  # resolves @onready nodes; the zero-size board no-ops _rebuild
+
+	# ── Klondike: waste→tableau is 5, →foundation fills to the 20 cap. ──
+	RunState.new_run()
+	RunState.gtype = "klondike"
+	RunState.gs = {"type": "klondike", "card_points": {}}
+	RunState.score = 0
+	var kc := Cards.make_card(Cards.Suit.SPADES, 5)
+	screen._score_move(RunState.gs, {"kind": "waste"}, {"kind": "tableau", "col": 0}, [kc])
+	check_eq(RunState.score, 5, "klondike waste→tableau scores 5")
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 0}, {"kind": "foundation", "col": 0}, [kc])
+	check_eq(RunState.score, 20, "klondike →foundation tops the same card up to 20")
+
+	# Tableau→tableau earns nothing.
+	RunState.score = 0
+	RunState.gs = {"type": "klondike", "card_points": {}}
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 1}, {"kind": "tableau", "col": 2},
+		[Cards.make_card(Cards.Suit.HEARTS, 9)])
+	check_eq(RunState.score, 0, "klondike tableau→tableau scores nothing")
+
+	# ── FreeCell: a flat 5 to a foundation, never touching the card ledger. ──
+	RunState.gtype = "freecell"
+	RunState.gs = {"type": "freecell", "card_points": {}}
+	RunState.score = 0
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 0}, {"kind": "foundation", "col": 0},
+		[Cards.make_card(Cards.Suit.CLUBS, 1)])
+	check_eq(RunState.score, 5, "freecell →foundation scores a flat 5")
+	check_eq(RunState.total_card_points(), 0, "freecell does not use the 20-point ledger")
+
+	# ── Spider: only the +100 suit bonus; a plain move scores nothing. ──
+	RunState.gtype = "spider"
+	RunState.gs = {"type": "spider", "card_points": {}}
+	RunState.score = 0
+	screen._score_move(RunState.gs, {"kind": "tableau", "col": 0}, {"kind": "tableau", "col": 1},
+		[Cards.make_card(Cards.Suit.SPADES, 10)])
+	check_eq(RunState.score, 0, "spider tableau move scores nothing on its own")
+
+	# ── TriPeaks: streak length per card, +15 for a peak; a failed play resets. ──
+	RunState.gtype = "tripeaks"
+	RunState.score = 0
+	RunState.tp_streak = 0
+	var pyr := []
+	for i in 28:
+		pyr.append(null)
+	pyr[0] = Cards.make_card(Cards.Suit.HEARTS, 6)   # a peak (index < 3)
+	pyr[27] = Cards.make_card(Cards.Suit.SPADES, 2)  # keeps the board unwon
+	RunState.gs = {"type": "tripeaks", "pyramid": pyr,
+		"waste": [Cards.make_card(Cards.Suit.CLUBS, 5)], "card_points": {}}
+	screen._tripeaks_play({"kind": "pyramid", "index": 0})
+	check_eq(RunState.tp_streak, 1, "first tripeaks play sets streak to 1")
+	check_eq(RunState.score, 16, "peak play scores streak(1) + 15 bonus")
+
+	# A failed play (an unplayable free card) resets the streak.
+	screen._tripeaks_play({"kind": "pyramid", "index": 27})  # rank 2 vs waste top rank 6
+	check_eq(RunState.tp_streak, 0, "a failed tripeaks play resets the streak")
+
+	# ── Pyramid: any pair summing to 13 is +10; a King clears alone for +5. ──
+	RunState.gtype = "pyramid"
+	RunState.score = 0
+	screen._selection = {}
+	var ppyr := []
+	for i in 28:
+		ppyr.append(Cards.make_card(Cards.Suit.SPADES, 4))  # filler, never clicked
+	ppyr[21] = Cards.make_card(Cards.Suit.HEARTS, 6)
+	ppyr[22] = Cards.make_card(Cards.Suit.CLUBS, 7)
+	ppyr[23] = Cards.make_card(Cards.Suit.DIAMONDS, 13)
+	RunState.gs = {"type": "pyramid", "pyramid": ppyr, "waste": [], "card_points": {}}
+	screen._pyramid_click({"kind": "pyramid", "index": 21})  # selects the 6
+	screen._pyramid_click({"kind": "pyramid", "index": 22})  # 6 + 7 = 13
+	check_eq(RunState.score, 10, "pyramid pair scores a flat 10")
+
+	RunState.score = 0
+	screen._selection = {}
+	screen._pyramid_click({"kind": "pyramid", "index": 23})  # a King clears alone
+	check_eq(RunState.score, 5, "pyramid king scores a flat 5")
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+
+
+## The TriPeaks streak survives undo, so rewinding a play restores the streak the
+## board had before it — matching the web build's undo snapshot.
+func test_tp_streak_undo() -> void:
+	suite("tripeaks streak undo")
+	RunState.new_run()
+	RunState.gs = {"type": "tripeaks", "card_points": {}}
+	RunState.tp_streak = 3
+	RunState.push_undo()
+	RunState.tp_streak = 4
+	check(RunState.undo_move(), "undo succeeds")
+	check_eq(RunState.tp_streak, 3, "undo restores the streak to its pre-move value")
+	RunState.new_run()
 
 
 func test_shop_and_choices() -> void:
