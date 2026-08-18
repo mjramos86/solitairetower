@@ -31,6 +31,7 @@ func _ready() -> void:
 	test_item_effects()
 	test_narrative()
 	test_every_scene_loads()
+	test_unlockables()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -891,15 +892,16 @@ func test_narrative() -> void:
 	check(SaveManager.has_seen("unlocked_connections", "johndee"),
 		"connection survives a reload")
 
-	# The revealed patron shows her true name.
+	# The revealed patron shows her true name. (The reveal *chain* — John Dee's
+	# connection revealing Mary — is covered in full by test_unlockables; here
+	# the save already has that connection unlocked, so she is revealed.)
 	var marie := {}
 	for p in Narrative.PATRONS:
 		if String(p["id"]) == "marie":
 			marie = p
 	check(marie.has("true_name"), "the other queen has a true name")
-	check(not SaveManager.is_patron_revealed("marie"), "she starts unrevealed")
-	SaveManager.reveal_patron("marie")
-	check(SaveManager.is_patron_revealed("marie"), "reveal persists")
+	check(SaveManager.is_patron_revealed("marie"),
+		"Mary is revealed once John Dee's connection is unlocked")
 
 	SaveManager.erase_all()
 
@@ -967,5 +969,85 @@ func test_every_scene_loads() -> void:
 	# Every screen the router can reach must have a scene registered.
 	var app_script := load("res://scripts/ui/app.gd")
 	check(app_script != null, "app.gd loads")
+
+	SaveManager.erase_all()
+
+
+## Verifies the unlock chain matches the web build exactly:
+##   John Dee's connection (gated behind his third transmission, costs Time
+##   Energy) reveals Mary, and Mary's reveal is the only thing that unlocks the
+##   Mary's Cipher card back. In-development patrons cannot be bought.
+func test_unlockables() -> void:
+	suite("unlockables")
+	SaveManager.erase_all()
+
+	# Mirrors cardback_screen._is_unlocked and the web cardbackUnlocked.
+	var cardback_unlocked := func(id: String) -> bool:
+		for cb in GameData.CARDBACKS:
+			if cb["id"] == id:
+				if bool(cb.get("unlocked", false)):
+					return true
+				if cb.has("requires_reveal"):
+					return SaveManager.is_patron_revealed(String(cb["requires_reveal"]))
+				return false
+		return false
+
+	# The three free backs are always available; Mary's starts locked.
+	check(cardback_unlocked.call("classic"), "classic back is always unlocked")
+	check(cardback_unlocked.call("cult"), "cult back is always unlocked")
+	check(cardback_unlocked.call("dee"), "dee back is always unlocked")
+	check(not cardback_unlocked.call("marie"), "Mary's Cipher starts locked")
+	check(not SaveManager.is_patron_revealed("marie"), "Mary starts unrevealed")
+
+	# John Dee's connection is unavailable until his third transmission.
+	check(not bool(SaveManager.profile.get("dee_dialogue3_done", false)),
+		"third transmission not seen yet")
+
+	# Reveal is derived from John Dee's connection, so before it is uncovered
+	# Mary is not revealed even though the flag is checked directly.
+	check(not SaveManager.has_seen("unlocked_connections", "johndee"),
+		"John Dee's connection starts locked")
+
+	# Not enough Time Energy: the connection cannot be uncovered.
+	SaveManager.profile["dee_dialogue3_done"] = true
+	SaveManager.add_banked_credits(400)
+	check(not SaveManager.spend_banked_credits(500), "cannot afford the 500 connection")
+	check(not SaveManager.is_patron_revealed("marie"), "Mary still hidden after a failed buy")
+
+	# Uncover John Dee's connection: this is the sole trigger for Mary's reveal.
+	SaveManager.add_banked_credits(200)  # now 600
+	check(SaveManager.spend_banked_credits(500), "can afford the connection now")
+	SaveManager.mark_seen("unlocked_connections", "johndee")
+
+	check(SaveManager.is_patron_revealed("marie"),
+		"uncovering John Dee's connection reveals Mary")
+	check(cardback_unlocked.call("marie"),
+		"Mary's reveal unlocks the Mary's Cipher card back")
+	check_eq(int(SaveManager.profile["banked_credits"]), 100, "connection cost was deducted")
+
+	# The link survives a save/reload, since it is derived from the stored
+	# connection rather than a separate reveal flag.
+	SaveManager.save_game()
+	SaveManager.load_game()
+	check(SaveManager.has_seen("unlocked_connections", "johndee"), "connection persists")
+	check(SaveManager.is_patron_revealed("marie"), "Mary stays revealed after reload")
+	check(cardback_unlocked.call("marie"), "Mary's Cipher stays unlocked after reload")
+
+	# In-development patrons carry a cost in the data but cannot be bought — the
+	# only reveal path is the connection above.
+	var marie := {}
+	for entry in Narrative.PATRONS:
+		if String(entry["id"]) == "marie":
+			marie = entry
+	check(bool(marie.get("in_development", false)), "Mary is flagged in development")
+	check(marie.has("patron_unlock_cost"), "Mary carries a patron unlock cost in the data")
+
+	# A fresh save with no John Dee connection keeps Mary locked regardless of
+	# how much Time Energy is banked — there is no direct purchase.
+	SaveManager.erase_all()
+	SaveManager.add_banked_credits(5000)
+	check(not SaveManager.is_patron_revealed("marie"),
+		"Time Energy alone cannot reveal an in-development patron")
+	check(not cardback_unlocked.call("marie"), "Mary's Cipher stays locked without the connection")
 
 	SaveManager.erase_all()

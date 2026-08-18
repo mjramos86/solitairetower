@@ -37,9 +37,9 @@ func _ready() -> void:
 
 
 func _entry_unlocked(entry: Dictionary) -> bool:
-	if bool(entry.get("unlocked", false)):
-		return true
-	return SaveManager.has_seen("unlocked_patrons", String(entry["id"]))
+	# The web build shows an entry (not the silhouette) when it is flagged
+	# unlocked OR revealed: `if(!p.revealed && !p.unlocked) locked`.
+	return bool(entry.get("unlocked", false)) or _entry_revealed(entry)
 
 
 func _entry_revealed(entry: Dictionary) -> bool:
@@ -104,14 +104,16 @@ func _build_page() -> void:
 	title.add_theme_color_override("font_color", UITheme.GOLD)
 
 	if not _entry_unlocked(entry):
-		title.text = "Unknown — %d" % int(entry.get("year", 0))
+		title.text = "Unknown Patron"
 		_page.add_child(title)
-		_add_paragraph("This figure has not yet surfaced in your descent.")
-		_maybe_offer_patron_unlock(entry)
+		_add_paragraph("This Time Patron has not yet revealed themselves to you.")
 		return
 
 	title.text = _display_name(entry)
 	_page.add_child(title)
+
+	if bool(entry.get("in_development", false)):
+		_add_dev_note()
 
 	if entry.has("img"):
 		var portrait := TextureRect.new()
@@ -132,8 +134,6 @@ func _build_page() -> void:
 
 	if entry.has("lore"):
 		_add_connection_section(entry)
-
-	_maybe_offer_patron_unlock(entry)
 
 
 func _add_heading(text: String) -> void:
@@ -183,26 +183,13 @@ func _add_connection_section(entry: Dictionary) -> void:
 	_page.add_child(button)
 
 
-## In-development patrons can be bought outright, which also reveals their name.
-func _maybe_offer_patron_unlock(entry: Dictionary) -> void:
-	if _entry_unlocked(entry) and _entry_revealed(entry):
-		return
-	if not entry.has("patron_unlock_cost"):
-		return
-
-	var cost := int(entry["patron_unlock_cost"])
-	var banked := int(SaveManager.profile.get("banked_credits", 0))
-	_add_paragraph("This patron can be brought forward for %d Time Energy." % cost)
-
-	var button := Button.new()
-	button.text = "UNCOVER PATRON (%d ⚡)" % cost if banked >= cost \
-		else "NEED %d MORE ⚡" % (cost - banked)
-	button.disabled = banked < cost
-	button.pressed.connect(func():
-		if SaveManager.spend_banked_credits(cost):
-			SaveManager.mark_seen("unlocked_patrons", String(entry["id"]))
-			SaveManager.reveal_patron(String(entry["id"]))
-			SaveManager.save_game()
-			RunState.toast.emit("A name surfaces.")
-			_refresh())
-	_page.add_child(button)
+## In-development patrons show a note and cannot be selected or bought. Ported
+## from the web build's devHTML — patron_unlock_cost exists in the data but its
+## purchase flow was never implemented (tryUnlockPatron bails on inDevelopment),
+## so there is deliberately no unlock button here.
+func _add_dev_note() -> void:
+	var note := Label.new()
+	note.text = "⚙ This Time Patron is still in development and cannot yet be selected."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	_page.add_child(note)
