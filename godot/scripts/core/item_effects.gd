@@ -236,8 +236,13 @@ static func activate(item: Dictionary, inv_index: int) -> Dictionary:
 			return _result(false, "Retreated without penalty.")
 
 		"skip-floor":
-			RunState.next_floor()
-			return _result(true, "Floor skipped!")
+			# The Executive Chair auto-clears the floor: it raises the floor-clear
+			# overlay just like a real win (web skip-floor calls handleWin), and the
+			# floor-clear bonus and routing happen when the player descends.
+			RunState.win_overlay = true
+			var r := _result(true, "Floor skipped!")
+			r["win"] = true
+			return r
 
 	return _result(false, "That item does nothing here.")
 

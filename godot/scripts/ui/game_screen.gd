@@ -257,7 +257,12 @@ func _apply_result(result: Dictionary, inv_index: int) -> void:
 
 	_selection = {}
 	_rebuild()
-	_check_win()
+	# An item that auto-clears the floor (Executive Chair) raises the win overlay
+	# even though the board itself is not solved, so _check_win would miss it.
+	if bool(result.get("win", false)):
+		_show_win_overlay()
+	else:
+		_check_win()
 
 
 func _cancel_item_mode() -> void:
@@ -390,6 +395,11 @@ func _rebuild() -> void:
 		"pyramid": _layout_pyramid(gs)
 
 	_centre_board(board_w, board_h)
+
+	# Re-show the floor-clear overlay if a run was resumed on an already-won
+	# board. Guarded on an empty overlay layer so normal rebuilds don't stack it.
+	if RunState.win_overlay and _overlays.get_child_count() == 0 and Rules.is_won(gs):
+		_show_win_overlay()
 
 
 ## Largest card that keeps the widest row and the tallest column inside the
@@ -1269,7 +1279,51 @@ func _after_move() -> void:
 func _check_win() -> void:
 	if Rules.is_won(RunState.gs):
 		RunState.win_overlay = true
-		RunState.next_floor()
+		_show_win_overlay()
+
+
+## The floor-clear celebration, ported from winOverlayHTML. It pauses on the
+## cleared board and waits for the player; the floor-clear bonus and the routing
+## to the next floor, an interlude, or victory all happen when they descend —
+## RunState.next_floor does both, exactly as the web build's nextFloor did.
+func _show_win_overlay() -> void:
+	AudioManager.card_moved()
+	var last := RunState.floor_index >= GameData.TOTAL_FLOORS - 1
+	var root := _overlay_root(0.85)
+	var panel := _framed_panel()
+	root.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 18)
+	box.custom_minimum_size = Vector2(420, 0)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 40)
+	margin.add_child(box)
+	panel.add_child(margin)
+
+	var title := Label.new()
+	title.text = "🚪 ESCAPED!" if last else "✅ FLOOR CLEARED"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_override("font", UITheme.font_at("display", 700))
+	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_color_override("font_color", UITheme.GOLD)
+	box.add_child(title)
+
+	var message := Label.new()
+	message.text = ("You burst into the streets! You are FREE!" if last
+		else "Staircase found. Descending…")
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_color_override("font_color", UITheme.TEXT)
+	box.add_child(message)
+
+	var descend := Button.new()
+	descend.text = "[ ESCAPE ]" if last else "[ DESCEND ]"
+	descend.pressed.connect(func():
+		# next_floor changes the screen, which frees this scene and its overlay.
+		RunState.next_floor())
+	box.add_child(descend)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

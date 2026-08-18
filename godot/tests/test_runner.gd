@@ -26,6 +26,7 @@ func _ready() -> void:
 	test_scoring()
 	test_variant_scoring()
 	await test_game_hud()
+	await test_win_overlay()
 	test_tp_streak_undo()
 	test_shop_and_choices()
 	test_save_round_trip()
@@ -459,6 +460,59 @@ func test_game_hud() -> void:
 	remove_child(screen)
 	screen.queue_free()
 	RunState.new_run()
+
+
+## Clearing a floor raises the floor-clear overlay and holds there; the
+## floor-clear bonus and the routing onward happen only when the player descends,
+## matching the web build's winOverlay → nextFloor flow.
+func test_win_overlay() -> void:
+	suite("floor-clear overlay")
+	SaveManager.erase_all()
+	RunState.new_run()
+	RunState.start_game("klondike", 0)
+
+	# A solved Klondike board: every foundation complete A→K.
+	var won := {"type": "klondike", "tableau": [[], [], [], [], [], [], []],
+		"stock": [], "waste": [], "foundations": [[], [], [], []], "card_points": {}}
+	for suit in 4:
+		for rank in range(1, 14):
+			won["foundations"][suit].append(Cards.make_card(suit, rank))
+	RunState.gs = won
+	check(Rules.is_won(won), "board is solved")
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+	var overlays: CanvasLayer = screen.get_node("Overlays")
+
+	# Winning raises exactly one overlay and does not advance on its own.
+	screen._check_win()
+	check(RunState.win_overlay, "win sets the overlay flag")
+	check_eq(overlays.get_child_count(), 1, "win raises exactly one overlay")
+	check(not RunState.done.has(0), "the floor is not cleared until the player descends")
+
+	# Descending clears the floor and routes onward (to the shop from floor 0).
+	var button := _first_button(overlays)
+	check(button != null, "overlay carries a descend button")
+	if button != null:
+		button.pressed.emit()
+	check(RunState.done.has(0), "descending marks the floor cleared")
+	check_eq(RunState.screen, "shop", "descending from floor 0 routes to the shop")
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+	SaveManager.erase_all()
+
+
+func _first_button(node: Node) -> Button:
+	for c in node.get_children():
+		if c is Button:
+			return c
+		var found := _first_button(c)
+		if found != null:
+			return found
+	return null
 
 
 ## The TriPeaks streak survives undo, so rewinding a play restores the streak the
@@ -918,13 +972,19 @@ func test_item_effects() -> void:
 	check_eq(Cards.key(RunState.gs["waste"][RunState.gs["waste"].size() - 1]), Cards.key(wanted),
 		"the chosen card is on the waste")
 
-	# ── Queen's Patronage: clears the floor outright ──
+	# ── Queen's Patronage: auto-clears the floor via the win overlay ──
+	# Like a real win, it raises the floor-clear overlay and holds; the clear and
+	# the routing happen when the player descends (web skip-floor calls handleWin).
 	RunState.new_run()
 	RunState.start_game("klondike", 0)
 	r = ItemEffects.activate(GameData.item_by_id("exec-chair"), 0)
 	check(r["consumed"], "patronage is consumed")
-	check(RunState.done.has(0), "the floor counts as cleared")
-	check_eq(RunState.screen, "shop", "patronage routes to the shop")
+	check(bool(r.get("win", false)), "patronage raises the floor-clear overlay")
+	check(RunState.win_overlay, "patronage sets the win-overlay flag")
+	check(not RunState.done.has(0), "the floor clears only when the player descends")
+	RunState.next_floor()  # simulate the descend button
+	check(RunState.done.has(0), "descending clears the floor")
+	check_eq(RunState.screen, "shop", "patronage routes to the shop after descending")
 
 	# ── Vial of Quicksilver: retreat with no life lost ──
 	RunState.new_run()
