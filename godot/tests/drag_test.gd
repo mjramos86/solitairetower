@@ -30,8 +30,25 @@ func _ready() -> void:
 	add_child(view)
 	for i in 6: await get_tree().process_frame
 
+	# A plain click (press + release, no motion) must NOT start a drag — it just
+	# selects. Regression guard for clicks turning into drags on small windows.
+	var felt0: Control = view.get_node("Rows/Board/Felt")
+	var click_card: Control = null
+	for c in felt0.get_children():
+		var mm: Dictionary = c.get_meta("slot", {})
+		if mm.get("kind") == "tableau" and mm.get("col") == 0: click_card = c
+	if click_card != null:
+		var p := click_card.get_global_rect().get_center()
+		_send_button(p, true); await get_tree().process_frame
+		_send_button(p, false); await get_tree().process_frame
+		ck(not view._dragging, "a plain click does not start a drag")
+		ck(RunState.gs["tableau"][0].size() == 1, "a plain click leaves the board unchanged")
+		view._selection = {}
+		view._rebuild()
+		await get_tree().process_frame
+
 	# Find the source (H6 on col 0) and target (S7 on col 1) card views.
-	var board: Control = view.get_node("Board")
+	var board: Control = view.get_node("Rows/Board/Felt")
 	var src: Control = null
 	var dst: Control = null
 	for c in board.get_children():

@@ -73,7 +73,12 @@ var _hint_timer: SceneTreeTimer
 ## Drag-and-drop. A press records here without acting; release decides whether it
 ## was a click (no movement) or a drag (moved past the threshold). Click-to-place
 ## still works untouched — drag is an alternative, not a replacement.
-const DRAG_THRESHOLD := 8.0
+##
+## The threshold is in *screen* pixels. Input positions arrive in the 1920x1080
+## design canvas, which is scaled down to the window (≈0.67x at 1280 wide), so a
+## raw 8px would trip after only ~5 real pixels of jitter and turn ordinary
+## clicks into drags. _drag_threshold() converts this to canvas units live.
+const DRAG_THRESHOLD := 14.0
 var _press: Dictionary = {}
 var _dragging := false
 var _drag_source: Dictionary = {}
@@ -943,8 +948,18 @@ func _input(event: InputEvent) -> void:
 		var pointer := (event as InputEventMouseMotion).position
 		if _dragging:
 			_ghost.global_position = pointer - _grab_offset
-		elif pointer.distance_to(_press["start"]) > DRAG_THRESHOLD and _is_draggable(_press["meta"]):
+		elif pointer.distance_to(_press["start"]) > _drag_threshold() and _is_draggable(_press["meta"]):
 			_begin_drag()
+
+
+## DRAG_THRESHOLD is in screen pixels; convert to the design-canvas units the
+## input positions actually use, so the feel is the same at any window size.
+func _drag_threshold() -> float:
+	var win := get_window()
+	if win == null or win.size.x <= 0:
+		return DRAG_THRESHOLD
+	var ratio := get_viewport().get_visible_rect().size.x / float(win.size.x)
+	return DRAG_THRESHOLD * ratio
 
 
 ## The click behaviour, unchanged — runs on a release that did not become a drag.
