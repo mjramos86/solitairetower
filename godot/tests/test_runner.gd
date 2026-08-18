@@ -430,14 +430,16 @@ func test_game_hud() -> void:
 	var screen := packed.instantiate()
 	add_child(screen)
 
-	# Every required readout and control is wired into the scene.
-	check(screen.get_node_or_null("Top/Moves") != null, "moves counter present")
-	check(screen.get_node_or_null("Top/Gold") != null, "gold display present")
-	check(screen.get_node_or_null("Rules") != null, "rules strip present")
-	check(screen.get_node_or_null("Top/Score") is Button, "score is a clickable button")
-	check(screen.get_node_or_null("Bottom/Shuffle") != null, "shuffle button present")
-	check(screen.get_node_or_null("Bottom/Pause") != null, "pause button present")
-	check(screen.get_node_or_null("Bottom/Abandon") != null, "abandon button present")
+	# Every required readout and control is wired into the Win95 chrome.
+	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Moves") != null, "moves counter present")
+	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Gold") != null, "gold display present")
+	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Hearts") != null, "hearts present")
+	check(screen.get_node_or_null("Rows/Rules") != null, "rules strip present")
+	check(screen._score_pane is Button, "score is a clickable status pane")
+	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Shuffle") != null, "shuffle button present")
+	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Pause") != null, "pause button present")
+	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Abandon") != null, "abandon button present")
+	check(screen.get_node_or_null("Rows/TitleBar/TitleRow/TitleText") != null, "title bar present")
 	check(screen.get_node_or_null("Overlays") is CanvasLayer, "overlay layer present")
 
 	check(GameData.RULES.has("klondike"), "rules data exists for klondike")

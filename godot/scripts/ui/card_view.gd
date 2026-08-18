@@ -10,11 +10,15 @@ extends Control
 
 signal card_pressed(view: Control)
 
-const CORNER_RADIUS := 5.0
-const BORDER_WIDTH := 1.5
+const CORNER_RADIUS := 4.0
+const BORDER_WIDTH := 1.0
 
-## Rank/pip inset as a fraction of card width.
-const PAD_RATIO := 0.09
+## Card face metrics as fractions of card width, from the CSS --cfs/--cfss/--cfc
+## on a 116px card: rank 32, corner suit 18, centre pip 84.
+const PAD_RATIO := 0.045
+const RANK_RATIO := 0.276
+const CORNER_SUIT_RATIO := 0.155
+const CENTRE_PIP_RATIO := 0.72
 
 var card: Dictionary = {}
 var face_up := false
@@ -35,7 +39,9 @@ var _pip_font: Font
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_rank_font = UITheme.font("pixel")
+	# The web card face is Georgia serif for both the index and the pip; EB
+	# Garamond is the bundled serif and carries the suit glyphs.
+	_rank_font = UITheme.font_at("body", 700)
 	_pip_font = UITheme.font("body")
 	_refresh_back()
 
@@ -96,30 +102,21 @@ func _draw_face(r: Rect2) -> void:
 	var rank := int(card.get("rank", 1))
 	var colour := UITheme.CARD_RED if Cards.is_red(suit) else UITheme.CARD_BLACK
 	var pad := size.x * PAD_RATIO
-	var rank_size := maxi(10, int(size.x * 0.30))
-	var pip_size := maxi(9, int(size.x * 0.26))
-	var centre_size := maxi(14, int(size.x * 0.52))
+	var rank_size := maxi(10, int(size.x * RANK_RATIO))
+	var pip_size := maxi(8, int(size.x * CORNER_SUIT_RATIO))
+	var centre_size := maxi(16, int(size.x * CENTRE_PIP_RATIO))
 
 	var rank_text: String = Cards.RANK_NAMES[rank]
 	var pip_text: String = Cards.SUIT_SYMBOLS[suit]
 
-	# Top-left rank over pip, mirrored bottom-right — the standard index layout.
-	draw_string(_rank_font, Vector2(pad, pad + rank_size * 0.85), rank_text,
+	# Top-left index only — the web card has no bottom-right mirror (.cb is hidden).
+	draw_string(_rank_font, Vector2(pad, pad + rank_size * 0.82), rank_text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, rank_size, colour)
-	draw_string(_pip_font, Vector2(pad, pad + rank_size * 0.85 + pip_size), pip_text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, pip_size, colour)
+	draw_string(_pip_font, Vector2(pad, pad + rank_size * 0.82 + pip_size * 0.95),
+		pip_text, HORIZONTAL_ALIGNMENT_LEFT, -1, pip_size, Color(colour, 0.85))
 
-	var bottom := Vector2(size.x - pad, size.y - pad)
-	draw_set_transform(bottom, PI, Vector2.ONE)
-	draw_string(_rank_font, Vector2(0, rank_size * 0.85), rank_text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, rank_size, colour)
-	draw_string(_pip_font, Vector2(0, rank_size * 0.85 + pip_size), pip_text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, pip_size, colour)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-	# Large centre pip, so a card is readable when only its top strip shows.
+	# The large centre pip sits at 58% of the height, as in the CSS.
 	var centre := _pip_font.get_string_size(pip_text, HORIZONTAL_ALIGNMENT_CENTER, -1, centre_size)
 	draw_string(_pip_font,
-		Vector2((size.x - centre.x) * 0.5, (size.y + centre.y * 0.6) * 0.5),
-		pip_text, HORIZONTAL_ALIGNMENT_LEFT, -1, centre_size,
-		Color(colour, 0.85))
+		Vector2((size.x - centre.x) * 0.5, size.y * 0.58 + centre.y * 0.35),
+		pip_text, HORIZONTAL_ALIGNMENT_LEFT, -1, centre_size, colour)
