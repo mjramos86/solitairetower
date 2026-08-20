@@ -38,6 +38,29 @@ func _ready() -> void:
 		var mm: Dictionary = c.get_meta("slot", {})
 		if mm.get("kind") == "tableau" and mm.get("col") == 0: click_card = c
 	if click_card != null:
+		# The board must not shift when it is rebuilt (every click rebuilds). A
+		# deferred queue_free once left the old cards counting toward the centring
+		# bounds, sliding the whole play area on each click.
+		var pos_before := {}
+		for c in felt0.get_children():
+			if c is Control and not (c as Control).get_meta("slot", {}).is_empty():
+				pos_before[str(c.get_meta("slot"))] = (c as Control).position
+		view._rebuild()
+		await get_tree().process_frame
+		var moved := 0
+		for c in felt0.get_children():
+			if c is Control and not (c as Control).get_meta("slot", {}).is_empty():
+				var key := str(c.get_meta("slot"))
+				if pos_before.has(key) and pos_before[key].distance_to((c as Control).position) > 0.5:
+					moved += 1
+		ck(moved == 0, "the board stays fixed across a rebuild (%d cards moved)" % moved)
+
+		# The rebuild above freed the old card nodes, so re-fetch the col-0 card.
+		click_card = null
+		for c in felt0.get_children():
+			var mm2: Dictionary = c.get_meta("slot", {})
+			if mm2.get("kind") == "tableau" and mm2.get("col") == 0: click_card = c
+	if click_card != null:
 		var p := click_card.get_global_rect().get_center()
 		_send_button(p, true); await get_tree().process_frame
 		_send_button(p, false); await get_tree().process_frame

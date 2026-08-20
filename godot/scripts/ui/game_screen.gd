@@ -607,7 +607,13 @@ func _rebuild() -> void:
 		return
 	_refresh_header()
 	_refresh_inventory()
+	# Detach the previous cards immediately (not just queue_free, which is
+	# deferred) so _centre_board below measures ONLY the freshly spawned cards.
+	# Otherwise the old, already-centred cards still count toward the content
+	# bounds and the whole board shifts a little on every rebuild — i.e. every
+	# click. This kept the play area from sitting still.
 	for child in _board.get_children():
+		_board.remove_child(child)
 		child.queue_free()
 
 	var gs := RunState.gs
