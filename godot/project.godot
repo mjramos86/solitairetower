@@ -29,6 +29,8 @@ buses/default_bus_layout="res://default_bus_layout.tres"
 SaveManager="*res://scripts/autoload/save_manager.gd"
 RunState="*res://scripts/autoload/run_state.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
+; Steam integration (GodotSteam). No-ops cleanly when the extension is absent.
+SteamManager="*res://scripts/autoload/steam_manager.gd"
 
 [display]
 
