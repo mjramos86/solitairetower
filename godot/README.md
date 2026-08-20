@@ -178,23 +178,25 @@ and official export templates.
    They are **already gitignored** — the Steamworks SDK Access Agreement does
    not allow redistributing them in a public repo, so each developer downloads
    the SDK themselves.
-5. Create `steam_appid.txt` next to the executable containing just your App ID.
-   Needed for local testing only; Steam supplies it in a real install. Also
-   gitignored.
-6. Restart Godot. `Steam` is now a global singleton:
+5. Create `steam_appid.txt` next to the executable — for running from the
+   editor, in the `godot/` project root — containing just the App ID
+   (`5007930`). Needed for local testing only; Steam supplies it in a real
+   install. Gitignored.
+6. Restart Godot. Initialisation is already wired up: the **`SteamManager`
+   autoload** (`scripts/autoload/steam_manager.gd`) initialises Steamworks for
+   App ID `5007930` on boot and pumps `run_callbacks()` every frame. It reaches
+   the `Steam` singleton through `Engine.get_singleton("Steam")`, so the project
+   still runs and the test suite still passes when the extension is absent — it
+   simply logs `running without Steam` and no-ops.
 
-```gdscript
-func _ready() -> void:
-    var result := Steam.steamInitEx(true, YOUR_APP_ID)
-    if result["status"] != 0:
-        push_error("Steam init failed: %s" % result["verbal"])
-
-func _process(_delta: float) -> void:
-    Steam.run_callbacks()   # required every frame, or nothing fires
-```
+   The current GodotSteam GDExtension signature is
+   `steamInitEx(app_id, embed_callbacks)` returning `{status, verbal}` with
+   `status == 0` on success (the old leading "retrieve stats" argument was
+   removed in SDK 1.61). If a future version changes it, that one call in
+   `steam_manager.gd` is the only line to update.
 
 Forgetting `run_callbacks()` is the single most common GodotSteam mistake —
-achievements and leaderboards silently never respond.
+achievements and leaderboards silently never respond; `SteamManager` handles it.
 
 ## 7. Export
 
