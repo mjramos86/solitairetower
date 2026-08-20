@@ -22,7 +22,12 @@ text = "The Solitaire Tower of Doom"
 [node name="Sub" type="Label" parent="Head"]
 layout_mode = 2
 horizontal_alignment = 1
-text = "A horror roguelike Solitaire game"
+text = "A horror roguelike Solitaire game by Emjayhar"
+
+[node name="Tagline" type="Label" parent="Head"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "Face the Cult and uncover the secret history of Solitaire!"
 
 [node name="Body" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -49,19 +54,25 @@ custom_minimum_size = Vector2(330, 0)
 layout_mode = 2
 theme_override_constants/margin_right = 30
 
-[node name="ScoresPanel" type="VBoxContainer" parent="Body/ScoresPad"]
+[node name="ScoresFrame" type="PanelContainer" parent="Body/ScoresPad"]
 layout_mode = 2
-theme_override_constants/separation = 8
+size_flags_vertical = 0
 
-[node name="ScoresTitle" type="Label" parent="Body/ScoresPad/ScoresPanel"]
+[node name="ScoresPanel" type="VBoxContainer" parent="Body/ScoresPad/ScoresFrame"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ScoresTitle" type="Label" parent="Body/ScoresPad/ScoresFrame/ScoresPanel"]
 layout_mode = 2
 text = "🏆 HIGH SCORES"
 
-[node name="ScoresScroll" type="ScrollContainer" parent="Body/ScoresPad/ScoresPanel"]
+[node name="ScoresScroll" type="ScrollContainer" parent="Body/ScoresPad/ScoresFrame/ScoresPanel"]
+custom_minimum_size = Vector2(0, 420)
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="Scores" type="VBoxContainer" parent="Body/ScoresPad/ScoresPanel/ScoresScroll"]
+[node name="Scores" type="VBoxContainer" parent="Body/ScoresPad/ScoresFrame/ScoresPanel/ScoresScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 3
