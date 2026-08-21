@@ -85,7 +85,7 @@ func _style_chrome() -> void:
 	cred.content_margin_bottom = 10
 	_credits_panel.add_theme_stylebox_override("panel", cred)
 	_credits.add_theme_font_override("font", UITheme.font("pixel"))
-	_credits.add_theme_font_size_override("font_size", 15)
+	_credits.add_theme_font_size_override("font_size", 16)
 	_credits.add_theme_color_override("font_color", UITheme.GOLD)
 
 	var nav := StyleBoxFlat.new()
@@ -169,7 +169,7 @@ func _refresh() -> void:
 ## .compendium-nav-item / .active rules.
 func _style_nav_item(button: Button, active: bool) -> void:
 	button.add_theme_font_override("font", UITheme.font_at("display", 500))
-	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_font_size_override("font_size", 16)
 	var fg := UITheme.GOLD if active else UITheme.TEXT
 	button.add_theme_color_override("font_color", fg)
 	button.add_theme_color_override("font_hover_color", UITheme.GOLD)
@@ -256,7 +256,7 @@ func _add_paragraph(text: String) -> void:
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_font_override("font", UITheme.font("body"))
-	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_font_size_override("font_size", 20)
 	label.add_theme_color_override("font_color", PAGE_TEXT)
 	_page.add_child(label)
 
@@ -295,7 +295,7 @@ func _add_connection_section(entry: Dictionary) -> void:
 func _style_unlock_button(button: Button) -> void:
 	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	button.add_theme_font_override("font", UITheme.font("pixel"))
-	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_font_size_override("font_size", 16)
 	button.add_theme_color_override("font_color", UITheme.GOLD)
 	button.add_theme_color_override("font_hover_color", UITheme.GOLD)
 	button.add_theme_color_override("font_pressed_color", UITheme.GOLD)

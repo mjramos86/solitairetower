@@ -16,8 +16,8 @@ const EARNED := Color("4dff91")
 const LOCKED := Color("555555")
 const BUY_BG := Color(0.831, 0.659, 0.294, 0.1)          # rgba(212,168,75,.1)
 const BUY_BORDER := Color(0.831, 0.659, 0.294, 0.4)      # rgba(212,168,75,.4)
-const DESC_DIM := Color("666666")
-const BEST_DIM := Color("808080")
+const DESC_DIM := Color("b9afca")   # "how to use" line — brightened for legibility
+const BEST_DIM := Color("a99fc0")   # "best for" line
 
 # tier foreground colours: t0 #4dff91, t1 #6db3f2, t2 gold, t3 #ff6b6b
 const TIER_FG := [Color("4dff91"), Color("6db3f2"), UITheme.GOLD, Color("ff6b6b")]
@@ -139,7 +139,7 @@ func _gold_stat(label: String, value: String, value_color: Color) -> PanelContai
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.add_theme_font_override("font", UITheme.font("pixel"))
-	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_font_size_override("font_size", 16)
 	lbl.add_theme_color_override("font_color", UITheme.TEXT)
 	col.add_child(lbl)
 
@@ -214,7 +214,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_lbl.add_theme_font_override("font", UITheme.font_at("display", 600))
-	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_font_size_override("font_size", 19)
 	name_lbl.add_theme_color_override("font_color", UITheme.GOLD)
 	col.add_child(name_lbl)
 
@@ -234,7 +234,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	desc.add_theme_font_override("font", UITheme.font("pixel"))
-	desc.add_theme_font_size_override("font_size", 13)
+	desc.add_theme_font_size_override("font_size", 16)
 	desc.add_theme_color_override("font_color", UITheme.TEXT)
 	col.add_child(desc)
 
@@ -243,7 +243,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	use.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	use.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	use.add_theme_font_override("font", UITheme.font("pixel"))
-	use.add_theme_font_size_override("font_size", 12)
+	use.add_theme_font_size_override("font_size", 15)
 	use.add_theme_color_override("font_color", DESC_DIM)
 	col.add_child(use)
 
@@ -252,7 +252,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	best.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	best.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	best.add_theme_font_override("font", UITheme.font("pixel"))
-	best.add_theme_font_size_override("font_size", 11)
+	best.add_theme_font_size_override("font_size", 14)
 	best.add_theme_color_override("font_color", BEST_DIM)
 	col.add_child(best)
 
@@ -305,7 +305,7 @@ func _tier_badge(tier: int) -> Control:
 	var lbl := Label.new()
 	lbl.text = GameData.TIER_NAMES[clampi(tier, 0, GameData.TIER_NAMES.size() - 1)]
 	lbl.add_theme_font_override("font", UITheme.font("pixel"))
-	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_font_size_override("font_size", 14)
 	lbl.add_theme_color_override("font_color", fg)
 	badge.add_child(lbl)
 	return badge
@@ -358,7 +358,7 @@ func _build_inventory_window() -> void:
 		var warn := Label.new()
 		warn.text = "⚠ Inventory full! Use or drop items in-game."
 		warn.add_theme_font_override("font", UITheme.font("pixel"))
-		warn.add_theme_font_size_override("font_size", 14)
+		warn.add_theme_font_size_override("font_size", 16)
 		warn.add_theme_color_override("font_color", UITheme.MAROON)
 		body.add_child(warn)
 
@@ -404,7 +404,7 @@ func _inv_empty() -> PanelContainer:
 	lbl.text = "[ empty ]"
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_override("font", UITheme.font("pixel"))
-	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_font_size_override("font_size", 16)
 	lbl.add_theme_color_override("font_color", LOCKED)
 	panel.add_child(lbl)
 	return panel

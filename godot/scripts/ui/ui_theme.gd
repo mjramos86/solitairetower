@@ -12,7 +12,9 @@ const GOLD_GLOW := Color(0.831, 0.659, 0.294, 0.35)
 const BG_DEEP := Color("0a0616")
 const BG_PANEL := Color("16121e")
 const TEXT := Color("e8e0d0")
-const TEXT_DIM := Color("9a8fb0")
+## Secondary text. Brightened from the web's #9a8fb0, which read too faint on the
+## dark panels, to a more legible lavender-grey.
+const TEXT_DIM := Color("c4bad8")
 const DANGER := Color("b91c1c")
 
 # ── Windows-95 chrome (--w95-*), values exactly as the stylesheet ──
@@ -104,13 +106,13 @@ static func build() -> Theme:
 
 	var body := font("body")
 	t.default_font = body
-	t.default_font_size = 18
+	t.default_font_size = 20
 
 	# Buttons wear the authentic Windows-95 chrome (VT323, two-tone bevel), like
 	# the web build's .btn.
 	var pixel := font("pixel")
 	t.set_font("font", "Button", pixel)
-	t.set_font_size("font_size", "Button", 18)
+	t.set_font_size("font_size", "Button", 20)
 	t.set_color("font_color", "Button", Color.BLACK)
 	t.set_color("font_hover_color", "Button", Color.BLACK)
 	t.set_color("font_pressed_color", "Button", Color.BLACK)
