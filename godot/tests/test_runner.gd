@@ -27,6 +27,7 @@ func _ready() -> void:
 	test_variant_scoring()
 	await test_game_hud()
 	await test_win_overlay()
+	await test_board_centring_stable()
 	test_tp_streak_undo()
 	test_shop_and_choices()
 	test_save_round_trip()
@@ -517,6 +518,67 @@ func _first_button(node: Node) -> Button:
 		var found := _first_button(c)
 		if found != null:
 			return found
+	return null
+
+
+## Clearing a card in TriPeaks or Pyramid leaves no placeholder behind, so the
+## board must be centred on its fixed footprint, not the bounding box of whatever
+## cards are left. Otherwise every removal re-centres the shrinking cluster and
+## the surviving cards visibly jump on each click. This lays out a real board and
+## checks a card that is NOT touched stays exactly where it was after its
+## neighbours are cleared.
+func test_board_centring_stable() -> void:
+	suite("board centring is stable")
+	RunState.new_run()
+	RunState.start_game("tripeaks", 0)
+
+	get_window().size = Vector2i(1280, 720)
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(screen)
+	for _i in 6:
+		await get_tree().process_frame
+
+	var board: Control = screen.get_node("Board")
+	check(board.size.x > 1.0, "board has a real size to lay out in")
+
+	# The footprint used for centring is the same full board before and after.
+	var full_width: float = screen._content_width(RunState.gs)
+
+	# A base-row card (index 27) that we never remove — record where it sits.
+	var before = _card_pos_for(board, 27)
+	check(before != null, "found the untouched base-row card before clearing")
+
+	# Clear the three peaks and several other cards, then re-lay-out.
+	var gs := Cards.clone_state(RunState.gs)
+	for i in [0, 1, 2, 3, 4, 5, 9, 10, 11]:
+		gs["pyramid"][i] = null
+	RunState.gs = gs
+	screen._rebuild()
+
+	check_eq(screen._content_width(RunState.gs), full_width,
+		"the centring footprint is unchanged when cards are cleared")
+
+	var after = _card_pos_for(board, 27)
+	check(after != null, "the untouched base-row card is still on the board")
+	if before != null and after != null:
+		check(before.distance_to(after) < 0.5,
+			"an untouched card does not move when its neighbours are cleared")
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+
+
+## Position of the spawned pyramid/tripeaks card at the given index, or null.
+func _card_pos_for(board: Control, index: int):
+	for c in board.get_children():
+		if not (c is Control):
+			continue
+		var m: Dictionary = c.get_meta("slot", {})
+		if m.get("kind") == "pyramid" and int(m.get("index", -1)) == index:
+			return (c as Control).position
 	return null
 
 

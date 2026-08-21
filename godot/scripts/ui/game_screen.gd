@@ -813,38 +813,58 @@ func _compute_fan(gs: Dictionary, board_h: float) -> void:
 
 
 ## Shifts everything the layout built so the whole board is centred horizontally
-## and sits just below the top margin. The centre is computed from the variant's
-## FIXED full width — not from the cards currently present — so the board never
-## drifts as cards are played or removed (which was jarring in TriPeaks and
-## Pyramid especially). Every layout starts from x=0, so only the width matters.
+## and sits just below the top margin. Layouts can therefore place cards from a
+## simple (0,0) origin and stay agnostic about the board's real size.
+##
+## Centring is measured against the variant's fixed full-board footprint, NOT the
+## bounding box of the cards currently on the table. TriPeaks and Pyramid drop a
+## cleared card without leaving a placeholder, so a measured box would shrink and
+## shift as cards are removed — re-centring the remaining cards and making the
+## board visibly jump on every click. A fixed footprint keeps it anchored.
 func _centre_board(board_w: float, board_h: float) -> void:
-	var full_w := _fixed_content_width(RunState.gs)
-	var offset := Vector2((board_w - full_w) * 0.5, board_h * BOARD_MARGIN)
+	var content_w := _content_width(RunState.gs)
+	if content_w <= 0.0:
+		return
+	# Every layout builds from a (0,0) origin, so the offset alone places it: the
+	# top-left stays pinned to the top margin regardless of which cards remain.
+	var offset := Vector2((board_w - content_w) * 0.5, board_h * BOARD_MARGIN)
 	for child in _board.get_children():
 		if child is Control:
 			(child as Control).position += offset
 
 
-## The full pixel width of a variant's layout at the current card size, whatever
-## cards happen to be on the board. Mirrors the x-extents the layout functions use.
-func _fixed_content_width(gs: Dictionary) -> float:
-	var cw := _card_size.x
-	var step := cw * (1.0 + PILE_GAP)
-	match gs.get("type", "klondike"):
+## The board's full horizontal footprint for this variant — the right edge of the
+## widest structural row, independent of which cards are still on the table. Pile
+## and slot counts are fixed for a floor, so cleared cards never change this and
+## the board never re-centres out from under the player.
+func _content_width(gs: Dictionary) -> float:
+	var card_w := _card_size.x
+	match String(gs.get("type", "klondike")):
 		"klondike":
-			return step * 6.0 + cw
+			# Seven tableau columns; the four foundations end at the same edge.
+			var step := card_w * (1.0 + PILE_GAP)
+			return step * 6.0 + card_w
 		"spider":
-			return step * 9.0 + cw
+			# Ten tableau columns.
+			var step := card_w * (1.0 + PILE_GAP)
+			return step * 9.0 + card_w
 		"freecell":
-			var cells := int((gs.get("freecells", []) as Array).size())
-			return maxf(step * 7.0 + cw, step * (cells + 0.5 + 3.0) + cw)
+			# Whichever is wider: eight tableau columns, or the free-cell row plus
+			# the half-gap and the four foundations (cell count varies by floor).
+			var step := card_w * (1.0 + PILE_GAP)
+			var cells: int = (gs.get("freecells", []) as Array).size()
+			var tableau_right := step * 7.0 + card_w
+			var foundation_right := step * (cells + 3.5) + card_w
+			return maxf(tableau_right, foundation_right)
 		"tripeaks":
-			var tw := cw + cw * 0.10
-			return 9.0 * tw + cw
+			# Ten cards across the base row (tw = card width + a 0.10 gap).
+			var tw := card_w * 1.10
+			return tw * 9.0 + card_w
 		"pyramid":
-			var tw := cw + cw * 0.10
-			return tw * 7.0 - cw * 0.10
-	return step * 6.0 + cw
+			# Seven cards across the base row, matching the layout's `total`.
+			var tw := card_w * 1.10
+			return tw * 7.0 - card_w * 0.10
+	return card_w
 
 
 # ══════════════════════════════════════════════════════════════════════════════
