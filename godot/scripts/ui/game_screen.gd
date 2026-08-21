@@ -303,15 +303,10 @@ func _on_undo() -> void:
 ## Re-deals the current floor from scratch. Like abandoning, it costs a life —
 ## RunState.new_shuffle enforces that — so it is behind a confirmation.
 func _on_shuffle() -> void:
-	var confirm := ConfirmationDialog.new()
-	confirm.title = "Shuffle"
-	confirm.dialog_text = "Re-deal this floor with a fresh shuffle?\n\nYou will lose a life."
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(func():
-		RunState.new_shuffle()
-		confirm.queue_free())
-	confirm.canceled.connect(confirm.queue_free)
+	Modal.confirm(self, "Shuffle",
+		"Re-deal this floor with a fresh shuffle?\n\nYou will lose a life.",
+		func(): RunState.new_shuffle(),
+		"Shuffle", "Cancel", true)
 
 
 ## Pauses the clock and covers the board, matching the web build's togglePause.
@@ -321,20 +316,16 @@ func _on_pause() -> void:
 
 
 func _on_abandon() -> void:
-	var confirm := ConfirmationDialog.new()
 	var free := false
 	for item in RunState.inventory:
 		if item["effect"] == "no-life-abandon":
 			free = true
-	confirm.dialog_text = "Abandon this floor?\n\n" + (
+	var message := "Abandon this floor?\n\n" + (
 		"Your Vial of Quicksilver will be used — no life lost."
 		if free else "You will lose a life.")
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(func():
-		RunState.abandon_floor()
-		confirm.queue_free())
-	confirm.canceled.connect(confirm.queue_free)
+	Modal.confirm(self, "Abandon Floor", message,
+		func(): RunState.abandon_floor(),
+		"Abandon", "Cancel", not free)
 
 
 func _on_score(total: int, _delta: int, _reason: String) -> void:
@@ -564,44 +555,32 @@ func _start_timed(timed: Dictionary) -> void:
 			var names := PackedStringArray()
 			for c in timed["cards"]:
 				names.append("%s%s" % [Cards.rank_name(c), Cards.symbol(c)])
-			var dialog := AcceptDialog.new()
-			dialog.title = "Quill of Ravens"
-			dialog.dialog_text = "Next from the stock:\n\n  " + "\n  ".join(names)
-			add_child(dialog)
-			dialog.popup_centered()
-			var close := func():
-				if is_instance_valid(dialog):
-					dialog.queue_free()
-			dialog.confirmed.connect(close)
-			dialog.canceled.connect(close)
-			get_tree().create_timer(float(timed["seconds"])).timeout.connect(close)
+			var layer := Modal.alert(self, "Quill of Ravens",
+				"Next from the stock:\n\n  " + "\n  ".join(names))
+			get_tree().create_timer(float(timed["seconds"])).timeout.connect(func():
+				if is_instance_valid(layer):
+					layer.queue_free())
 
 
 func _open_picker(picker: Dictionary) -> void:
-	var dialog := AcceptDialog.new()
-	dialog.title = String(picker["title"])
-	dialog.ok_button_text = "Cancel"
-
 	var grid := GridContainer.new()
 	grid.columns = 8
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
-	dialog.add_child(grid)
 
+	var layer: CanvasLayer
 	for card in picker["cards"]:
 		var button := Button.new()
 		button.text = "%s%s" % [Cards.rank_name(card), Cards.symbol(card)]
 		button.custom_minimum_size = Vector2(56, 44)
 		button.pressed.connect(func():
 			var result := ItemEffects.resolve_picker(picker, card)
-			dialog.queue_free()
+			if is_instance_valid(layer):
+				layer.queue_free()
 			_apply_result(result, int(picker["inv_index"])))
 		grid.add_child(button)
 
-	add_child(dialog)
-	dialog.popup_centered()
-	dialog.confirmed.connect(dialog.queue_free)
-	dialog.canceled.connect(dialog.queue_free)
+	layer = Modal.custom(self, String(picker["title"]), grid, [{"text": "Cancel"}])
 
 
 func _is_hinted(meta: Dictionary) -> bool:

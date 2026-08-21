@@ -40,11 +40,64 @@ func _ready() -> void:
 	_tagline.add_theme_color_override("font_color", UITheme.GOLD)
 
 	_style_scores_panel()
+	_build_music_credits()
 
 	_tower.game_chosen.connect(func(type, floor_index): RunState.start_game(type, floor_index))
 
 	RunState.state_changed.connect(_refresh)
 	_refresh()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Music credits (pinned bottom-left, as .map-music-credits in the web build)
+# ══════════════════════════════════════════════════════════════════════════════
+
+const MUSIC_CREDITS := [
+	"« Creepy Dark Atmosphere » by Universfield",
+	"« A Dark and Stormy Night » by Tim Kulig",
+	"« Spooky Piano » and « Horror Creepy » by Nikita Kondrashev",
+]
+const CREDITS_BODY := Color("d2d6e2")
+
+var _credits: VBoxContainer
+
+
+func _build_music_credits() -> void:
+	_credits = VBoxContainer.new()
+	# top_level keeps it out of the root VBox's layout so it can float bottom-left.
+	_credits.top_level = true
+	_credits.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_credits.add_theme_constant_override("separation", 1)
+
+	var head := _credit_line("Royalty-free music from Pixabay.com", UITheme.GOLD)
+	_credits.add_child(head)
+	for line in MUSIC_CREDITS:
+		_credits.add_child(_credit_line(line, CREDITS_BODY))
+	add_child(_credits)
+
+	resized.connect(_place_credits)
+	_place_credits.call_deferred()
+
+
+func _credit_line(text: String, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_override("font", UITheme.font("body"))
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", color)
+	# A soft shadow keeps it legible over the tower art.
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	label.add_theme_constant_override("shadow_offset_x", 0)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	return label
+
+
+func _place_credits() -> void:
+	if not is_instance_valid(_credits):
+		return
+	_credits.reset_size()
+	_credits.position = Vector2(14, size.y - _credits.size.y - 12)
 
 
 func _refresh() -> void:
@@ -94,14 +147,10 @@ func _build_side() -> void:
 
 
 func _confirm_new_run() -> void:
-	var confirm := ConfirmationDialog.new()
-	confirm.dialog_text = "Start a New Run?\n\nThis ends your current descent — the rest of your lives are forfeit and your run is scored now."
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(func():
-		confirm.queue_free()
-		RunState.forfeit_run())
-	confirm.canceled.connect(confirm.queue_free)
+	Modal.confirm(self, "New Run",
+		"Start a New Run?\n\nThis ends your current descent — the rest of your lives are forfeit and your run is scored now.",
+		func(): RunState.forfeit_run(),
+		"New Run", "Cancel", true)
 
 
 ## Each side entry is a gold-bordered card with a Cinzel small-caps label, like
