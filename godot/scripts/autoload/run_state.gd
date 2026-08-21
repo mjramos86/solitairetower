@@ -55,6 +55,10 @@ var intro_replay := false
 ## Where the card back chooser returns to when closed. Set by whoever opens it.
 var cardback_return := "map"
 
+## How the slot-select screen behaves: "load" resumes an existing save, "new"
+## creates one. Set by the title menu before opening the slots screen.
+var slot_mode := "load"
+
 # Per-floor tracking, for the end-of-floor gold breakdown.
 var floor_start_lives := GameData.STARTING_LIVES
 var floor_undos_used := 0

@@ -220,6 +220,13 @@ func _build_status_panes() -> void:
 		child.queue_free()
 	_status_panes = []
 
+	# The player's name leads the status bar (static for the run).
+	if SaveManager.player_name != "":
+		var name_label := _make_status_label()
+		name_label.text = "👤 %s" % SaveManager.player_name
+		name_label.add_theme_color_override("font_color", UITheme.W95_TITLE)
+		_status_row.add_child(_wrap_pane(name_label))
+
 	# Floor / variant / lives / score / timer, then the version, pushed right.
 	for i in 5:
 		_status_panes.append(_add_status_pane(i == 3))

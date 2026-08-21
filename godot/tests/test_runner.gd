@@ -30,6 +30,7 @@ func _ready() -> void:
 	test_tp_streak_undo()
 	test_shop_and_choices()
 	test_save_round_trip()
+	test_save_slots()
 	test_full_run()
 	test_hints()
 	test_item_effects()
@@ -659,6 +660,69 @@ func test_save_round_trip() -> void:
 	SaveManager.erase_all()
 
 
+## The four-slot save system: independent profiles, named players, persistence,
+## deletion, and migration from the old single-profile format.
+func test_save_slots() -> void:
+	suite("save slots")
+	SaveManager.erase_all()
+	check(not SaveManager.any_slot_exists(), "no slots on a fresh save")
+
+	# Create a named game in slot 0 and give it some progress.
+	SaveManager.new_game(0, "Alice")
+	check_eq(SaveManager.active_slot, 0, "new_game activates its slot")
+	check_eq(SaveManager.player_name, "Alice", "the player name is stored")
+	check(SaveManager.slot_exists(0), "slot 0 now exists")
+	SaveManager.add_banked_credits(300)
+	SaveManager.save_game()
+
+	# A second slot is independent — its own name, its own empty profile.
+	SaveManager.new_game(1, "Bob")
+	check_eq(SaveManager.player_name, "Bob", "slot 1 has its own name")
+	check_eq(int(SaveManager.profile["banked_credits"]), 0, "slot 1 starts with no energy")
+
+	var s0 := SaveManager.slot_summary(0)
+	var s1 := SaveManager.slot_summary(1)
+	check(s0["exists"] and s0["name"] == "Alice", "summary reads slot 0 as Alice")
+	check_eq(int(s0["banked_credits"]), 300, "slot 0 kept its energy")
+	check(s1["exists"] and s1["name"] == "Bob", "summary reads slot 1 as Bob")
+	check(not SaveManager.slot_summary(2)["exists"], "slot 2 is empty")
+
+	# Switching back to slot 0 restores its data.
+	SaveManager.load_slot(0)
+	check_eq(SaveManager.player_name, "Alice", "loading slot 0 restores its name")
+	check_eq(int(SaveManager.profile["banked_credits"]), 300, "loading slot 0 restores its energy")
+
+	# An empty name falls back to a default rather than a nameless slot.
+	SaveManager.new_game(2, "   ")
+	check_eq(SaveManager.player_name, "Player 3", "a blank name defaults to Player N")
+
+	# Deletion empties just that slot.
+	SaveManager.delete_slot(1)
+	check(not SaveManager.slot_exists(1), "deleted slot is empty")
+	check(SaveManager.slot_exists(0), "other slots survive deletion")
+
+	# Persistence across a reload.
+	SaveManager.save_game()
+	SaveManager.load_game()
+	check(SaveManager.slot_exists(0) and SaveManager.slot_summary(0)["name"] == "Alice",
+		"slots survive a save/load cycle")
+
+	# Migration: an old v1 single-profile file folds into slot 0 as "Player 1".
+	SaveManager.erase_all()
+	var legacy := {"version": 1, "profile": {"banked_credits": 777}, "run": {},
+		"highscores": [{"name": "Zed", "score": 42, "time": 10.0}]}
+	var f := FileAccess.open(SaveManager.SAVE_PATH, FileAccess.WRITE)
+	f.store_string(JSON.stringify(legacy))
+	f.close()
+	SaveManager.load_game()
+	check(SaveManager.slot_exists(0), "migrated save has a slot 0")
+	check_eq(SaveManager.slot_summary(0)["name"], "Player 1", "migrated slot is named Player 1")
+	check_eq(int(SaveManager.profile["banked_credits"]), 777, "migrated profile keeps its energy")
+	check_eq(SaveManager.highscores.size(), 1, "migrated high scores survive")
+
+	SaveManager.erase_all()
+
+
 ## Drives a complete 10-floor run through the real progression code, clearing
 ## each floor by force. Catches breakage in the floor/shop/victory chain that
 ## unit tests on individual rules would miss.
@@ -1138,6 +1202,8 @@ func test_every_scene_loads() -> void:
 		["res://scenes/card_view.tscn", ""],
 		["res://scenes/tower_menu.tscn", ""],
 		["res://scenes/screens/title_screen.tscn", "title"],
+		["res://scenes/screens/slot_screen.tscn", "slots"],
+		["res://scenes/screens/highscores_screen.tscn", "highscores"],
 		["res://scenes/screens/map_screen.tscn", "map"],
 		["res://scenes/screens/game_screen.tscn", "game"],
 		["res://scenes/screens/shop_screen.tscn", "shop"],
