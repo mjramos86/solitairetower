@@ -540,7 +540,7 @@ func test_board_centring_stable() -> void:
 	for _i in 6:
 		await get_tree().process_frame
 
-	var board: Control = screen.get_node("Board")
+	var board: Control = screen.get_node("Rows/Board/Felt")
 	check(board.size.x > 1.0, "board has a real size to lay out in")
 
 	# The footprint used for centring is the same full board before and after.
