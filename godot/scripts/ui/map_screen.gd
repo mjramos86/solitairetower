@@ -61,7 +61,7 @@ func _build_side() -> void:
 		child.queue_free()
 
 	var pname: String = SaveManager.player_name if SaveManager.player_name != "" else "—"
-	_add_section("Player", _text_value(pname, UITheme.GOLD, 28))
+	_add_section("Player", _text_value(pname, UITheme.GOLD, 24))
 
 	_add_section("Time Patron", _patron_badge())
 
@@ -70,11 +70,11 @@ func _build_side() -> void:
 		hearts += "♥ "
 	if hearts == "":
 		hearts = "—"
-	_add_section("Lives", _text_value(hearts.strip_edges(), HEART, 30))
+	_add_section("Lives", _text_value(hearts.strip_edges(), HEART, 24))
 
-	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 26))
+	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 22))
 	_add_section("Time Energy",
-		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 26))
+		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 22))
 
 	_add_section("🎒 Inventory", _inventory_slots())
 
@@ -111,7 +111,7 @@ func _add_section(label_text: String, content: Control) -> void:
 	panel.add_theme_stylebox_override("panel", _section_box())
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 2)
 	panel.add_child(box)
 
 	var label := Label.new()
@@ -135,8 +135,8 @@ func _section_box() -> StyleBoxFlat:
 	s.set_corner_radius_all(5)
 	s.content_margin_left = 16
 	s.content_margin_right = 16
-	s.content_margin_top = 14
-	s.content_margin_bottom = 14
+	s.content_margin_top = 8
+	s.content_margin_bottom = 8
 	return s
 
 
@@ -157,7 +157,7 @@ func _patron_badge() -> Control:
 
 	var portrait := TextureRect.new()
 	portrait.texture = load(AssetPaths.PATRONS.get(RunState.patron, AssetPaths.PATRONS["johndee"]))
-	portrait.custom_minimum_size = Vector2(96, 96)
+	portrait.custom_minimum_size = Vector2(76, 76)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
