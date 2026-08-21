@@ -128,43 +128,40 @@ func _fill_empty_slot(box: VBoxContainer) -> void:
 
 func _start_new(index: int, exists: bool) -> void:
 	if exists:
-		var confirm := ConfirmationDialog.new()
-		confirm.dialog_text = "Overwrite the save in slot %d? This cannot be undone." % (index + 1)
-		add_child(confirm)
-		confirm.popup_centered()
-		confirm.confirmed.connect(func():
-			confirm.queue_free()
-			_ask_name(index))
-		confirm.canceled.connect(confirm.queue_free)
+		Modal.confirm(self, "Overwrite Slot",
+			"Overwrite the save in slot %d? This cannot be undone." % (index + 1),
+			func(): _ask_name(index),
+			"Overwrite", "Cancel", true)
 	else:
 		_ask_name(index)
 
 
 ## Prompts for a player name, then creates the save and rolls into the intro.
 func _ask_name(index: int) -> void:
-	var dialog := ConfirmationDialog.new()
-	dialog.title = "Name your player"
-	dialog.min_size = Vector2i(360, 0)
 	var field := LineEdit.new()
 	field.placeholder_text = "Player %d" % (index + 1)
 	field.max_length = SaveManager.MAX_NAME_LEN
 	field.custom_minimum_size = Vector2(320, 0)
-	dialog.add_child(field)
-	add_child(dialog)
-	dialog.popup_centered()
-	field.grab_focus()
+	field.add_theme_font_override("font", UITheme.font("pixel"))
+	field.add_theme_font_size_override("font_size", 22)
 
+	var layer: CanvasLayer
 	var begin := func():
 		var chosen := field.text
-		dialog.queue_free()
+		if is_instance_valid(layer):
+			layer.queue_free()
 		SaveManager.new_game(index, chosen)
 		# A brand-new save opens with the story intro, which starts the run.
 		RunState.intro_replay = false
 		RunState.set_screen("patron-dialogue")
-	dialog.confirmed.connect(begin)
+
+	layer = Modal.custom(self, "Name your player", field, [
+		{"text": "Cancel"},
+		{"text": "Begin", "action": begin, "primary": true},
+	])
 	# Enter in the field confirms too.
 	field.text_submitted.connect(func(_t): begin.call())
-	dialog.canceled.connect(dialog.queue_free)
+	field.grab_focus()
 
 
 func _load(index: int) -> void:
@@ -182,20 +179,17 @@ func _load(index: int) -> void:
 
 
 func _confirm_delete(index: int) -> void:
-	var confirm := ConfirmationDialog.new()
-	confirm.dialog_text = "Delete the save in slot %d permanently?" % (index + 1)
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(func():
-		SaveManager.delete_slot(index)
-		confirm.queue_free()
-		# Leaving load mode with no saves left would strand the player; drop back
-		# to the title if this was the last one.
-		if RunState.slot_mode == "load" and not SaveManager.any_slot_exists():
-			RunState.set_screen("title")
-		else:
-			_build_slots())
-	confirm.canceled.connect(confirm.queue_free)
+	Modal.confirm(self, "Delete Save",
+		"Delete the save in slot %d permanently?" % (index + 1),
+		func():
+			SaveManager.delete_slot(index)
+			# Leaving load mode with no saves left would strand the player; drop back
+			# to the title if this was the last one.
+			if RunState.slot_mode == "load" and not SaveManager.any_slot_exists():
+				RunState.set_screen("title")
+			else:
+				_build_slots(),
+		"Delete", "Cancel", true)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

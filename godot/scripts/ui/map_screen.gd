@@ -147,14 +147,10 @@ func _build_side() -> void:
 
 
 func _confirm_new_run() -> void:
-	var confirm := ConfirmationDialog.new()
-	confirm.dialog_text = "Start a New Run?\n\nThis ends your current descent — the rest of your lives are forfeit and your run is scored now."
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(func():
-		confirm.queue_free()
-		RunState.forfeit_run())
-	confirm.canceled.connect(confirm.queue_free)
+	Modal.confirm(self, "New Run",
+		"Start a New Run?\n\nThis ends your current descent — the rest of your lives are forfeit and your run is scored now.",
+		func(): RunState.forfeit_run(),
+		"New Run", "Cancel", true)
 
 
 ## Each side entry is a gold-bordered card with a Cinzel small-caps label, like
