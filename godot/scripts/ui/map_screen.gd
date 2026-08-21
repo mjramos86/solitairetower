@@ -60,6 +60,9 @@ func _build_side() -> void:
 	for child in _side.get_children():
 		child.queue_free()
 
+	var pname: String = SaveManager.player_name if SaveManager.player_name != "" else "—"
+	_add_section("Player", _text_value(pname, UITheme.GOLD, 22))
+
 	_add_section("Time Patron", _patron_badge())
 
 	var hearts := ""
