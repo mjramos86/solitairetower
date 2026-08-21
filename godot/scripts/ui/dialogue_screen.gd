@@ -46,8 +46,8 @@ const FRAME_WIDTH_RATIO := 0.92
 const FRAME_TOP_RATIO := 0.06
 const FRAME_MAX_HEIGHT_RATIO := 0.64
 
-const PLAIN_TEXT := Color("cccccc")
-const PLAIN_DIM := Color("666666")
+const PLAIN_TEXT := Color("e8e0d0")
+const PLAIN_DIM := Color("aaaaaa")
 const PLAIN_BORDER := Color("555555")
 const PORTRAIT_LABEL := Color("39ff6a")
 
