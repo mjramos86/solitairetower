@@ -36,7 +36,10 @@ const LAYOUT := {
 ## per rebuild in _compute_fan so long columns stay inside the board.
 const FAN_DOWN_FACE_UP := 0.30
 const FAN_DOWN_FACE_DOWN := 0.14
-const MIN_FAN_UP := 0.07
+## Smallest face-up fan that still leaves the covered card's rank+suit corner
+## legible (the corner index runs to ~0.26 of the card height). Rather than pack
+## tighter than this, tall columns shrink the whole card — see _apply_column_fit.
+const MIN_FAN_UP := 0.26
 const PILE_GAP := 0.18
 
 ## The live face-up fan, recomputed each rebuild by _compute_fan.
@@ -684,6 +687,7 @@ func _capture_positions() -> Dictionary:
 
 func _animate_transition(prev: Dictionary) -> void:
 	var cur := _capture_positions()
+	var live := _state_uids(RunState.gs)
 	var count := 0
 	for uid in prev:
 		if count >= MAX_ANIM_CARDS:
@@ -694,9 +698,34 @@ func _animate_transition(prev: Dictionary) -> void:
 			if (p["pos"] as Vector2).distance_to(c["pos"]) > 2.0:
 				_fly(c["card"], p["pos"], c["pos"], c["node"])
 				count += 1
-		else:
+		elif not live.has(uid):
+			# Gone from the board AND from the game state — a card truly removed
+			# from play (a completed sequence). A card that merely stopped being
+			# rendered because another landed on top of it (a foundation card
+			# covered by the next rank) stays put, so it must not launch off.
 			_fly_off(p["card"], p["pos"])
 			count += 1
+
+
+## Every card uid anywhere in the game state, however the variant nests its
+## piles (tableau columns, foundation stacks, waste, stock, free cells, pyramid
+## rows…). Used to tell a card that was removed from play apart from one merely
+## buried under a card that landed on it.
+func _state_uids(gs: Dictionary) -> Dictionary:
+	var out := {}
+	_collect_uids(gs.values(), out)
+	return out
+
+
+func _collect_uids(value: Variant, out: Dictionary) -> void:
+	if value is Array:
+		for item in value:
+			_collect_uids(item, out)
+	elif value is Dictionary:
+		if value.has("uid"):
+			out[value["uid"]] = true
+		else:
+			_collect_uids(value.values(), out)
 
 
 ## A ghost card slides from `from` to `to`; the real card is hidden until it lands.
@@ -756,10 +785,14 @@ func _fit_card_size(type: String, board_w: float, board_h: float) -> Vector2:
 	return Vector2(width, width / UITheme.CARD_ASPECT)
 
 
-## Chooses the face-up fan spacing so the tallest current tableau column fits the
-## board height. Cards stay big; a long column just packs tighter instead of
-## shrinking the whole deal. Only the column games fan; the fixed-shape games
-## leave the default untouched.
+## Fits the tallest tableau column into the board height. The face-up fan is
+## never squeezed below MIN_FAN_UP (which keeps covered ranks readable); once a
+## column would overflow at that spacing, the whole card shrinks instead. Only
+## the column games fan; the fixed-shape games leave the defaults untouched.
+##
+## Column height, in card-heights, is `1 + down·FAN_DOWN_FACE_DOWN + up·fan`
+## (every card but the last adds a fan step by its own face state), and it sits
+## below a header row of `header` card-heights plus a small breathing gap.
 func _compute_fan(gs: Dictionary, board_h: float) -> void:
 	_fan_up = FAN_DOWN_FACE_UP
 	var type: String = gs.get("type", "")
@@ -769,26 +802,48 @@ func _compute_fan(gs: Dictionary, board_h: float) -> void:
 	var ch := _card_size.y
 	if ch <= 0.0:
 		return
-	# Height left for a column below the header row (plus a little breathing gap).
-	var avail := board_h * (1.0 - BOARD_MARGIN * 2.0) - ch * (float(spec["header"]) + 0.35)
-	var fan := FAN_DOWN_FACE_UP
+	var usable_h := board_h * (1.0 - BOARD_MARGIN * 2.0)
+	var overhead := float(spec["header"]) + 0.35  # header row + breathing gap, in card-heights
+
+	# The card height that lets each column fit at the readable minimum fan; the
+	# binding column is the one that demands the smallest card.
+	var ch_cap := ch
 	for col in gs["tableau"]:
-		var n: int = col.size()
-		if n <= 1:
-			continue
-		# Every card but the last contributes a fan step, by its own face state.
-		var down := 0
-		var up := 0
-		for i in range(0, n - 1):
-			if col[i]["face_up"]:
-				up += 1
-			else:
-				down += 1
+		var counts := _fan_counts(col)
+		var up: int = counts[0]
 		if up <= 0:
 			continue
-		var room := avail / ch - 1.0 - float(down) * FAN_DOWN_FACE_DOWN
+		var units := 1.0 + float(counts[1]) * FAN_DOWN_FACE_DOWN + float(up) * MIN_FAN_UP + overhead
+		ch_cap = minf(ch_cap, usable_h / units)
+	if ch_cap < ch:
+		# Shrink the card (keeping aspect) so the tallest column fits at MIN_FAN_UP.
+		ch = maxf(ch_cap, 44.0 / UITheme.CARD_ASPECT)
+		_card_size = Vector2(ch * UITheme.CARD_ASPECT, ch)
+
+	# With the final card height, open the fan as wide as every column allows,
+	# between the readable minimum and the loose default.
+	var fan := FAN_DOWN_FACE_UP
+	for col in gs["tableau"]:
+		var counts := _fan_counts(col)
+		var up: int = counts[0]
+		if up <= 0:
+			continue
+		var room := usable_h / ch - 1.0 - float(counts[1]) * FAN_DOWN_FACE_DOWN - overhead
 		fan = minf(fan, room / float(up))
 	_fan_up = clampf(fan, MIN_FAN_UP, FAN_DOWN_FACE_UP)
+
+
+## [face_up_steps, face_down_steps] a column contributes to its fan — every card
+## but the last, counted by its face state.
+func _fan_counts(col: Array) -> Array:
+	var up := 0
+	var down := 0
+	for i in range(0, col.size() - 1):
+		if col[i]["face_up"]:
+			up += 1
+		else:
+			down += 1
+	return [up, down]
 
 
 ## Shifts everything the layout built so the whole board is centred horizontally
