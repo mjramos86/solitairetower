@@ -17,17 +17,30 @@ const CARD_VIEW := preload("res://scenes/card_view.tscn")
 ## column inside the board height. `top` counts extra card-height rows above the
 ## tableau (foundation/free-cell row). Cards are sized to satisfy both the width
 ## and the height budget, whichever is tighter.
+## Card-sizing budget per variant. `w` is the widest row measured in card widths
+## (including inter-pile gaps); `h` is the content height in card heights; `header`
+## is how many card heights the non-tableau rows take, used by the adaptive fan.
+## Column games are deliberately sized generously — near-width-limited, like a
+## desktop solitaire — and the fan compresses tall columns to keep them on-screen
+## rather than shrinking every card to fit a rare 13-high pile. Pyramid/TriPeaks
+## carry the real height of their fixed shapes so they never overflow.
 const LAYOUT := {
-	"klondike": {"cols": 7, "stack": 13, "top": 1.0},
-	"spider": {"cols": 10, "stack": 20, "top": 0.6},
-	"freecell": {"cols": 8, "stack": 14, "top": 1.0},
-	"tripeaks": {"cols": 10, "stack": 7, "top": 0.0},
-	"pyramid": {"cols": 8, "stack": 9, "top": 0.0},
+	"klondike": {"w": 8.08, "h": 3.4, "header": 1.25},
+	"freecell": {"w": 9.26, "h": 3.4, "header": 1.25},
+	"spider": {"w": 11.62, "h": 3.6, "header": 0.75},
+	"tripeaks": {"w": 11.0, "h": 3.6, "header": 0.0},
+	"pyramid": {"w": 8.3, "h": 5.1, "header": 0.0},
 }
 
+## Default (loosest) fan spacing for face-up cards; the actual value is computed
+## per rebuild in _compute_fan so long columns stay inside the board.
 const FAN_DOWN_FACE_UP := 0.30
 const FAN_DOWN_FACE_DOWN := 0.14
+const MIN_FAN_UP := 0.07
 const PILE_GAP := 0.18
+
+## The live face-up fan, recomputed each rebuild by _compute_fan.
+var _fan_up := FAN_DOWN_FACE_UP
 
 ## Margins kept clear of the board edges when centring, as a fraction.
 const BOARD_MARGIN := 0.03
@@ -635,6 +648,7 @@ func _rebuild() -> void:
 		return
 
 	_card_size = _fit_card_size(String(gs.get("type", "klondike")), board_w, board_h)
+	_compute_fan(gs, board_h)
 
 	match gs["type"]:
 		"klondike": _layout_klondike(gs)
@@ -651,27 +665,54 @@ func _rebuild() -> void:
 		_show_win_overlay()
 
 
-## Largest card that keeps the widest row and the tallest column inside the
-## board. Width and height are solved separately and the smaller wins.
+## Largest card that keeps the widest row across the board and the fixed content
+## height inside it. Column games come out near the width limit (big cards); the
+## fan, computed separately, keeps tall columns from spilling off the bottom.
 func _fit_card_size(type: String, board_w: float, board_h: float) -> Vector2:
 	var spec: Dictionary = LAYOUT.get(type, LAYOUT["klondike"])
-	var cols: float = spec["cols"]
-	var stack: float = spec["stack"]
-	var top: float = spec["top"]
-
 	var usable_w := board_w * (1.0 - BOARD_MARGIN * 2.0)
 	var usable_h := board_h * (1.0 - BOARD_MARGIN * 2.0)
 
-	# Columns span cols cards plus a gap between each; solve for card width.
-	var width_fit := usable_w / (cols * (1.0 + PILE_GAP))
+	var by_width := usable_w / float(spec["w"])
+	var by_height := (usable_h / float(spec["h"])) * UITheme.CARD_ASPECT
 
-	# A column is one card plus (stack-1) fanned steps, plus the header rows,
-	# all in card-height units; convert the height budget back to a card width.
-	var height_units := top + 1.0 + maxf(0.0, stack - 1.0) * FAN_DOWN_FACE_UP
-	var height_fit := (usable_h / height_units) * UITheme.CARD_ASPECT
-
-	var width := clampf(minf(width_fit, height_fit), 40.0, 240.0)
+	var width := clampf(minf(by_width, by_height), 44.0, 260.0)
 	return Vector2(width, width / UITheme.CARD_ASPECT)
+
+
+## Chooses the face-up fan spacing so the tallest current tableau column fits the
+## board height. Cards stay big; a long column just packs tighter instead of
+## shrinking the whole deal. Only the column games fan; the fixed-shape games
+## leave the default untouched.
+func _compute_fan(gs: Dictionary, board_h: float) -> void:
+	_fan_up = FAN_DOWN_FACE_UP
+	var type: String = gs.get("type", "")
+	if not ["klondike", "freecell", "spider"].has(type):
+		return
+	var spec: Dictionary = LAYOUT[type]
+	var ch := _card_size.y
+	if ch <= 0.0:
+		return
+	# Height left for a column below the header row (plus a little breathing gap).
+	var avail := board_h * (1.0 - BOARD_MARGIN * 2.0) - ch * (float(spec["header"]) + 0.35)
+	var fan := FAN_DOWN_FACE_UP
+	for col in gs["tableau"]:
+		var n: int = col.size()
+		if n <= 1:
+			continue
+		# Every card but the last contributes a fan step, by its own face state.
+		var down := 0
+		var up := 0
+		for i in range(0, n - 1):
+			if col[i]["face_up"]:
+				up += 1
+			else:
+				down += 1
+		if up <= 0:
+			continue
+		var room := avail / ch - 1.0 - float(down) * FAN_DOWN_FACE_DOWN
+		fan = minf(fan, room / float(up))
+	_fan_up = clampf(fan, MIN_FAN_UP, FAN_DOWN_FACE_UP)
 
 
 ## Shifts everything the layout built so the whole board is centred horizontally
@@ -806,7 +847,7 @@ func _layout_klondike(gs: Dictionary) -> void:
 		var y := top
 		for i in pile.size():
 			_spawn(pile[i], Vector2(x, y), {"kind": "tableau", "col": c, "index": i})
-			y += _card_size.y * (FAN_DOWN_FACE_UP if pile[i]["face_up"] else FAN_DOWN_FACE_DOWN)
+			y += _card_size.y * (_fan_up if pile[i]["face_up"] else FAN_DOWN_FACE_DOWN)
 
 
 func _layout_spider(gs: Dictionary) -> void:
@@ -828,7 +869,7 @@ func _layout_spider(gs: Dictionary) -> void:
 		var y := top
 		for i in pile.size():
 			_spawn(pile[i], Vector2(x, y), {"kind": "tableau", "col": c, "index": i})
-			y += _card_size.y * (FAN_DOWN_FACE_UP if pile[i]["face_up"] else FAN_DOWN_FACE_DOWN)
+			y += _card_size.y * (_fan_up if pile[i]["face_up"] else FAN_DOWN_FACE_DOWN)
 
 
 func _layout_freecell(gs: Dictionary) -> void:
@@ -861,7 +902,7 @@ func _layout_freecell(gs: Dictionary) -> void:
 		var y := top
 		for i in pile.size():
 			_spawn(pile[i], Vector2(x, y), {"kind": "tableau", "col": c, "index": i})
-			y += _card_size.y * FAN_DOWN_FACE_UP
+			y += _card_size.y * _fan_up
 
 
 func _layout_tripeaks(gs: Dictionary) -> void:
@@ -1076,7 +1117,7 @@ func _begin_drag() -> void:
 	for i in _drag_cards.size():
 		var card_view := CARD_VIEW.instantiate()
 		_ghost.add_child(card_view)
-		card_view.position = Vector2(0, i * _card_size.y * FAN_DOWN_FACE_UP)
+		card_view.position = Vector2(0, i * _card_size.y * _fan_up)
 		card_view.custom_minimum_size = _card_size
 		card_view.size = _card_size
 		card_view.setup(_drag_cards[i])
