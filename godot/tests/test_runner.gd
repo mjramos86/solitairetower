@@ -31,6 +31,8 @@ func _ready() -> void:
 	test_shop_and_choices()
 	test_save_round_trip()
 	test_save_slots()
+	test_auto_play()
+	test_floor_choices_and_forfeit()
 	test_full_run()
 	test_hints()
 	test_item_effects()
@@ -720,6 +722,69 @@ func test_save_slots() -> void:
 	check_eq(int(SaveManager.profile["banked_credits"]), 777, "migrated profile keeps its energy")
 	check_eq(SaveManager.highscores.size(), 1, "migrated high scores survive")
 
+	SaveManager.erase_all()
+
+
+## One-click play sends a clicked card to its most obvious legal home.
+func test_auto_play() -> void:
+	suite("one-click auto-play")
+	RunState.new_run()
+	RunState.gtype = "klondike"
+	var gs := {"type": "klondike",
+		"tableau": [[Cards.make_card(Cards.Suit.SPADES, 1, true)], [], [], [], [], [], []],
+		"stock": [], "waste": [], "foundations": [[], [], [], []], "card_points": {}}
+	Cards.assign_uids(gs)
+	RunState.gs = gs
+	RunState.score = 0
+
+	var screen: Node = load("res://scenes/screens/game_screen.tscn").instantiate()
+	add_child(screen)
+	var moved: bool = screen._auto_play({"kind": "tableau", "col": 0, "index": 0})
+	check(moved, "clicking a lone ace auto-plays it")
+	check_eq(RunState.gs["foundations"][Cards.Suit.SPADES].size(), 1, "the ace went to its foundation")
+	check(RunState.gs["tableau"][0].is_empty(), "the source column emptied")
+
+	# A card with no legal move does not move.
+	RunState.gs = {"type": "klondike",
+		"tableau": [[Cards.make_card(Cards.Suit.SPADES, 7, true)], [], [], [], [], [], []],
+		"stock": [], "waste": [], "foundations": [[], [], [], []], "card_points": {}}
+	Cards.assign_uids(RunState.gs)
+	check(not screen._auto_play({"kind": "tableau", "col": 0, "index": 0}),
+		"a card with no obvious move does not auto-play")
+
+	remove_child(screen)
+	screen.queue_free()
+	RunState.new_run()
+
+
+## Floor choices always keep Klondike on floor 1 and FreeCell on the boss floor,
+## and abandoning re-rolls the current floor; forfeiting ends the run.
+func test_floor_choices_and_forfeit() -> void:
+	suite("floor choices, abandon, forfeit")
+	for trial in 25:
+		var c0 := GameData.floor_choice(0)
+		check(c0["left"] == "klondike" or c0["right"] == "klondike",
+			"floor 1 always offers Klondike")
+	var boss := GameData.floor_choice(GameData.TOTAL_FLOORS - 1)
+	check(boss["left"] == "freecell" and boss["right"] == "freecell",
+		"the last floor is the FreeCell boss")
+
+	# Abandoning re-rolls the current floor's choice (and floor 0 keeps Klondike).
+	SaveManager.erase_all()
+	RunState.new_run()
+	RunState.floor_index = 0
+	RunState._reshuffle_floor_choice()
+	var f0: Dictionary = RunState.choices[0]
+	check(f0["left"] == "klondike" or f0["right"] == "klondike",
+		"re-rolled floor 1 still offers Klondike")
+
+	# Forfeiting drops every life and routes to the score screen.
+	RunState.new_run()
+	RunState.lives = 3
+	RunState.floor_index = 2
+	RunState.forfeit_run()
+	check_eq(RunState.lives, 0, "forfeit spends every life")
+	check_eq(RunState.screen, "gameover", "forfeit routes to game over")
 	SaveManager.erase_all()
 
 

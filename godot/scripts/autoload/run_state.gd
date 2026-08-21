@@ -132,6 +132,7 @@ func start_game(type: String, target_floor: int) -> void:
 	tp_streak = 0
 
 	gs = Rules.init_game(type, target_floor, extra_freecell)
+	Cards.assign_uids(gs)
 	start_timer()
 	set_screen("game")
 	state_changed.emit()
@@ -208,9 +209,11 @@ func proceed_to_shop() -> void:
 
 
 ## Gives up the floor. Consumes a no-life-abandon item if held.
-## Returns true when a life was spent.
+## Returns true when a life was spent. Abandoning re-rolls this floor's two
+## variant choices — the payoff for the sacrifice is a fresh set of games.
 func abandon_floor() -> bool:
 	SaveManager.record_game_result(gtype, false)
+	_reshuffle_floor_choice()
 	var free_idx := _find_item_by_effect("no-life-abandon")
 	if free_idx >= 0:
 		inventory.remove_at(free_idx)
@@ -220,6 +223,25 @@ func abandon_floor() -> bool:
 		state_changed.emit()
 		return false
 	return _lose_life()
+
+
+## Re-rolls the current floor's offered variants (Klondike stays guaranteed on
+## floor 0, the boss stays FreeCell on the last floor).
+func _reshuffle_floor_choice() -> void:
+	if floor_index >= 0 and floor_index < choices.size():
+		choices[floor_index] = GameData.floor_choice(floor_index)
+
+
+## Ends the run immediately as a loss — the "New Run" option on the map. Routes
+## through the same game-over/score-entry flow as losing the last life.
+func forfeit_run() -> void:
+	lives = 0
+	lives_changed.emit(0)
+	tp_streak = 0
+	_reset_board_flags()
+	stop_timer()
+	set_screen("gameover")
+	end_run(false)
 
 
 func new_shuffle() -> bool:
@@ -232,6 +254,7 @@ func new_shuffle() -> bool:
 	floor_start_time = Time.get_ticks_msec()
 	floor_start_score = score
 	gs = Rules.init_game(gtype, floor_index, extra_freecell)
+	Cards.assign_uids(gs)
 	state_changed.emit()
 	return true
 
@@ -423,6 +446,7 @@ func from_snapshot(snap: Dictionary) -> void:
 	done = snap.get("done", [])
 	gtype = snap.get("gtype", "")
 	gs = snap.get("gs", {})
+	Cards.assign_uids(gs)
 	score = int(snap.get("score", 0))
 	score_log = snap.get("score_log", [])
 	tp_streak = int(snap.get("tp_streak", 0))

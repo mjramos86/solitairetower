@@ -70,3 +70,37 @@ static func new_rng(seed_value: int = 0) -> RandomNumberGenerator:
 ## a true copy, since moves mutate piles in place.
 static func clone_state(state: Dictionary) -> Dictionary:
 	return state.duplicate(true)
+
+
+## A monotonic id used only by the UI to follow a card across a move for the
+## slide animation. Spider deals duplicate suit/rank cards, so suit-rank is not a
+## unique identity; a uid is. clone_state preserves it (duplicate copies the key).
+static var _uid_counter := 0
+
+
+## Stamps every card in a freshly dealt state with a unique uid if it lacks one.
+## Idempotent, so it is safe to call after a resume or a mid-game deal.
+static func assign_uids(state: Dictionary) -> void:
+	for pile_key in ["stock", "waste"]:
+		for c in state.get(pile_key, []):
+			_tag_uid(c)
+	for pile in state.get("tableau", []):
+		for c in pile:
+			_tag_uid(c)
+	for f in state.get("foundations", []):
+		if typeof(f) == TYPE_ARRAY:
+			for c in f:
+				_tag_uid(c)
+	for c in state.get("freecells", []):
+		_tag_uid(c)
+	for c in state.get("pyramid", []):
+		_tag_uid(c)
+	for grp in state.get("stock_groups", []):
+		for c in grp:
+			_tag_uid(c)
+
+
+static func _tag_uid(c) -> void:
+	if typeof(c) == TYPE_DICTIONARY and not c.has("uid"):
+		_uid_counter += 1
+		c["uid"] = _uid_counter

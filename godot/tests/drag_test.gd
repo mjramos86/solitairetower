@@ -17,11 +17,14 @@ func _ready() -> void:
 	RunState.new_run()
 	RunState.start_game("klondike", 4)
 
-	# Rig a trivially legal move: a red 6 on column 0 top, a black 7 on column 1
-	# top. The 6 should drop onto the 7.
+	# Rig a red 6 alone on column 0, all other columns empty. With no legal target
+	# yet, a click just selects it — the drag target (a black 7) is added later so
+	# the plain-click phase isn't consumed by one-click auto-play.
 	var gs := RunState.gs
+	for i in gs["tableau"].size():
+		gs["tableau"][i] = []
 	gs["tableau"][0] = [Cards.make_card(Cards.Suit.HEARTS, 6, true)]
-	gs["tableau"][1] = [Cards.make_card(Cards.Suit.SPADES, 7, true)]
+	Cards.assign_uids(gs)
 	RunState.gs = gs
 
 	var screen: PackedScene = load("res://scenes/screens/game_screen.tscn")
@@ -65,10 +68,16 @@ func _ready() -> void:
 		_send_button(p, true); await get_tree().process_frame
 		_send_button(p, false); await get_tree().process_frame
 		ck(not view._dragging, "a plain click does not start a drag")
-		ck(RunState.gs["tableau"][0].size() == 1, "a plain click leaves the board unchanged")
+		ck(RunState.gs["tableau"][0].size() == 1, "a plain click on a card with no move leaves the board unchanged")
 		view._selection = {}
-		view._rebuild()
-		await get_tree().process_frame
+
+	# Now add the drag target (a black 7 on column 1) and rebuild.
+	var gs_drag := RunState.gs
+	gs_drag["tableau"][1] = [Cards.make_card(Cards.Suit.SPADES, 7, true)]
+	Cards.assign_uids(gs_drag)
+	RunState.gs = gs_drag
+	view._rebuild()
+	await get_tree().process_frame
 
 	# Find the source (H6 on col 0) and target (S7 on col 1) card views.
 	var board: Control = view.get_node("Rows/Board/Felt")

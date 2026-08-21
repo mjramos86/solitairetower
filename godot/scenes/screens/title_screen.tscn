@@ -53,3 +53,7 @@ text = "NEW GAME"
 [node name="Scores" type="Button" parent="Center/Panel/Buttons"]
 layout_mode = 2
 text = "HIGH SCORES"
+
+[node name="Exit" type="Button" parent="Center/Panel/Buttons"]
+layout_mode = 2
+text = "EXIT GAME"

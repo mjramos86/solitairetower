@@ -182,24 +182,34 @@ static func generate_choices(rng: RandomNumberGenerator = null) -> Array:
 	if rng == null:
 		rng = Cards.new_rng()
 	var choices := []
-	for i in 9:
-		var t := TYPES.duplicate()
-		for j in range(t.size() - 1, 0, -1):
-			var k := rng.randi_range(0, j)
-			var tmp = t[j]
-			t[j] = t[k]
-			t[k] = tmp
-		if i == 0:
-			var other := ""
-			for x in t:
-				if x != "klondike":
-					other = x
-					break
-			choices.append({"left": "klondike", "right": other})
-		else:
-			choices.append({"left": t[0], "right": t[1]})
-	choices.append({"left": "freecell", "right": "freecell"})
+	for i in TOTAL_FLOORS:
+		choices.append(floor_choice(i, rng))
 	return choices
+
+
+## The pair of variants offered on a single floor. The final floor is always the
+## FreeCell boss; the first floor always offers Klondike (so a brand-new player
+## starts on the familiar game); every other floor is two distinct random types.
+## Re-rolled when the player abandons a floor, giving a fresh set of options.
+static func floor_choice(floor_index: int, rng: RandomNumberGenerator = null) -> Dictionary:
+	if rng == null:
+		rng = Cards.new_rng()
+	if floor_index >= TOTAL_FLOORS - 1:
+		return {"left": "freecell", "right": "freecell"}
+	var t := TYPES.duplicate()
+	for j in range(t.size() - 1, 0, -1):
+		var k := rng.randi_range(0, j)
+		var tmp = t[j]
+		t[j] = t[k]
+		t[k] = tmp
+	if floor_index == 0:
+		var other := ""
+		for x in t:
+			if x != "klondike":
+				other = x
+				break
+		return {"left": "klondike", "right": other}
+	return {"left": t[0], "right": t[1]}
 
 
 ## Time-credit awards for clearing a floor. Ported from calcFloorGoldBreakdown.

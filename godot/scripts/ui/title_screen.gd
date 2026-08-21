@@ -11,6 +11,7 @@ extends Control
 @onready var _load_button: Button = $Center/Panel/Buttons/Load
 @onready var _new_button: Button = $Center/Panel/Buttons/New
 @onready var _scores_button: Button = $Center/Panel/Buttons/Scores
+@onready var _exit_button: Button = $Center/Panel/Buttons/Exit
 @onready var _keyart: TextureRect = $Keyart
 @onready var _title: Label = $Center/Panel/Title
 @onready var _subtitle: Label = $Center/Panel/Subtitle
@@ -33,6 +34,8 @@ func _ready() -> void:
 	_load_button.pressed.connect(_on_load)
 	_new_button.pressed.connect(_on_new)
 	_scores_button.pressed.connect(_on_scores)
+	_exit_button.pressed.connect(_on_exit)
+	_exit_button.add_theme_color_override("font_color", UITheme.MAROON)
 
 
 func _on_load() -> void:
@@ -47,3 +50,9 @@ func _on_new() -> void:
 
 func _on_scores() -> void:
 	RunState.set_screen("highscores")
+
+
+## Closes the game completely, back to Steam / the desktop.
+func _on_exit() -> void:
+	SaveManager.save_game()
+	get_tree().quit()

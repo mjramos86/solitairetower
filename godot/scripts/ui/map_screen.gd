@@ -61,7 +61,7 @@ func _build_side() -> void:
 		child.queue_free()
 
 	var pname: String = SaveManager.player_name if SaveManager.player_name != "" else "—"
-	_add_section("Player", _text_value(pname, UITheme.GOLD, 22))
+	_add_section("Player", _text_value(pname, UITheme.GOLD, 28))
 
 	_add_section("Time Patron", _patron_badge())
 
@@ -70,11 +70,11 @@ func _build_side() -> void:
 		hearts += "♥ "
 	if hearts == "":
 		hearts = "—"
-	_add_section("Lives", _text_value(hearts.strip_edges(), HEART, 26))
+	_add_section("Lives", _text_value(hearts.strip_edges(), HEART, 30))
 
-	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 20))
+	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 26))
 	_add_section("Time Energy",
-		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 20))
+		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 26))
 
 	_add_section("🎒 Inventory", _inventory_slots())
 
@@ -86,6 +86,22 @@ func _build_side() -> void:
 	_side.add_child(_panel_button("▶ Watch Intro", func():
 		RunState.intro_replay = true
 		RunState.set_screen("patron-dialogue")))
+	# New Run gives up the whole descent — same as losing every life — and goes
+	# through the game-over / score-entry flow.
+	var new_run_btn := _panel_button("⚑ New Run", _confirm_new_run)
+	new_run_btn.add_theme_color_override("font_color", UITheme.DANGER)
+	_side.add_child(new_run_btn)
+
+
+func _confirm_new_run() -> void:
+	var confirm := ConfirmationDialog.new()
+	confirm.dialog_text = "Start a New Run?\n\nThis ends your current descent — the rest of your lives are forfeit and your run is scored now."
+	add_child(confirm)
+	confirm.popup_centered()
+	confirm.confirmed.connect(func():
+		confirm.queue_free()
+		RunState.forfeit_run())
+	confirm.canceled.connect(confirm.queue_free)
 
 
 ## Each side entry is a gold-bordered card with a Cinzel small-caps label, like
@@ -101,7 +117,7 @@ func _add_section(label_text: String, content: Control) -> void:
 	var label := Label.new()
 	label.text = label_text.to_upper()
 	label.add_theme_font_override("font", UITheme.font_at("display", 600))
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", UITheme.GOLD)
 	box.add_child(label)
 	box.add_child(content)
@@ -117,14 +133,14 @@ func _section_box() -> StyleBoxFlat:
 	s.border_width_bottom = 1
 	s.border_color = UITheme.GOLD_DIM
 	s.set_corner_radius_all(5)
-	s.content_margin_left = 12
-	s.content_margin_right = 12
-	s.content_margin_top = 10
-	s.content_margin_bottom = 10
+	s.content_margin_left = 16
+	s.content_margin_right = 16
+	s.content_margin_top = 14
+	s.content_margin_bottom = 14
 	return s
 
 
-func _text_value(text: String, color: Color, font_size := 18) -> Label:
+func _text_value(text: String, color: Color, font_size := 22) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_override("font", UITheme.font_at("display", 600))
@@ -141,7 +157,7 @@ func _patron_badge() -> Control:
 
 	var portrait := TextureRect.new()
 	portrait.texture = load(AssetPaths.PATRONS.get(RunState.patron, AssetPaths.PATRONS["johndee"]))
-	portrait.custom_minimum_size = Vector2(64, 64)
+	portrait.custom_minimum_size = Vector2(96, 96)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -151,7 +167,7 @@ func _patron_badge() -> Control:
 	name.text = _patron_name(RunState.patron)
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name.add_theme_font_override("font", UITheme.font_at("display", 600))
-	name.add_theme_font_size_override("font_size", 14)
+	name.add_theme_font_size_override("font_size", 18)
 	name.add_theme_color_override("font_color", UITheme.GOLD)
 	box.add_child(name)
 	return box
@@ -177,7 +193,7 @@ func _inventory_slots() -> Control:
 			label.text = "[ empty ]"
 			label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		label.add_theme_font_override("font", UITheme.font("pixel"))
-		label.add_theme_font_size_override("font_size", 15)
+		label.add_theme_font_size_override("font_size", 18)
 		box.add_child(label)
 	return box
 
@@ -187,7 +203,7 @@ func _panel_button(text: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.add_theme_font_override("font", UITheme.font("pixel"))
-	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_font_size_override("font_size", 18)
 	button.add_theme_color_override("font_color", Color(UITheme.GOLD, 0.85))
 	button.add_theme_color_override("font_hover_color", UITheme.GOLD)
 	button.add_theme_stylebox_override("normal", _ghost_button_box(0.35))

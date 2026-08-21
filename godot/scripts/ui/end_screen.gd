@@ -29,8 +29,10 @@ func _ready() -> void:
 		RunState.score, RunState.gold, floors_cleared,
 		GameData.TOTAL_FLOORS, RunState.format_elapsed()]
 
-	# Prefill with the last name used, so repeat runs need no retyping.
-	_name_field.text = String(SaveManager.profile.get("last_name", ""))
+	# Prefill with the slot's player name (falling back to the last name typed),
+	# so a scored run is attributed to the player without retyping.
+	_name_field.text = SaveManager.player_name if SaveManager.player_name != "" \
+		else String(SaveManager.profile.get("last_name", ""))
 	_name_field.placeholder_text = "Your name"
 	_submit_button.pressed.connect(_on_submit)
 	_again_button.pressed.connect(_on_again)

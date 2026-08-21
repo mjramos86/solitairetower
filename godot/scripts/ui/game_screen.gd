@@ -627,27 +627,33 @@ func _rebuild() -> void:
 		return
 	_refresh_header()
 	_refresh_inventory()
+
+	var gs := RunState.gs
+	var board_w := _board.size.x
+	var board_h := _board.size.y
+
+	# Animate only between two layouts of the same game at the same board size;
+	# a new floor or a resize just snaps. Positions are captured from the current
+	# (pre-clear) cards, so this must run before they are freed.
+	var type := String(gs.get("type", ""))
+	var can_anim := _animate and _last_gtype == type and not type.is_empty() \
+		and _last_board_size == Vector2(board_w, board_h) and _board.get_child_count() > 0
+	var prev: Dictionary = _capture_positions() if can_anim else {}
+
 	# Detach the previous cards immediately (not just queue_free, which is
-	# deferred) so _centre_board below measures ONLY the freshly spawned cards.
-	# Otherwise the old, already-centred cards still count toward the content
-	# bounds and the whole board shifts a little on every rebuild — i.e. every
-	# click. This kept the play area from sitting still.
+	# deferred) so a stale card is never captured or measured twice.
 	for child in _board.get_children():
 		_board.remove_child(child)
 		child.queue_free()
 
-	var gs := RunState.gs
 	if gs.is_empty():
 		return
-
-	var board_w := _board.size.x
-	var board_h := _board.size.y
 	if board_w < 1.0 or board_h < 1.0:
-		# Laid out before the board has a size; the board.resized signal will
-		# call back once it does.
+		# Laid out before the board has a size; the board.resized signal calls
+		# back once it does.
 		return
 
-	_card_size = _fit_card_size(String(gs.get("type", "klondike")), board_w, board_h)
+	_card_size = _fit_card_size(type, board_w, board_h)
 	_compute_fan(gs, board_h)
 
 	match gs["type"]:
@@ -658,11 +664,102 @@ func _rebuild() -> void:
 		"pyramid": _layout_pyramid(gs)
 
 	_centre_board(board_w, board_h)
+	_last_gtype = type
+	_last_board_size = Vector2(board_w, board_h)
+
+	if not prev.is_empty():
+		_animate_transition(prev)
 
 	# Re-show the floor-clear overlay if a run was resumed on an already-won
 	# board. Guarded on an empty overlay layer so normal rebuilds don't stack it.
 	if RunState.win_overlay and _overlays.get_child_count() == 0 and Rules.is_won(gs):
 		_show_win_overlay()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Move animation — cards slide to their new home instead of snapping there.
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# This is automatic: every rebuild compares each card's new position to where it
+# was (matched by uid) and slides the difference. Cards that vanished (pyramid
+# pairs, spider suit completions, removed cards) fly off and fade. No move code
+# has to know about the animation.
+
+const ANIM_DUR := 0.18
+const MAX_ANIM_CARDS := 26
+var _animate := true
+var _last_gtype := ""
+var _last_board_size := Vector2.ZERO
+
+
+func _capture_positions() -> Dictionary:
+	var m := {}
+	for child in _board.get_children():
+		if not (child is Control) or not child.has_meta("card_ref"):
+			continue
+		var card = child.get_meta("card_ref")
+		if typeof(card) == TYPE_DICTIONARY and card.has("uid"):
+			m[card["uid"]] = {"pos": (child as Control).global_position, "card": card, "node": child}
+	return m
+
+
+func _animate_transition(prev: Dictionary) -> void:
+	var cur := _capture_positions()
+	var count := 0
+	for uid in prev:
+		if count >= MAX_ANIM_CARDS:
+			break
+		var p: Dictionary = prev[uid]
+		if cur.has(uid):
+			var c: Dictionary = cur[uid]
+			if (p["pos"] as Vector2).distance_to(c["pos"]) > 2.0:
+				_fly(c["card"], p["pos"], c["pos"], c["node"])
+				count += 1
+		else:
+			_fly_off(p["card"], p["pos"])
+			count += 1
+
+
+## A ghost card slides from `from` to `to`; the real card is hidden until it lands.
+func _fly(card: Dictionary, from: Vector2, to: Vector2, real_node: Node) -> void:
+	if is_instance_valid(real_node):
+		(real_node as Control).modulate.a = 0.0
+	var ghost := _ghost_card(card)
+	ghost.global_position = from
+	var tw := create_tween()
+	tw.tween_property(ghost, "global_position", to, ANIM_DUR) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(real_node):
+			(real_node as Control).modulate.a = 1.0
+		ghost.queue_free())
+
+
+## A removed card lifts away and fades, like the web build's launchOff.
+func _fly_off(card: Dictionary, from: Vector2) -> void:
+	var ghost := _ghost_card(card)
+	ghost.global_position = from
+	var dir := 1.0 if randf() > 0.5 else -1.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ghost, "global_position", from + Vector2(dir * 80.0, -180.0), 0.42) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ghost, "modulate:a", 0.0, 0.42)
+	tw.chain().tween_callback(ghost.queue_free)
+
+
+func _ghost_card(card: Dictionary) -> Control:
+	var ghost := CARD_VIEW.instantiate()
+	add_child(ghost)
+	ghost.top_level = true
+	ghost.z_index = 300
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ghost.custom_minimum_size = _card_size
+	ghost.size = _card_size
+	var face := card.duplicate()
+	face["face_up"] = true
+	ghost.setup(face)
+	return ghost
 
 
 ## Largest card that keeps the widest row across the board and the fixed content
@@ -716,27 +813,38 @@ func _compute_fan(gs: Dictionary, board_h: float) -> void:
 
 
 ## Shifts everything the layout built so the whole board is centred horizontally
-## and sits just below the top margin. Layouts can therefore place cards from a
-## simple (0,0) origin and stay agnostic about the board's real size.
+## and sits just below the top margin. The centre is computed from the variant's
+## FIXED full width — not from the cards currently present — so the board never
+## drifts as cards are played or removed (which was jarring in TriPeaks and
+## Pyramid especially). Every layout starts from x=0, so only the width matters.
 func _centre_board(board_w: float, board_h: float) -> void:
-	var children := _board.get_children()
-	if children.is_empty():
-		return
-	var min_x := INF
-	var max_x := -INF
-	var min_y := INF
-	for child in children:
+	var full_w := _fixed_content_width(RunState.gs)
+	var offset := Vector2((board_w - full_w) * 0.5, board_h * BOARD_MARGIN)
+	for child in _board.get_children():
 		if child is Control:
-			var r := (child as Control).get_rect()
-			min_x = minf(min_x, r.position.x)
-			max_x = maxf(max_x, r.end.x)
-			min_y = minf(min_y, r.position.y)
-	var content_w := max_x - min_x
-	var offset_x := (board_w - content_w) * 0.5 - min_x
-	var offset_y := board_h * BOARD_MARGIN - min_y
-	for child in children:
-		if child is Control:
-			(child as Control).position += Vector2(offset_x, offset_y)
+			(child as Control).position += offset
+
+
+## The full pixel width of a variant's layout at the current card size, whatever
+## cards happen to be on the board. Mirrors the x-extents the layout functions use.
+func _fixed_content_width(gs: Dictionary) -> float:
+	var cw := _card_size.x
+	var step := cw * (1.0 + PILE_GAP)
+	match gs.get("type", "klondike"):
+		"klondike":
+			return step * 6.0 + cw
+		"spider":
+			return step * 9.0 + cw
+		"freecell":
+			var cells := int((gs.get("freecells", []) as Array).size())
+			return maxf(step * 7.0 + cw, step * (cells + 0.5 + 3.0) + cw)
+		"tripeaks":
+			var tw := cw + cw * 0.10
+			return 9.0 * tw + cw
+		"pyramid":
+			var tw := cw + cw * 0.10
+			return tw * 7.0 - cw * 0.10
+	return step * 6.0 + cw
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -753,6 +861,9 @@ func _spawn(card, pos: Vector2, meta: Dictionary, face_up_override = null) -> Co
 		view.setup(card)
 		if face_up_override != null:
 			view.face_up = face_up_override
+		# Keep a handle to the card dict so the animation layer can follow it
+		# across a move by its uid.
+		view.set_meta("card_ref", card)
 	view.set_meta("slot", meta)
 	view.card_pressed.connect(_on_card_pressed)
 	view.selected = _is_selected(meta)
@@ -1047,9 +1158,108 @@ func _click_slot(meta: Dictionary) -> void:
 			return
 
 	if _selection.is_empty():
+		# One-click play: a card with an obvious legal move goes there directly.
+		# Only when there is no obvious move does the click fall through to a
+		# manual select (drag still lets the player place a card anywhere).
+		if _auto_play(meta):
+			return
 		_begin_selection(meta)
 	else:
 		_handle_target(meta)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  One-click auto-play
+# ══════════════════════════════════════════════════════════════════════════════
+
+## Sends the clicked card (and its movable run) to the most obvious legal spot:
+## a foundation first, then a tableau column, then a free cell. Returns whether
+## it moved. Klondike / Spider / FreeCell only — Pyramid and TriPeaks handle
+## their own single clicks.
+func _auto_play(meta: Dictionary) -> bool:
+	var gs := RunState.gs
+	var type: String = gs.get("type", "")
+	if not ["klondike", "spider", "freecell"].has(type):
+		return false
+
+	var from := {}
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			var idx := int(meta.get("index", pile.size() - 1))
+			if idx < 0 or idx >= pile.size() or not pile[idx]["face_up"]:
+				return false
+			if type == "klondike" and not _is_valid_run(pile, idx):
+				return false
+			if type == "spider" and pile.size() - idx > Rules.spider_sequence_length(pile):
+				return false
+			if type == "freecell" and pile.size() - idx > Rules.freecell_max_movable(gs):
+				return false
+			from = {"kind": "tableau", "col": meta["col"], "index": idx}
+		"waste":
+			if gs["waste"].is_empty():
+				return false
+			from = {"kind": "waste"}
+		"freecell":
+			if gs["freecells"][meta["col"]] == null:
+				return false
+			from = {"kind": "freecell", "col": meta["col"]}
+		_:
+			return false
+
+	for target in _auto_targets(gs, from):
+		if _try_move(from, target):
+			AudioManager.card_moved()
+			_after_move()
+			return true
+	return false
+
+
+## Candidate destinations for an auto-play, in priority order.
+func _auto_targets(gs: Dictionary, from: Dictionary) -> Array:
+	var type: String = gs["type"]
+	var cards := _take_cards(gs, from, true)
+	if cards.is_empty():
+		return []
+
+	var out := []
+	# 1. A foundation, if a single card fits (the classic one-click destination).
+	if cards.size() == 1 and type in ["klondike", "freecell"]:
+		var can := Rules.klondike_can_foundation(cards[0], gs["foundations"]) if type == "klondike" \
+			else Rules.freecell_can_foundation(cards[0], gs["foundations"])
+		if can:
+			out.append({"kind": "foundation", "col": int(cards[0]["suit"])})
+
+	# 2. Tableau columns — non-empty first; an empty column only if it uncovers
+	#    something (moving a whole column onto an empty one gains nothing).
+	var src_col := int(from.get("col", -1))
+	var whole_column: bool = from.get("kind") == "tableau" and int(from.get("index", 0)) == 0
+	var empties := []
+	for c in gs["tableau"].size():
+		if from.get("kind") == "tableau" and c == src_col:
+			continue
+		var pile: Array = gs["tableau"][c]
+		var ok := false
+		match type:
+			"klondike": ok = Rules.klondike_can_tableau(cards, pile)
+			"spider": ok = Rules.spider_can_drop(cards, pile)
+			"freecell": ok = Rules.freecell_can_tableau(cards[0], pile)
+		if not ok:
+			continue
+		if pile.is_empty():
+			if not whole_column:
+				empties.append({"kind": "tableau", "col": c})
+		else:
+			out.append({"kind": "tableau", "col": c})
+	out.append_array(empties)
+
+	# 3. A free cell as a last resort (FreeCell only, single card).
+	if type == "freecell" and cards.size() == 1:
+		for i in gs["freecells"].size():
+			if gs["freecells"][i] == null:
+				out.append({"kind": "freecell", "col": i})
+				break
+	return out
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1430,6 +1640,20 @@ func _pyramid_click(meta: Dictionary) -> void:
 		AudioManager.card_moved()
 		_after_move()
 		return
+
+	# One-click: a free pyramid card that pairs with the waste top clears at once.
+	if _selection.is_empty() and meta.get("kind") == "pyramid" and not gs["waste"].is_empty():
+		var waste_top = gs["waste"][gs["waste"].size() - 1]
+		if int(picked["rank"]) + int(waste_top["rank"]) == 13:
+			RunState.push_undo()
+			_pyramid_remove(gs, meta)
+			_pyramid_remove(gs, {"kind": "waste"})
+			RunState.gs = gs
+			RunState.add_score(Rules.PTS_PYRAMID_PAIR, "pair matched")
+			_selection = {}
+			AudioManager.card_moved()
+			_after_move()
+			return
 
 	if _selection.is_empty():
 		_selection = meta
