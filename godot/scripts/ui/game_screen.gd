@@ -586,18 +586,47 @@ func _open_picker(picker: Dictionary) -> void:
 func _is_hinted(meta: Dictionary) -> bool:
 	if _hint_slots.is_empty():
 		return false
+	# Normalise the board slot to the web build's (src, col, idx) convention,
+	# which is exactly what the hint finders emit. The board meta uses different
+	# keys per kind — a waste card carries its real array index and a pyramid
+	# card carries no column — so comparing the raw meta silently misses those
+	# sources. The web sidesteps this because its DOM cards hard-code the
+	# matching data-src/data-col/data-idx (waste = -1/-1, pycard = col 0), see
+	# renderKlondike/renderTriPeaks in index.html.
 	var kind: String = meta.get("kind", "")
-	# Hints use the web build's shorter source names.
-	# Dictionary.get() returns Variant, so the type has to be declared.
-	var as_hint: String = {"tableau": "tab", "waste": "waste", "freecell": "fc",
-		"pyramid": "pycard", "foundation": "found"}.get(kind, kind)
+	var src := kind
+	var col := int(meta.get("col", -1))
+	var idx := int(meta.get("index", -1))
+	match kind:
+		"tableau":
+			src = "tab"
+		"waste":
+			src = "waste"
+			col = -1
+			idx = -1
+		"freecell":
+			src = "fc"
+			idx = -1
+		"pyramid":
+			src = "pycard"
+			col = 0
+		"foundation":
+			src = "found"
 	for h in _hint_slots:
-		if h.get("src") == as_hint \
-				and int(h.get("col", -1)) == int(meta.get("col", -1)) \
-				and int(h.get("index", -1)) == int(meta.get("index", -1)):
+		# Source glow: match src, col and idx.
+		if String(h.get("src", "")) == src \
+				and int(h.get("col", -1)) == col \
+				and int(h.get("index", -1)) == idx:
 			return true
-		if h.get("tsrc") == as_hint and int(h.get("tcol", -99)) == int(meta.get("col", -1)):
-			return true
+		# Target glow: the web target selector keys on (tsrc, tcol). Where the hint
+		# also names a target index (pyramid pairs), honour it so a single card
+		# lights up instead of the whole column of pyramid cards.
+		if String(h.get("tsrc", "")) == src and int(h.get("tcol", -99)) == col:
+			if h.has("tindex"):
+				if int(h["tindex"]) == idx:
+					return true
+			else:
+				return true
 	return false
 
 

@@ -36,6 +36,7 @@ func _ready() -> void:
 	test_floor_choices_and_forfeit()
 	test_full_run()
 	test_hints()
+	await test_hint_highlighting()
 	test_item_effects()
 	test_narrative()
 	test_every_scene_loads()
@@ -966,6 +967,58 @@ func test_hints() -> void:
 	# The dispatcher routes by board type.
 	check(Hints.find(kl, false).size() > 0, "find() dispatches klondike")
 	check_eq(Hints.find({}, false).size(), 0, "find() on an empty board returns nothing")
+
+
+## The Scrying Glass finds a move, but the glow only helps if the game screen
+## maps its board cards to the same (src, col, idx) the finders emit. A board
+## card's meta uses different keys per kind — a waste card carries its real array
+## index, a pyramid card carries no column — so these are the cases that used to
+## light up nothing at all.
+func test_hint_highlighting() -> void:
+	suite("hint highlighting")
+	RunState.new_run()
+	RunState.start_game("klondike", 5)
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+
+	# A waste-source hint (src waste, col -1, idx -1) must light the waste card,
+	# whose board meta carries its true stack position, not -1.
+	screen._hint_slots = [{"src": "waste", "col": -1, "index": -1, "tsrc": "found", "tcol": 0}]
+	check(screen._is_hinted({"kind": "waste", "index": 12}),
+		"waste-source hint glows the waste card despite its real index")
+	check(not screen._is_hinted({"kind": "tableau", "col": 3, "index": 2}),
+		"an unrelated tableau card does not glow")
+
+	# A tableau-source hint still matches on col and idx.
+	screen._hint_slots = [{"src": "tab", "col": 2, "index": 4, "tsrc": "tab", "tcol": 5}]
+	check(screen._is_hinted({"kind": "tableau", "col": 2, "index": 4}),
+		"tableau-source hint glows the exact card")
+	check(screen._is_hinted({"kind": "tableau", "col": 5, "index": 0}),
+		"tableau target column glows")
+	check(not screen._is_hinted({"kind": "tableau", "col": 2, "index": 3}),
+		"a different card in the source column does not glow")
+
+	# A pyramid card has no column in its meta, but the finders key it to col 0.
+	screen._hint_slots = [{"src": "pycard", "col": 0, "index": 18}]
+	check(screen._is_hinted({"kind": "pyramid", "index": 18}),
+		"pyramid-source hint glows despite the missing column key")
+	check(not screen._is_hinted({"kind": "pyramid", "index": 19}),
+		"a different pyramid card does not glow")
+
+	# A pyramid pair names a target index, so only that partner lights up — not
+	# every pyramid card sharing column 0.
+	screen._hint_slots = [{"src": "pycard", "col": 0, "index": 3, "tsrc": "pycard", "tcol": 0, "tindex": 9}]
+	check(screen._is_hinted({"kind": "pyramid", "index": 3}), "pyramid pair source glows")
+	check(screen._is_hinted({"kind": "pyramid", "index": 9}), "pyramid pair partner glows")
+	check(not screen._is_hinted({"kind": "pyramid", "index": 5}),
+		"an unrelated pyramid card is left dark")
+
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+	RunState.new_run()
 
 
 func test_item_effects() -> void:
