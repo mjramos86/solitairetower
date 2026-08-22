@@ -34,6 +34,7 @@ func _ready() -> void:
 	test_save_slots()
 	test_auto_play()
 	test_floor_choices_and_forfeit()
+	test_difficulty_matches_web()
 	test_full_run()
 	test_hints()
 	await test_hint_highlighting()
@@ -918,6 +919,57 @@ func test_full_run() -> void:
 	check_eq(RunState.floor_index, 1, "floor advances past the shop")
 
 	SaveManager.erase_all()
+
+
+## Locks the difficulty / floor / variant tuning to the web build (diff(),
+## genChoices and the per-variant init functions in index.html). Floor index 0
+## is floor 10; 9 is floor 1.
+func test_difficulty_matches_web() -> void:
+	suite("difficulty matches the web build")
+	var rng := Cards.new_rng(99)
+
+	# diff(): easy on indices 0-3, medium on 4-6, hard on 7-9.
+	var bands := ["easy", "easy", "easy", "easy", "medium", "medium", "medium",
+		"hard", "hard", "hard"]
+	for i in 10:
+		check_eq(Rules.difficulty(i), bands[i], "floor index %d difficulty band" % i)
+
+	# Klondike: draw 1 on easy else 3; recycles unlimited except 3 on hard.
+	var kl_easy := Rules.init_klondike(0, rng)
+	check_eq(int(kl_easy["draw_count"]), 1, "klondike easy draws 1")
+	check_eq(int(kl_easy["draws_left"]), 999, "klondike easy recycles unlimited")
+	var kl_med := Rules.init_klondike(5, rng)
+	check_eq(int(kl_med["draw_count"]), 3, "klondike medium draws 3")
+	check_eq(int(kl_med["draws_left"]), 999, "klondike medium recycles unlimited")
+	var kl_hard := Rules.init_klondike(9, rng)
+	check_eq(int(kl_hard["draw_count"]), 3, "klondike hard draws 3")
+	check_eq(int(kl_hard["draws_left"]), 3, "klondike hard capped at 3 recycles")
+
+	# Spider: 1 / 2 / 4 suits.
+	check_eq(int(Rules.init_spider(0, rng)["suits"]), 1, "spider easy is one suit")
+	check_eq(int(Rules.init_spider(5, rng)["suits"]), 2, "spider medium is two suits")
+	check_eq(int(Rules.init_spider(9, rng)["suits"]), 4, "spider hard is four suits")
+
+	# TriPeaks: one recycle on easy, none otherwise.
+	check_eq(int(Rules.init_tripeaks(0, rng)["max_recycle"]), 1, "tripeaks easy recycles once")
+	check_eq(int(Rules.init_tripeaks(5, rng)["max_recycle"]), 0, "tripeaks medium never recycles")
+	check_eq(int(Rules.init_tripeaks(9, rng)["max_recycle"]), 0, "tripeaks hard never recycles")
+
+	# Pyramid: unlimited cycles on easy, 2 on medium, 1 on hard.
+	check(int(Rules.init_pyramid(0, rng)["max_cycles"]) >= 9999, "pyramid easy unlimited cycles")
+	check_eq(int(Rules.init_pyramid(5, rng)["max_cycles"]), 2, "pyramid medium allows two cycles")
+	check_eq(int(Rules.init_pyramid(9, rng)["max_cycles"]), 1, "pyramid hard allows one cycle")
+
+	# Floor line-up: Klondike offered on floor 10, FreeCell boss on floor 1, two
+	# distinct variants on every floor in between.
+	var choices := GameData.generate_choices(Cards.new_rng(3))
+	check_eq(choices.size(), GameData.TOTAL_FLOORS, "ten floors of choices")
+	check(choices[0]["left"] == "klondike" or choices[0]["right"] == "klondike",
+		"floor 10 always offers klondike")
+	check_eq(choices[GameData.TOTAL_FLOORS - 1]["left"], "freecell", "floor 1 is the freecell boss")
+	check_eq(choices[GameData.TOTAL_FLOORS - 1]["right"], "freecell", "floor 1 offers only freecell")
+	for i in range(1, GameData.TOTAL_FLOORS - 1):
+		check(choices[i]["left"] != choices[i]["right"], "floor %d offers two distinct variants" % i)
 
 
 func test_hints() -> void:
