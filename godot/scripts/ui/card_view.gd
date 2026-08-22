@@ -28,9 +28,16 @@ var selected := false:
 		queue_redraw()
 var hinted := false:
 	set(value):
+		if hinted == value:
+			return
 		hinted = value
+		set_process(hinted)  # only a hinted card needs to animate its glow
+		_hint_phase = 0.0
 		queue_redraw()
 var playable := true
+
+## Advances while the card is hinted so the Scrying Glass glow pulses.
+var _hint_phase := 0.0
 
 var _back_texture: Texture2D
 var _rank_font: Font
@@ -38,6 +45,7 @@ var _pip_font: Font
 
 
 func _ready() -> void:
+	set_process(false)  # idle unless the card is hinted (see the `hinted` setter)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	# The web card face is Georgia serif for both the index and the pip; EB
 	# Garamond is the bundled serif and carries the suit glyphs.
@@ -66,6 +74,11 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 
 
+func _process(delta: float) -> void:
+	_hint_phase += delta
+	queue_redraw()
+
+
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 
@@ -74,13 +87,29 @@ func _draw() -> void:
 	else:
 		_draw_face(r)
 
+	if hinted:
+		_draw_hint_glow(r)
 	if selected:
 		draw_rect(r, UITheme.GOLD, false, 3.0)
-	elif hinted:
-		draw_rect(r.grow(-1.0), UITheme.GOLD_GLOW, false, 3.0)
 
 	if not playable:
 		draw_rect(r, Color(0, 0, 0, 0.35), true)
+
+
+## The Scrying Glass highlight: a bright yellow→orange outline that pulses in
+## width and brightness, plus a soft outer halo, so it reads at a glance the way
+## the web build's animated `.hint-glow` does. Drawn under the selection ring so
+## picking the card still shows the gold select border on top.
+func _draw_hint_glow(r: Rect2) -> void:
+	var pulse := 0.5 + 0.5 * sin(_hint_phase * 6.0)  # 0..1, ~1Hz-ish throb
+	var colour := Color("ffff00").lerp(Color("ff8800"), pulse)
+	# Outer halo: a few translucent expanding outlines fake a glow/bloom.
+	for i in 3:
+		var spread := 2.0 + i * 3.0
+		draw_rect(r.grow(spread), Color(colour.r, colour.g, colour.b, 0.16 - i * 0.045),
+			false, 3.0)
+	# Bright core outline, thickest at the peak of the pulse.
+	draw_rect(r.grow(-1.0), colour, false, 3.0 + pulse * 2.0)
 
 
 func _draw_back(r: Rect2) -> void:

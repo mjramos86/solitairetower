@@ -38,6 +38,7 @@ func _ready() -> void:
 	test_hints()
 	await test_hint_highlighting()
 	await test_cheat_codes()
+	await test_item_tooltip()
 	test_item_effects()
 	test_narrative()
 	test_every_scene_loads()
@@ -1085,6 +1086,51 @@ func test_cheat_codes() -> void:
 	RunState.new_run()
 
 
+## The inventory hover card and the usable-in-this-variant verdict behind it.
+func test_item_tooltip() -> void:
+	suite("inventory hover card")
+
+	# usable_in tracks the variant guards inside activate().
+	check(ItemEffects.usable_in("hint", "spider"), "hint works in every variant")
+	check(ItemEffects.usable_in("extra-undos", "pyramid"), "undos work in every variant")
+	check(not ItemEffects.usable_in("free-draw", "spider"), "free-draw is dead in spider")
+	check(ItemEffects.usable_in("free-draw", "klondike"), "free-draw works in klondike")
+	check(not ItemEffects.usable_in("extra-freecell", "klondike"), "5th cell is freecell-only")
+	check(ItemEffects.usable_in("extra-freecell", "freecell"), "5th cell works in freecell")
+	check(not ItemEffects.usable_in("ace-to-found", "spider"), "ace-to-foundation not in spider")
+	check(not ItemEffects.usable_in("reveal-all", "freecell"), "nothing is face-down in freecell")
+	check(ItemEffects.usable_in("reveal-all", "spider"), "reveal works in spider")
+
+	# The verdict agrees with what activate() actually does for a guarded item.
+	RunState.new_run()
+	RunState.start_game("spider", 5)
+	var refused := ItemEffects.activate(GameData.item_by_id("coffee"), 0)  # free-draw
+	check_eq(refused["consumed"], ItemEffects.usable_in("free-draw", "spider"),
+		"the tooltip verdict matches activate() in spider")
+
+	# The hover card appears over a slot and clears on exit / rebuild.
+	RunState.new_run()
+	RunState.start_game("klondike", 5)
+	RunState.inventory = [GameData.item_by_id("coffee")]
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+	await get_tree().process_frame
+	var slot: Control = screen._inventory_bar.get_child(0)
+	screen._show_item_tooltip(GameData.item_by_id("coffee"), slot)
+	await get_tree().process_frame
+	check_eq(get_tree().get_nodes_in_group("item_tooltip").size(), 1, "hover card appears")
+	check(not screen._has_modal_overlay(), "hover card is not a blocking modal")
+	screen._hide_item_tooltip()
+	await get_tree().process_frame
+	check_eq(get_tree().get_nodes_in_group("item_tooltip").size(), 0, "hover card clears on exit")
+
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+	RunState.new_run()
+
+
 func test_item_effects() -> void:
 	suite("item effects")
 	SaveManager.erase_all()
@@ -1154,17 +1200,31 @@ func test_item_effects() -> void:
 	check_eq(still_hidden, 0, "everything is revealed")
 	check_eq((r["timed"]["hidden"] as Array).size(), hidden_before, "records what to re-hide")
 
-	# ── Wax Seal Press: sends an ace up, and reports when there is none ──
+	# ── Wax Seal Press: digs an ace out from anywhere on the board ──
 	RunState.start_game("klondike", 5)
-	RunState.gs["tableau"][0] = [Cards.make_card(Cards.Suit.CLUBS, 1, true)]
-	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
-	check(r["consumed"], "seal press is consumed when an ace exists")
-	check_eq(RunState.gs["foundations"][Cards.Suit.CLUBS].size(), 1, "ace reaches its foundation")
+	# Wipe every zone of aces, then bury one under a card so only a deck-wide
+	# search can reach it.
 	for c in 7:
 		RunState.gs["tableau"][c] = [Cards.make_card(0, 9, true)]
 	RunState.gs["waste"] = []
+	RunState.gs["stock"] = []
+	RunState.gs["foundations"] = [[], [], [], []]
+	RunState.gs["tableau"][3] = [Cards.make_card(Cards.Suit.CLUBS, 1, true),
+		Cards.make_card(0, 9, true)]
+	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
+	check(r["consumed"], "seal press digs out a buried ace")
+	check_eq(RunState.gs["foundations"][Cards.Suit.CLUBS].size(), 1, "buried ace reaches its foundation")
+	check_eq((RunState.gs["tableau"][3] as Array).size(), 1, "the card above it stays behind")
+
+	# With no ace left anywhere it refuses.
 	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
 	check(not r["consumed"], "seal press is not consumed without an ace")
+
+	# An ace still face-down in the stock is found too.
+	RunState.gs["stock"] = [Cards.make_card(Cards.Suit.HEARTS, 1, false)]
+	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
+	check(r["consumed"], "seal press reaches an ace in the stock")
+	check_eq(RunState.gs["foundations"][Cards.Suit.HEARTS].size(), 1, "stock ace reaches its foundation")
 
 	# ── Philosopher's Sponge: rewinds up to 10 moves ──
 	RunState.start_game("klondike", 5)
