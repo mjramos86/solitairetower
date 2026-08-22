@@ -83,6 +83,13 @@ var _item_mode: Dictionary = {}
 var _hint_slots: Array = []
 var _hint_timer: SceneTreeTimer
 
+## Rolling record of the most recent letter keys, for the testing cheat codes:
+## "MJR" instantly clears the floor, "RJM" rerolls the inventory. Only the tail
+## is kept, so the codes trigger regardless of what was typed before them.
+var _cheat_buffer := ""
+const CHEAT_WIN := "MJR"
+const CHEAT_INVENTORY := "RJM"
+
 ## Drag-and-drop. A press records here without acting; release decides whether it
 ## was a click (no movement) or a drag (moved past the threshold). Click-to-place
 ## still works untouched — drag is an alternative, not a replacement.
@@ -328,8 +335,54 @@ func _on_abandon() -> void:
 		"Abandon", "Cancel", not free)
 
 
-func _on_score(total: int, _delta: int, _reason: String) -> void:
+func _on_score(_total: int, delta: int, _reason: String) -> void:
 	_refresh_header()
+	if delta != 0:
+		_spawn_score_float(delta)
+
+
+## A big number that pops over the board and floats up as it fades, mirroring the
+## web build's `.score-float` (addScore in index.html). Positive scores are green,
+## penalties red. Concurrent pops stack upward so a flurry of points stays legible.
+func _spawn_score_float(delta: int) -> void:
+	if not is_inside_tree():
+		return
+	var stacked := get_tree().get_nodes_in_group("score_float").size()
+
+	var label := Label.new()
+	label.add_to_group("score_float")
+	label.text = ("+%d" % delta) if delta > 0 else str(delta)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_override("font", UITheme.font("pixel"))
+	label.add_theme_font_size_override("font_size", 110)
+	label.add_theme_color_override("font_color",
+		Color("4dff91") if delta > 0 else Color("ff4d4d"))
+	label.add_theme_constant_override("outline_size", 10)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+
+	# A full-width band centred on the board, raised by 120px per already-showing
+	# pop so several are readable at once. 1920x1080 is the design canvas.
+	var band_h := 150.0
+	var start_y := 640.0 - stacked * 120.0
+	label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	label.offset_top = start_y
+	label.offset_bottom = start_y + band_h
+	label.pivot_offset = Vector2(960.0, band_h * 0.5)
+	label.scale = Vector2(0.55, 0.55)
+	label.modulate.a = 0.0
+	_overlays.add_child(label)
+
+	var t := create_tween()
+	t.set_parallel(true)
+	t.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(label, "offset_top", start_y - 150.0, 1.2)
+	t.tween_property(label, "offset_bottom", start_y + band_h - 150.0, 1.2)
+	t.tween_property(label, "scale", Vector2.ONE, 0.18)
+	t.tween_property(label, "modulate:a", 1.0, 0.12)
+	t.tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.7)
+	t.chain().tween_callback(label.queue_free)
 
 
 func _refresh_header() -> void:
@@ -679,7 +732,7 @@ func _rebuild() -> void:
 
 	# Re-show the floor-clear overlay if a run was resumed on an already-won
 	# board. Guarded on an empty overlay layer so normal rebuilds don't stack it.
-	if RunState.win_overlay and _overlays.get_child_count() == 0 and Rules.is_won(gs):
+	if RunState.win_overlay and not _has_modal_overlay() and Rules.is_won(gs):
 		_show_win_overlay()
 
 
@@ -1109,6 +1162,61 @@ func _on_card_pressed(view: Control) -> void:
 		"meta": view.get_meta("slot"),
 		"start": _pending_start,
 	}
+
+
+## Testing cheat codes, matched on a rolling buffer of the last letters typed:
+##   MJR — instantly clear the current floor (like the Queen's Patronage item)
+##   RJM — fill the inventory with a fresh set of random items; type it again to
+##         swap in another set.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key := event as InputEventKey
+	if not key.pressed or key.echo:
+		return
+	if key.keycode < KEY_A or key.keycode > KEY_Z:
+		return
+	# KEY_A..KEY_Z map to the ASCII codes for 'A'..'Z'.
+	_cheat_buffer += char(key.keycode)
+	# Keep only as many characters as the longest code needs.
+	if _cheat_buffer.length() > 3:
+		_cheat_buffer = _cheat_buffer.substr(_cheat_buffer.length() - 3)
+
+	if _cheat_buffer.ends_with(CHEAT_WIN):
+		_cheat_buffer = ""
+		_cheat_win()
+	elif _cheat_buffer.ends_with(CHEAT_INVENTORY):
+		_cheat_buffer = ""
+		_cheat_fill_inventory()
+
+
+## MJR: clear the floor now. Raises the floor-clear overlay exactly as the
+## Executive Chair / Queen's Patronage item does; the bonus and routing happen
+## when the player descends.
+func _cheat_win() -> void:
+	if RunState.gs.is_empty() or _has_modal_overlay():
+		return
+	RunState.toast.emit("CHEAT: floor cleared")
+	_item_mode = {}
+	_banner.visible = false
+	RunState.win_overlay = true
+	_show_win_overlay()
+
+
+## RJM: replace the whole inventory with a fresh, distinct random draw. Repeats
+## reroll into a new set each time.
+func _cheat_fill_inventory() -> void:
+	if RunState.gs.is_empty():
+		return
+	var pool: Array = GameData.SHOP_ITEMS.duplicate()
+	pool.shuffle()
+	RunState.inventory = []
+	for i in mini(GameData.INVENTORY_SLOTS, pool.size()):
+		RunState.inventory.append(pool[i])
+	_item_mode = {}
+	_banner.visible = false
+	RunState.toast.emit("CHEAT: inventory rerolled")
+	_rebuild()
 
 
 func _input(event: InputEvent) -> void:
@@ -1875,6 +1983,15 @@ func _show_win_overlay() -> void:
 func _clear_overlays() -> void:
 	for child in _overlays.get_children():
 		child.queue_free()
+
+
+## True when a real modal (pause, win, ledger…) is up. Transient score-float
+## pops also live on the overlay layer but must not count as a blocking modal.
+func _has_modal_overlay() -> bool:
+	for child in _overlays.get_children():
+		if not child.is_in_group("score_float"):
+			return true
+	return false
 
 
 ## A full-screen dimmer that swallows board input while an overlay is up.

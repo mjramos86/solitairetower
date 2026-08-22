@@ -37,6 +37,7 @@ func _ready() -> void:
 	test_full_run()
 	test_hints()
 	await test_hint_highlighting()
+	await test_cheat_codes()
 	test_item_effects()
 	test_narrative()
 	test_every_scene_loads()
@@ -1014,6 +1015,69 @@ func test_hint_highlighting() -> void:
 	check(screen._is_hinted({"kind": "pyramid", "index": 9}), "pyramid pair partner glows")
 	check(not screen._is_hinted({"kind": "pyramid", "index": 5}),
 		"an unrelated pyramid card is left dark")
+
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+	RunState.new_run()
+
+
+## The two testing cheat codes and the floating score pop, all driven through the
+## game screen. Keys are fed straight into _unhandled_key_input so the buffer
+## matching is exercised, not just the effect helpers.
+func test_cheat_codes() -> void:
+	suite("cheat codes and score pop")
+	SaveManager.erase_all()
+	RunState.new_run()
+	RunState.start_game("klondike", 5)
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+
+	var press := func(letter: String) -> void:
+		var ev := InputEventKey.new()
+		ev.pressed = true
+		ev.keycode = KEY_A + (letter.unicode_at(0) - "A".unicode_at(0))
+		screen._unhandled_key_input(ev)
+
+	# RJM fills every inventory slot with distinct items.
+	RunState.inventory = [GameData.item_by_id("coffee")]
+	press.call("R"); press.call("J"); press.call("M")
+	check_eq(RunState.inventory.size(), GameData.INVENTORY_SLOTS,
+		"RJM fills the inventory to capacity")
+	var ids := {}
+	for it in RunState.inventory:
+		ids[it["id"]] = true
+	check_eq(ids.size(), RunState.inventory.size(), "rerolled items are distinct")
+
+	# Typing it again swaps in a fresh full set (still full, still valid items).
+	press.call("R"); press.call("J"); press.call("M")
+	check_eq(RunState.inventory.size(), GameData.INVENTORY_SLOTS, "a second RJM rerolls again")
+	for it in RunState.inventory:
+		check(not GameData.item_by_id(it["id"]).is_empty(), "rerolled item is a real shop item")
+
+	# Noise before the code is ignored; only the trailing MJR matters.
+	check(not RunState.win_overlay, "no win before the code is typed")
+	press.call("X"); press.call("Q")
+	press.call("M"); press.call("J"); press.call("R")
+	check(RunState.win_overlay, "MJR clears the floor")
+	check(screen._has_modal_overlay(), "MJR raises the floor-clear overlay")
+
+	# A partial code does nothing.
+	screen._clear_overlays()
+	RunState.win_overlay = false
+	press.call("M"); press.call("J")
+	check(not RunState.win_overlay, "an incomplete MJ does not win")
+
+	# The score pop appears on a scoring event and is a non-blocking overlay.
+	# queue_free defers to frame end, so let the cleared panels actually leave
+	# before asserting the pop is the only thing on the overlay layer.
+	screen._clear_overlays()
+	await get_tree().process_frame
+	screen._spawn_score_float(20)
+	check_eq(get_tree().get_nodes_in_group("score_float").size(), 1, "a score pop is spawned")
+	check(not screen._has_modal_overlay(), "a score pop does not count as a modal")
 
 	remove_child(screen)
 	screen.queue_free()
