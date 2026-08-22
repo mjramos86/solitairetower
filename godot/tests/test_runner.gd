@@ -1200,17 +1200,31 @@ func test_item_effects() -> void:
 	check_eq(still_hidden, 0, "everything is revealed")
 	check_eq((r["timed"]["hidden"] as Array).size(), hidden_before, "records what to re-hide")
 
-	# ── Wax Seal Press: sends an ace up, and reports when there is none ──
+	# ── Wax Seal Press: digs an ace out from anywhere on the board ──
 	RunState.start_game("klondike", 5)
-	RunState.gs["tableau"][0] = [Cards.make_card(Cards.Suit.CLUBS, 1, true)]
-	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
-	check(r["consumed"], "seal press is consumed when an ace exists")
-	check_eq(RunState.gs["foundations"][Cards.Suit.CLUBS].size(), 1, "ace reaches its foundation")
+	# Wipe every zone of aces, then bury one under a card so only a deck-wide
+	# search can reach it.
 	for c in 7:
 		RunState.gs["tableau"][c] = [Cards.make_card(0, 9, true)]
 	RunState.gs["waste"] = []
+	RunState.gs["stock"] = []
+	RunState.gs["foundations"] = [[], [], [], []]
+	RunState.gs["tableau"][3] = [Cards.make_card(Cards.Suit.CLUBS, 1, true),
+		Cards.make_card(0, 9, true)]
+	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
+	check(r["consumed"], "seal press digs out a buried ace")
+	check_eq(RunState.gs["foundations"][Cards.Suit.CLUBS].size(), 1, "buried ace reaches its foundation")
+	check_eq((RunState.gs["tableau"][3] as Array).size(), 1, "the card above it stays behind")
+
+	# With no ace left anywhere it refuses.
 	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
 	check(not r["consumed"], "seal press is not consumed without an ace")
+
+	# An ace still face-down in the stock is found too.
+	RunState.gs["stock"] = [Cards.make_card(Cards.Suit.HEARTS, 1, false)]
+	r = ItemEffects.activate(GameData.item_by_id("stapler"), 0)
+	check(r["consumed"], "seal press reaches an ace in the stock")
+	check_eq(RunState.gs["foundations"][Cards.Suit.HEARTS].size(), 1, "stock ace reaches its foundation")
 
 	# ── Philosopher's Sponge: rewinds up to 10 moves ──
 	RunState.start_game("klondike", 5)

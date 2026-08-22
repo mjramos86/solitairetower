@@ -277,65 +277,70 @@ static func activate(item: Dictionary, inv_index: int) -> Dictionary:
 	return _result(false, "That item does nothing here.")
 
 
-## Sends the first available Ace to its foundation. Klondike checks tableau tops
-## then the waste; FreeCell checks tableau tops then the free cells.
+## Digs the first Ace out of anywhere on the board and sends it to its
+## foundation — buried in a tableau pile, sitting in the waste or a free cell, or
+## still face-down in the stock. Only Klondike and FreeCell have suit
+## foundations, so the item does nothing in the other variants.
 static func _ace_to_foundation(type: String, gs: Dictionary) -> Dictionary:
-	var s := Cards.clone_state(gs)
-
-	if type == "klondike":
-		for c in 7:
-			var pile: Array = s["tableau"][c]
-			if pile.is_empty():
-				continue
-			var top: Dictionary = pile[pile.size() - 1]
-			if top["face_up"] and int(top["rank"]) == Cards.RANK_ACE \
-					and Rules.klondike_can_foundation(top, s["foundations"]):
-				pile.pop_back()
-				s["foundations"][top["suit"]].append(top)
-				RunState.push_undo()
-				RunState.gs = s
-				# klAutoReveal both flips and scores the exposed card, as in the web.
-				for revealed in Rules.klondike_auto_reveal(s):
-					RunState.award_card_points(revealed, Rules.PTS_REVEAL)
-				RunState.add_score(15, "ace to foundation")
-				return _result(true, "Ace sent to its foundation.")
-		if not s["waste"].is_empty():
-			var wtop: Dictionary = s["waste"][s["waste"].size() - 1]
-			if int(wtop["rank"]) == Cards.RANK_ACE \
-					and Rules.klondike_can_foundation(wtop, s["foundations"]):
-				s["waste"].pop_back()
-				s["foundations"][wtop["suit"]].append(wtop)
-				RunState.push_undo()
-				RunState.gs = s
-				RunState.add_score(15, "ace to foundation")
-				return _result(true, "Ace sent to its foundation.")
-
-	elif type == "freecell":
-		for c in 8:
-			var pile: Array = s["tableau"][c]
-			if pile.is_empty():
-				continue
-			var top: Dictionary = pile[pile.size() - 1]
-			if int(top["rank"]) == Cards.RANK_ACE \
-					and Rules.freecell_can_foundation(top, s["foundations"]):
-				pile.pop_back()
-				s["foundations"][top["suit"]].append(top)
-				RunState.push_undo()
-				RunState.gs = s
-				RunState.add_score(5, "ace to foundation")
-				return _result(true, "Ace sent to its foundation.")
-		for c in s["freecells"].size():
-			var card = s["freecells"][c]
-			if card != null and int(card["rank"]) == Cards.RANK_ACE \
-					and Rules.freecell_can_foundation(card, s["foundations"]):
-				s["freecells"][c] = null
-				s["foundations"][card["suit"]].append(card)
-				RunState.push_undo()
-				RunState.gs = s
-				RunState.add_score(5, "ace to foundation")
-				return _result(true, "Ace sent to its foundation.")
-	else:
+	if not ["klondike", "freecell"].has(type):
 		return _result(false, "Not useful in this game!")
+
+	var s := Cards.clone_state(gs)
+	var foundations: Array = s["foundations"]
+
+	# Every card the item is allowed to reach, tableau (all depths) first, then
+	# the holding areas, then the face-down stock in Klondike.
+	var zones := []
+	for c in s["tableau"].size():
+		var pile: Array = s["tableau"][c]
+		for i in pile.size():
+			zones.append({"where": "tableau", "col": c, "index": i, "card": pile[i]})
+	if type == "klondike":
+		for i in s["waste"].size():
+			zones.append({"where": "waste", "index": i, "card": s["waste"][i]})
+		for i in s["stock"].size():
+			zones.append({"where": "stock", "index": i, "card": s["stock"][i]})
+	else:
+		for c in s["freecells"].size():
+			if s["freecells"][c] != null:
+				zones.append({"where": "freecell", "col": c, "card": s["freecells"][c]})
+
+	for z in zones:
+		var card: Dictionary = z["card"]
+		if int(card["rank"]) != Cards.RANK_ACE:
+			continue
+		var placeable := (Rules.klondike_can_foundation(card, foundations) if type == "klondike"
+			else Rules.freecell_can_foundation(card, foundations))
+		if not placeable:
+			continue
+
+		# Pull it out of wherever it sat, exposing the card beneath a tableau slot.
+		match String(z["where"]):
+			"tableau":
+				var pile: Array = s["tableau"][z["col"]]
+				pile.remove_at(int(z["index"]))
+				if not pile.is_empty():
+					pile[pile.size() - 1]["face_up"] = true
+			"waste":
+				s["waste"].remove_at(int(z["index"]))
+			"stock":
+				s["stock"].remove_at(int(z["index"]))
+			"freecell":
+				s["freecells"][z["col"]] = null
+
+		var ace: Dictionary = card.duplicate()
+		ace["face_up"] = true
+		foundations[int(card["suit"])].append(ace)
+		RunState.push_undo()
+		RunState.gs = s
+		if type == "klondike":
+			# klondike_auto_reveal flips and scores any newly exposed tops.
+			for revealed in Rules.klondike_auto_reveal(s):
+				RunState.award_card_points(revealed, Rules.PTS_REVEAL)
+			RunState.add_score(15, "ace to foundation")
+		else:
+			RunState.add_score(5, "ace to foundation")
+		return _result(true, "Ace sent to its foundation.")
 
 	return _result(false, "No Ace available!")
 

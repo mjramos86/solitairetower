@@ -356,16 +356,16 @@ func _spawn_score_float(delta: int) -> void:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.add_theme_font_override("font", UITheme.font("pixel"))
-	label.add_theme_font_size_override("font_size", 110)
+	label.add_theme_font_size_override("font_size", 168)
 	label.add_theme_color_override("font_color",
 		Color("4dff91") if delta > 0 else Color("ff4d4d"))
-	label.add_theme_constant_override("outline_size", 10)
+	label.add_theme_constant_override("outline_size", 14)
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 
-	# A full-width band centred on the board, raised by 120px per already-showing
-	# pop so several are readable at once. 1920x1080 is the design canvas.
-	var band_h := 150.0
-	var start_y := 640.0 - stacked * 120.0
+	# A full-width band centred on the board, raised per already-showing pop so
+	# several are readable at once. 1920x1080 is the design canvas.
+	var band_h := 210.0
+	var start_y := 600.0 - stacked * 150.0
 	label.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	label.offset_top = start_y
 	label.offset_bottom = start_y + band_h
@@ -604,12 +604,20 @@ func _build_toolbox_slot() -> Control:
 
 
 func _on_toolbox_pressed() -> void:
+	# Clicking the stash again while placing cancels it — the card stays stashed,
+	# so a player who can't find a legal spot isn't trapped in place mode.
+	if String(_item_mode.get("effect", "")) == "toolbox-place":
+		_item_mode = {}
+		_banner.visible = false
+		RunState.toast.emit("Card kept in the stash.")
+		_rebuild()
+		return
 	if RunState.toolbox_card == null:
 		RunState.toast.emit("Select a card on the board to stash it.")
 		return
 	# Taking the card back puts it in hand: select it as the pending move source.
 	_item_mode = {"effect": "toolbox-place", "inv_index": -1,
-		"banner": "ALCHEMIST'S CABINET: click where the stashed card should go"}
+		"banner": "ALCHEMIST'S CABINET: click where the stashed card should go (or click the stash to cancel)"}
 	_show_banner()
 	_rebuild()
 
