@@ -38,6 +38,7 @@ func _ready() -> void:
 	test_hints()
 	await test_hint_highlighting()
 	await test_cheat_codes()
+	await test_item_tooltip()
 	test_item_effects()
 	test_narrative()
 	test_every_scene_loads()
@@ -1078,6 +1079,51 @@ func test_cheat_codes() -> void:
 	screen._spawn_score_float(20)
 	check_eq(get_tree().get_nodes_in_group("score_float").size(), 1, "a score pop is spawned")
 	check(not screen._has_modal_overlay(), "a score pop does not count as a modal")
+
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+	RunState.new_run()
+
+
+## The inventory hover card and the usable-in-this-variant verdict behind it.
+func test_item_tooltip() -> void:
+	suite("inventory hover card")
+
+	# usable_in tracks the variant guards inside activate().
+	check(ItemEffects.usable_in("hint", "spider"), "hint works in every variant")
+	check(ItemEffects.usable_in("extra-undos", "pyramid"), "undos work in every variant")
+	check(not ItemEffects.usable_in("free-draw", "spider"), "free-draw is dead in spider")
+	check(ItemEffects.usable_in("free-draw", "klondike"), "free-draw works in klondike")
+	check(not ItemEffects.usable_in("extra-freecell", "klondike"), "5th cell is freecell-only")
+	check(ItemEffects.usable_in("extra-freecell", "freecell"), "5th cell works in freecell")
+	check(not ItemEffects.usable_in("ace-to-found", "spider"), "ace-to-foundation not in spider")
+	check(not ItemEffects.usable_in("reveal-all", "freecell"), "nothing is face-down in freecell")
+	check(ItemEffects.usable_in("reveal-all", "spider"), "reveal works in spider")
+
+	# The verdict agrees with what activate() actually does for a guarded item.
+	RunState.new_run()
+	RunState.start_game("spider", 5)
+	var refused := ItemEffects.activate(GameData.item_by_id("coffee"), 0)  # free-draw
+	check_eq(refused["consumed"], ItemEffects.usable_in("free-draw", "spider"),
+		"the tooltip verdict matches activate() in spider")
+
+	# The hover card appears over a slot and clears on exit / rebuild.
+	RunState.new_run()
+	RunState.start_game("klondike", 5)
+	RunState.inventory = [GameData.item_by_id("coffee")]
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+	await get_tree().process_frame
+	var slot: Control = screen._inventory_bar.get_child(0)
+	screen._show_item_tooltip(GameData.item_by_id("coffee"), slot)
+	await get_tree().process_frame
+	check_eq(get_tree().get_nodes_in_group("item_tooltip").size(), 1, "hover card appears")
+	check(not screen._has_modal_overlay(), "hover card is not a blocking modal")
+	screen._hide_item_tooltip()
+	await get_tree().process_frame
+	check_eq(get_tree().get_nodes_in_group("item_tooltip").size(), 0, "hover card clears on exit")
 
 	remove_child(screen)
 	screen.queue_free()

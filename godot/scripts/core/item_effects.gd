@@ -32,6 +32,36 @@ static func _result(consumed: bool = false, message: String = "") -> Dictionary:
 	return {"consumed": consumed, "message": message, "mode": {}, "picker": {}, "timed": {}}
 
 
+## Whether an effect can do anything in the given variant, at the variant level
+## (not the live board). Kept beside `activate` so the inventory tooltip's
+## "usable here?" line stays in step with the guards below. Effects with no
+## variant guard — instant utilities and click-any-card tools — work anywhere.
+static func usable_in(effect: String, type: String) -> bool:
+	match effect:
+		"free-draw":
+			return ["klondike", "tripeaks", "pyramid"].has(type)
+		"extra-cycle", "free-cycle":
+			return ["klondike", "pyramid"].has(type)
+		"reveal-all", "flip-card":
+			# Both act on face-down cards, which only Klondike and Spider deal.
+			return ["klondike", "spider"].has(type)
+		"ace-to-found":
+			return ["klondike", "freecell"].has(type)
+		"extra-freecell":
+			return type == "freecell"
+		"broom":
+			return ["klondike", "spider", "freecell"].has(type)
+		"choose-from-stock":
+			return ["klondike", "tripeaks"].has(type)
+		"retrieve-waste":
+			return ["klondike", "tripeaks", "pyramid"].has(type)
+		"peek":
+			return ["klondike", "spider", "tripeaks", "pyramid"].has(type)
+	# hint, hint-all, extra-undos, big-undo, remove-card, toolbox,
+	# no-life-abandon, skip-floor — usable in every variant.
+	return true
+
+
 ## Runs an item. Mutates RunState where the effect is immediate.
 static func activate(item: Dictionary, inv_index: int) -> Dictionary:
 	var type: String = RunState.gtype

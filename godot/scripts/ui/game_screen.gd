@@ -440,6 +440,8 @@ func _comma(n: int) -> String:
 # ══════════════════════════════════════════════════════════════════════════════
 
 func _refresh_inventory() -> void:
+	# Any hover card belongs to a slot that is about to be freed and rebuilt.
+	_hide_item_tooltip()
 	for child in _inventory_bar.get_children():
 		child.queue_free()
 
@@ -449,14 +451,121 @@ func _refresh_inventory() -> void:
 			var item: Dictionary = RunState.inventory[i]
 			var armed := not _item_mode.is_empty() and int(_item_mode.get("inv_index", -1)) == i
 			var button := _make_inv_slot(String(item["icon"]), armed)
+			# A rich hover card replaces the plain tooltip; keep the OS tooltip as
+			# a bare fallback for accessibility.
 			button.tooltip_text = "%s: %s" % [item["name"], item["use"]]
 			button.pressed.connect(_on_item_pressed.bind(i))
+			button.mouse_entered.connect(_show_item_tooltip.bind(item, button))
+			button.mouse_exited.connect(_hide_item_tooltip)
 			_inventory_bar.add_child(button)
 		else:
 			_inventory_bar.add_child(_make_inv_slot("·", false, true))
 
 	if RunState.toolbox_uses > 0 or RunState.toolbox_card != null:
 		_inventory_bar.add_child(_build_toolbox_slot())
+
+
+## The hover card shown over an inventory item, styled like the shop's item
+## window: icon, gold name, tier badge, description, how-to-use, and a line
+## saying whether the item does anything in the current variant. Built on the
+## overlay layer and tagged so it never counts as a blocking modal.
+func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
+	if not is_inside_tree():
+		return
+	_hide_item_tooltip()
+
+	var panel := PanelContainer.new()
+	panel.add_to_group("item_tooltip")
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = Vector2(280, 0)
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.078, 0.055, 0.157, 0.96)  # STAT_BG, near-opaque so text reads
+	style.set_border_width_all(1)
+	style.border_color = Color(0.831, 0.659, 0.294, 0.45)
+	style.set_corner_radius_all(6)
+	style.shadow_color = Color(0, 0, 0, 0.5)
+	style.shadow_size = 8
+	for side in ["left", "right"]:
+		style.set("content_margin_" + side, 14)
+	for side in ["top", "bottom"]:
+		style.set("content_margin_" + side, 12)
+	panel.add_theme_stylebox_override("panel", style)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	panel.add_child(col)
+
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
+	col.add_child(head)
+	var icon := Label.new()
+	icon.text = String(item["icon"])
+	icon.add_theme_font_size_override("font_size", 30)
+	head.add_child(icon)
+	var name_lbl := Label.new()
+	name_lbl.text = String(item["name"])
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.add_theme_font_override("font", UITheme.font_at("display", 600))
+	name_lbl.add_theme_font_size_override("font_size", 18)
+	name_lbl.add_theme_color_override("font_color", UITheme.GOLD)
+	head.add_child(name_lbl)
+
+	var desc := Label.new()
+	desc.text = String(item["desc"])
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.add_theme_font_override("font", UITheme.font("pixel"))
+	desc.add_theme_font_size_override("font_size", 15)
+	desc.add_theme_color_override("font_color", UITheme.TEXT)
+	col.add_child(desc)
+
+	var use := Label.new()
+	use.text = "📋 %s" % String(item["use"])
+	use.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	use.add_theme_font_override("font", UITheme.font("pixel"))
+	use.add_theme_font_size_override("font_size", 14)
+	use.add_theme_color_override("font_color", Color("b9afca"))  # DESC_DIM
+	col.add_child(use)
+
+	# The usability verdict for the variant currently being played.
+	var usable := ItemEffects.usable_in(String(item["effect"]), RunState.gtype)
+	var variant: String = GameData.NAMES.get(RunState.gtype, RunState.gtype)
+	var verdict := Label.new()
+	verdict.text = ("✓ Usable in %s" % variant) if usable else ("✗ No effect in %s" % variant)
+	verdict.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	verdict.add_theme_font_override("font", UITheme.font("pixel"))
+	verdict.add_theme_font_size_override("font_size", 15)
+	verdict.add_theme_color_override("font_color",
+		Color("4dff91") if usable else Color("ff6b6b"))
+	col.add_child(verdict)
+
+	_overlays.add_child(panel)
+	_position_tooltip(panel, anchor)
+
+
+## Places the hover card just below its slot, nudged left if it would run off
+## the right edge of the 1920x1080 design canvas.
+func _position_tooltip(panel: Control, anchor: Control) -> void:
+	await get_tree().process_frame  # let the panel compute its size first
+	if not is_instance_valid(panel) or not is_instance_valid(anchor):
+		return
+	var slot := anchor.get_global_rect()
+	var size := panel.size
+	var x: float = slot.position.x
+	var y: float = slot.end.y + 6.0
+	x = clampf(x, 8.0, 1920.0 - size.x - 8.0)
+	if y + size.y > 1080.0 - 8.0:
+		y = slot.position.y - size.y - 6.0  # flip above the slot
+	panel.global_position = Vector2(x, y)
+
+
+func _hide_item_tooltip() -> void:
+	if not is_inside_tree():
+		return
+	for node in get_tree().get_nodes_in_group("item_tooltip"):
+		node.queue_free()
 
 
 ## A compact 34×28 Win95 inventory slot. Empty slots are dim and inert; an armed
@@ -1985,11 +2094,12 @@ func _clear_overlays() -> void:
 		child.queue_free()
 
 
-## True when a real modal (pause, win, ledger…) is up. Transient score-float
-## pops also live on the overlay layer but must not count as a blocking modal.
+## True when a real modal (pause, win, ledger…) is up. Transient overlays —
+## score-float pops and item hover cards — also live on the overlay layer but
+## must not count as a blocking modal.
 func _has_modal_overlay() -> bool:
 	for child in _overlays.get_children():
-		if not child.is_in_group("score_float"):
+		if not child.is_in_group("score_float") and not child.is_in_group("item_tooltip"):
 			return true
 	return false
 
