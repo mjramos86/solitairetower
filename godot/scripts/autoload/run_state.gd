@@ -201,7 +201,7 @@ func proceed_to_shop() -> void:
 	var owned := []
 	for it in inventory:
 		owned.append(it["id"])
-	shop_items = GameData.generate_shop_items(owned)
+	shop_items = GameData.generate_shop_items(owned, null, patron)
 
 	floor_index += 1
 	set_screen("shop")

@@ -616,6 +616,25 @@ func test_shop_and_choices() -> void:
 	check_eq(GameData.generate_shop_items(owned, Cards.new_rng(4)).size(), 0,
 		"nothing offered when everything is owned")
 
+	# John Dee's shop is themed: only items that reveal the hidden or look ahead
+	# (plus his two emergency escapes), never the off-theme utilities.
+	var dee := GameData.patron_item_pool("johndee")
+	check_eq(dee.size(), 9, "John Dee's shop pool is nine items")
+	var dee_ids := {}
+	for it in dee:
+		dee_ids[it["id"]] = true
+	for id in ["sticky-note", "pencil", "magnifier", "stapler", "paperclip",
+			"calculator", "master-key", "extinguisher", "exec-chair"]:
+		check(dee_ids.has(id), "John Dee stocks %s" % id)
+	check(not dee_ids.has("rubber-band"), "John Dee drops off-theme Knotted Cord")
+	check(not dee_ids.has("coffee"), "John Dee drops off-theme Mortlake Brew")
+	check(not dee_ids.has("briefcase"), "John Dee drops off-theme Hermetic Casket")
+	for it in GameData.generate_shop_items([], Cards.new_rng(7), "johndee"):
+		check(dee_ids.has(it["id"]), "a generated John Dee item is within his pool")
+	# A patron with no defined pool sells the whole catalogue.
+	check_eq(GameData.patron_item_pool("nobody").size(), GameData.SHOP_ITEMS.size(),
+		"an unmapped patron offers the full catalogue")
+
 	for item in GameData.SHOP_ITEMS:
 		check(item.has("effect") and item["effect"] != "", "item %s has an effect" % item["id"])
 		check(int(item["price"]) > 0, "item %s has a price" % item["id"])
