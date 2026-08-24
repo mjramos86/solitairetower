@@ -141,6 +141,26 @@ const CARDBACKS := [
 ]
 
 
+## Each time patron stocks a different shop, so the patron you pick shapes your
+## whole run. John Dee — the scryer and astrologer — deals only in items that
+## reveal what is hidden or look ahead (plus his two emergency escapes, the Vial
+## of Quicksilver and the Queen's Patronage). A patron absent from this map sells
+## the full catalogue.
+const PATRON_ITEMS := {
+	"johndee": [
+		"sticky-note",   # Scrying Glass  — reveal a move
+		"pencil",        # Quill of Ravens — look ahead at the stock
+		"magnifier",     # Obsidian Mirror — reveal the hidden
+		"stapler",       # Wax Seal Press  — find a buried Ace
+		"paperclip",     # Brass Compass   — reveal a face-down card
+		"calculator",    # Astrolabe       — reveal every move
+		"master-key",    # Enochian Key    — reach into the stock
+		"extinguisher",  # Vial of Quicksilver — emergency escape
+		"exec-chair",    # Queen's Patronage   — boss skip
+	],
+}
+
+
 static func item_by_id(id: String) -> Dictionary:
 	for item in SHOP_ITEMS:
 		if item["id"] == id:
@@ -148,13 +168,27 @@ static func item_by_id(id: String) -> Dictionary:
 	return {}
 
 
+## The items a given patron is willing to sell, in catalogue order. Patrons not
+## listed in PATRON_ITEMS offer everything.
+static func patron_item_pool(patron: String) -> Array:
+	if not PATRON_ITEMS.has(patron):
+		return SHOP_ITEMS.duplicate()
+	var allowed: Array = PATRON_ITEMS[patron]
+	var pool := []
+	for item in SHOP_ITEMS:
+		if allowed.has(item["id"]):
+			pool.append(item)
+	return pool
+
+
 ## Three distinct items the player does not already own, weighted toward cheap
 ## tiers. Ported from generateShopItems.
-static func generate_shop_items(owned_ids: Array, rng: RandomNumberGenerator = null) -> Array:
+static func generate_shop_items(owned_ids: Array, rng: RandomNumberGenerator = null,
+		patron: String = "") -> Array:
 	if rng == null:
 		rng = Cards.new_rng()
 	var available := []
-	for item in SHOP_ITEMS:
+	for item in patron_item_pool(patron):
 		if not owned_ids.has(item["id"]):
 			available.append(item)
 	var chosen := []
