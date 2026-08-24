@@ -34,6 +34,9 @@ const MAX_NAME_LEN := 18
 signal saved
 ## Emitted when a save file was found to be unreadable and defaults were used.
 signal save_corrupted(reason: String)
+## Emitted when a finished run is recorded locally, so the online leaderboard can
+## push it. Carries the stored entry dict.
+signal score_recorded(entry: Dictionary)
 
 ## Live state — always mirrors the active slot (highscores are global).
 var profile: Dictionary = {}
@@ -403,6 +406,9 @@ func record_score(player: String, score: int, time_seconds: float, all_floors: b
 		"time": time_seconds,
 		"all_floors": all_floors,
 		"date": Time.get_unix_time_from_system(),
+		# Not yet pushed to the online board. Leaderboard flips this on a
+		# successful upload; sync_pending() retries whatever is still false.
+		"synced": false,
 	}
 	if entry["name"] == "":
 		entry["name"] = "Anonymous"
@@ -418,7 +424,36 @@ func record_score(player: String, score: int, time_seconds: float, all_floors: b
 
 	mark_dirty()
 	save_game()
+	score_recorded.emit(entry)
 	return highscores.find(entry)
+
+
+## Local scores not yet pushed to the online board.
+func unsynced_scores() -> Array:
+	var pending := []
+	for e in highscores:
+		if not bool(e.get("synced", false)):
+			pending.append(e)
+	return pending
+
+
+## Marks a local score as uploaded and persists. Matched by value, since the
+## Leaderboard holds the same dictionary reference the table does — but a
+## re-sort or reload could have replaced it, so fall back to a field match.
+func mark_score_synced(entry: Dictionary) -> void:
+	var target := entry
+	if not highscores.has(target):
+		for e in highscores:
+			if int(e.get("score", 0)) == int(entry.get("score", -1)) \
+					and float(e.get("time", -1.0)) == float(entry.get("time", -1.0)) \
+					and String(e.get("name", "")) == String(entry.get("name", "")):
+				target = e
+				break
+	if bool(target.get("synced", false)):
+		return
+	target["synced"] = true
+	mark_dirty()
+	save_game()
 
 
 func record_run_end(won: bool, _score: int, _elapsed: float, leftover_credits: int) -> void:
