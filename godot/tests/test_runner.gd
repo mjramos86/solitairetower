@@ -635,6 +635,28 @@ func test_shop_and_choices() -> void:
 	check_eq(GameData.patron_item_pool("nobody").size(), GameData.SHOP_ITEMS.size(),
 		"an unmapped patron offers the full catalogue")
 
+	# The patron picker card needs a name, an occupation and a strategy flavour
+	# line for John Dee.
+	var dee_entry := {}
+	for p in Narrative.PATRONS:
+		if p["id"] == "johndee":
+			dee_entry = p
+	check(not dee_entry.is_empty(), "John Dee is a selectable patron")
+	check_eq(String(dee_entry["occupation"]), "Elizabeth I's astrologer and master spy",
+		"John Dee's occupation is set")
+	check(String(dee_entry.get("tagline", "")).length() > 0, "John Dee has a strategy flavour line")
+
+	# Picking a patron records it on the run and moves to the map.
+	var packed := load("res://scenes/screens/patron_select_screen.tscn") as PackedScene
+	var picker := packed.instantiate()
+	add_child(picker)
+	RunState.patron = ""
+	picker._choose("johndee")
+	check_eq(RunState.patron, "johndee", "choosing a patron records it on the run")
+	check_eq(RunState.screen, "map", "choosing a patron advances to the map")
+	remove_child(picker)
+	picker.queue_free()
+
 	for item in GameData.SHOP_ITEMS:
 		check(item.has("effect") and item["effect"] != "", "item %s has an effect" % item["id"])
 		check(int(item["price"]) > 0, "item %s has a price" % item["id"])
@@ -1585,6 +1607,7 @@ func test_every_scene_loads() -> void:
 		["res://scenes/screens/end_screen.tscn", "gameover"],
 		["res://scenes/screens/compendium_screen.tscn", "compendium"],
 		["res://scenes/screens/cardback_screen.tscn", "cardback-select"],
+		["res://scenes/screens/patron_select_screen.tscn", "patron-select"],
 		["res://scenes/screens/dialogue_screen.tscn", "patron-dialogue"],
 	]
 

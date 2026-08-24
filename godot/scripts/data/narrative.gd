@@ -15,6 +15,8 @@ const PATRONS := [
 		{
 			"id": "johndee",
 			"name": "John Dee",
+			"occupation": "Elizabeth I's astrologer and master spy",
+			"tagline": "The astrologer trades in sight — see what is hidden, know what approaches.",
 			"img": "res://assets/patrons/john_dee.jpg",
 			"unlocked": true,
 			"revealed": true,
@@ -38,6 +40,8 @@ const PATRONS := [
 			"id": "marie",
 			"name": "The Other Queen",
 			"true_name": "Mary, Queen of Scots",
+			"occupation": "Queen of Scots, England's royal prisoner",
+			"tagline": "",
 			"img": "res://assets/patrons/mary_stuart_portrait.png",
 			"unlocked": false,
 			"revealed": false,

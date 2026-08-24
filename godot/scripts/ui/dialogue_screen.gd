@@ -741,13 +741,14 @@ func _advance() -> void:
 func _finish() -> void:
 	match RunState.screen:
 		"patron-dialogue":
-			# Replaying from the map returns there; the first viewing starts the run.
+			# Replaying from the map returns there; the first viewing starts the run
+			# and stops at the Time Patron picker before the map, as the web build does.
 			if RunState.intro_replay:
 				RunState.intro_replay = false
 				RunState.set_screen("map")
 			else:
 				RunState.new_run()
-				RunState.set_screen("map")
+				RunState.set_screen("patron-select")
 		"dee-checkin-dialogue", "dee-dialogue3", "dee-final-dialogue":
 			SaveManager.mark_dirty()
 			RunState.proceed_to_shop()
