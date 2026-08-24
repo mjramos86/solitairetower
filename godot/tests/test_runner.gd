@@ -32,6 +32,7 @@ func _ready() -> void:
 	test_shop_and_choices()
 	test_save_round_trip()
 	test_save_slots()
+	test_leaderboard()
 	test_auto_play()
 	test_floor_choices_and_forfeit()
 	test_difficulty_matches_web()
@@ -1011,6 +1012,72 @@ func test_difficulty_matches_web() -> void:
 	check_eq(choices[GameData.TOTAL_FLOORS - 1]["right"], "freecell", "floor 1 offers only freecell")
 	for i in range(1, GameData.TOTAL_FLOORS - 1):
 		check(choices[i]["left"] != choices[i]["right"], "floor %d offers two distinct variants" % i)
+
+
+## The online leaderboard's pure logic (Firestore encode/decode, merge) and the
+## local sync-state bookkeeping. The network calls themselves aren't exercised
+## headlessly — only the data plumbing that has to be right.
+func test_leaderboard() -> void:
+	suite("online leaderboard")
+
+	# Local entry → Firestore typed fields, exactly the five allowed keys.
+	var fields := Leaderboard.to_firestore_fields(
+		{"name": "Ada", "score": 900, "time": 12.5, "all_floors": true, "date": 1690000000})
+	check_eq(fields.keys().size(), 5, "exactly five fields are sent")
+	check_eq(String(fields["name"]["stringValue"]), "Ada", "name encoded")
+	check_eq(String(fields["score"]["integerValue"]), "900", "score encoded as an int")
+	check_eq(bool(fields["allFloors"]["booleanValue"]), true, "allFloors encoded")
+	check_eq(String(fields["date"]["integerValue"]), "1690000000000", "seconds date scaled to ms")
+
+	# An over-long name is clamped to the rules' 20-char limit.
+	var long := Leaderboard.to_firestore_fields({"name": "X".repeat(40), "score": 1, "time": 1.0})
+	check(String(long["name"]["stringValue"]).length() <= 20, "name clamped to 20 chars")
+
+	# A runQuery response body → entries, skipping the empty readTime row.
+	var body := '[{"document":{"fields":{"name":{"stringValue":"Grace"},' \
+		+ '"score":{"integerValue":"7100"},"time":{"doubleValue":52.0},' \
+		+ '"date":{"integerValue":"1690000000000"},"allFloors":{"booleanValue":false}}}},' \
+		+ '{"readTime":"2020-01-01T00:00:00Z"}]'
+	var parsed := Leaderboard.parse_run_query(body)
+	check_eq(parsed.size(), 1, "readTime rows are skipped")
+	check_eq(String(parsed[0]["name"]), "Grace", "name decoded")
+	check_eq(int(parsed[0]["score"]), 7100, "score decoded")
+	check_eq(float(parsed[0]["time"]), 52.0, "time decoded")
+	check_eq(bool(parsed[0]["all_floors"]), false, "allFloors decoded")
+
+	# Merge: a score that exists both locally and online appears once; result is
+	# sorted score desc then time asc.
+	var local := [{"name": "Me", "score": 100, "time": 10.0},
+		{"name": "Me", "score": 50, "time": 20.0}]
+	var online := [{"name": "Me", "score": 100, "time": 10.0},
+		{"name": "Rival", "score": 200, "time": 5.0}]
+	var merged := Leaderboard.merge_scores(local, online, 10)
+	check_eq(merged.size(), 3, "the shared score is de-duplicated")
+	check_eq(int(merged[0]["score"]), 200, "highest score first")
+	check_eq(int(merged[2]["score"]), 50, "lowest score last")
+
+	# Merge respects the cap.
+	var many := []
+	for i in 30:
+		many.append({"name": "P%d" % i, "score": i, "time": 1.0})
+	check_eq(Leaderboard.merge_scores(many, [], 10).size(), 10, "merge caps to the limit")
+
+	# Sync bookkeeping: a fresh score is unsynced and fires score_recorded;
+	# marking it flips the flag.
+	SaveManager.erase_all()
+	SaveManager.new_game(0, "Tester")
+	var captured := []
+	var cb := func(e): captured.append(e)
+	SaveManager.score_recorded.connect(cb)
+	SaveManager.record_score("Tester", 500, 30.0, true)
+	SaveManager.score_recorded.disconnect(cb)
+	check_eq(captured.size(), 1, "recording a score emits score_recorded")
+	check(not bool(captured[0].get("synced", true)), "a new score starts unsynced")
+	check(SaveManager.unsynced_scores().size() >= 1, "unsynced score is listed")
+	SaveManager.mark_score_synced(captured[0])
+	check(bool(captured[0].get("synced", false)), "mark_score_synced flips the flag")
+	check_eq(SaveManager.unsynced_scores().size(), 0, "nothing left to sync")
+	SaveManager.erase_all()
 
 
 func test_hints() -> void:
