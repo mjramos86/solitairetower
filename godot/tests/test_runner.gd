@@ -41,6 +41,7 @@ func _ready() -> void:
 	await test_hint_highlighting()
 	await test_cheat_codes()
 	await test_item_tooltip()
+	await test_stock_recycle_click()
 	test_item_effects()
 	test_narrative()
 	test_every_scene_loads()
@@ -1284,6 +1285,53 @@ func test_item_tooltip() -> void:
 	screen._hide_item_tooltip()
 	await get_tree().process_frame
 	check_eq(get_tree().get_nodes_in_group("item_tooltip").size(), 0, "hover card clears on exit")
+
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+	RunState.new_run()
+
+
+## Regression: once the Klondike stock ran out it became an empty "↻" slot, and
+## clicking that slot was routed as a move target instead of a draw — so the
+## waste could never be recycled back into the stock. Clicking it must draw.
+func test_stock_recycle_click() -> void:
+	suite("empty-stock recycle click")
+	RunState.new_run()
+	RunState.start_game("klondike", 5)  # medium floor: unlimited recycles
+
+	# Empty the stock into the waste, as if every card had been drawn.
+	var s := Cards.clone_state(RunState.gs)
+	for c in s["stock"]:
+		var face_up: Dictionary = c.duplicate()
+		face_up["face_up"] = true
+		s["waste"].append(face_up)
+	s["stock"] = []
+	RunState.gs = s
+	var waste_before: int = RunState.gs["waste"].size()
+	check(waste_before > 0, "there is a waste pile to recycle")
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+	var screen := packed.instantiate()
+	add_child(screen)
+	await get_tree().process_frame
+
+	# Find the on-board stock slot and click it the way the board does.
+	var stock_slot: Control = null
+	for child in screen._board.get_children():
+		if child.has_meta("slot") and String((child.get_meta("slot") as Dictionary).get("kind", "")) == "stock":
+			stock_slot = child
+			break
+	check(stock_slot != null, "the emptied stock shows a clickable slot")
+	if stock_slot != null:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = true
+		screen._on_slot_input(ev, stock_slot)
+
+	check_eq(int(RunState.gs["stock"].size()), waste_before,
+		"clicking the emptied stock recycles the waste back into it")
+	check_eq(int(RunState.gs["waste"].size()), 0, "the waste is emptied by the recycle")
 
 	remove_child(screen)
 	screen.queue_free()

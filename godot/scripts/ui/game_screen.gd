@@ -1091,7 +1091,17 @@ func _on_slot_input(event: InputEvent, slot: Panel) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			_handle_target(slot.get_meta("slot"))
+			var meta: Dictionary = slot.get_meta("slot")
+			# An emptied stock is still the "recycle" affordance (the ↻ slot):
+			# clicking it must draw — which recycles the waste back into the stock —
+			# exactly as clicking a face-down stock card does. Routing it through
+			# _handle_target instead treated it as a move target, so once the deck
+			# ran out the player could never recycle. Every other slot (empty
+			# tableau/foundation/free cell) really is a move target.
+			if meta.get("kind") == "stock":
+				_click_slot(meta)
+			else:
+				_handle_target(meta)
 
 
 func _is_selected(meta: Dictionary) -> bool:
