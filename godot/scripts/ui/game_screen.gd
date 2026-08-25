@@ -1827,19 +1827,48 @@ func _score_move(gs: Dictionary, from: Dictionary, to: Dictionary, cards: Array)
 
 func _draw_stock() -> void:
 	var gs := RunState.gs
+
+	# Spider deals a whole row rather than drawing to a waste, and can complete
+	# suits, so it keeps its own path.
+	if String(gs["type"]) == "spider":
+		var result := Rules.spider_deal(gs)
+		if _same_pile_counts(gs, result["state"]) and result["completed"].is_empty():
+			return  # no groups left, or a blocked deal — nothing happened
+		RunState.push_undo()
+		RunState.gs = result["state"]
+		for _s in result["completed"]:
+			RunState.add_score(Rules.PTS_SUIT_COMPLETED, "suit completed")
+		_selection = {}
+		AudioManager.card_moved()
+		_after_move()
+		return
+
+	# Klondike / Pyramid draw a card, or recycle the waste back into the stock
+	# when the stock is empty and a recycle remains. TriPeaks only draws (it has
+	# no recycle). A spent stock — empty with no recycles left — returns the board
+	# unchanged, so skip it rather than burn an undo and play a sound on a dead
+	# click.
+	var next: Dictionary
+	match String(gs["type"]):
+		"klondike": next = Rules.klondike_draw(gs)
+		"pyramid": next = Rules.pyramid_draw(gs)
+		"tripeaks": next = Rules.tripeaks_draw(gs)
+		_: return
+	if _same_pile_counts(gs, next):
+		return
 	RunState.push_undo()
-	match gs["type"]:
-		"klondike": RunState.gs = Rules.klondike_draw(gs)
-		"pyramid": RunState.gs = Rules.pyramid_draw(gs)
-		"tripeaks": RunState.gs = Rules.tripeaks_draw(gs)
-		"spider":
-			var result := Rules.spider_deal(gs)
-			RunState.gs = result["state"]
-			for _s in result["completed"]:
-				RunState.add_score(Rules.PTS_SUIT_COMPLETED, "suit completed")
+	RunState.gs = next
 	_selection = {}
 	AudioManager.card_moved()
 	_after_move()
+
+
+## True when two states have identical stock/waste/stock_groups sizes — i.e. a
+## draw or deal that moved nothing.
+func _same_pile_counts(a: Dictionary, b: Dictionary) -> bool:
+	return (a.get("stock", []) as Array).size() == (b.get("stock", []) as Array).size() \
+		and (a.get("waste", []) as Array).size() == (b.get("waste", []) as Array).size() \
+		and (a.get("stock_groups", []) as Array).size() == (b.get("stock_groups", []) as Array).size()
 
 
 ## TriPeaks scores an ascending streak: each card taken from the peaks scores the

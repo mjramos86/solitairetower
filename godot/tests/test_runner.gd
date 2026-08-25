@@ -1292,50 +1292,104 @@ func test_item_tooltip() -> void:
 	RunState.new_run()
 
 
-## Regression: once the Klondike stock ran out it became an empty "↻" slot, and
-## clicking that slot was routed as a move target instead of a draw — so the
-## waste could never be recycled back into the stock. Clicking it must draw.
-func test_stock_recycle_click() -> void:
-	suite("empty-stock recycle click")
-	RunState.new_run()
-	RunState.start_game("klondike", 5)  # medium floor: unlimited recycles
-
-	# Empty the stock into the waste, as if every card had been drawn.
+## Moves the whole stock (face-up) into the waste, as if every card were drawn.
+func _empty_stock_into_waste() -> void:
 	var s := Cards.clone_state(RunState.gs)
 	for c in s["stock"]:
-		var face_up: Dictionary = c.duplicate()
-		face_up["face_up"] = true
-		s["waste"].append(face_up)
+		var cc: Dictionary = c.duplicate()
+		cc["face_up"] = true
+		s["waste"].append(cc)
 	s["stock"] = []
 	RunState.gs = s
-	var waste_before: int = RunState.gs["waste"].size()
-	check(waste_before > 0, "there is a waste pile to recycle")
 
+
+## Spawns the game screen, clicks the on-board stock slot exactly as the board
+## does (_on_slot_input), then tears the screen down. Mutates RunState.gs.
+func _click_the_stock_slot() -> void:
 	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
 	var screen := packed.instantiate()
 	add_child(screen)
 	await get_tree().process_frame
-
-	# Find the on-board stock slot and click it the way the board does.
-	var stock_slot: Control = null
+	var slot: Control = null
 	for child in screen._board.get_children():
 		if child.has_meta("slot") and String((child.get_meta("slot") as Dictionary).get("kind", "")) == "stock":
-			stock_slot = child
+			slot = child
 			break
-	check(stock_slot != null, "the emptied stock shows a clickable slot")
-	if stock_slot != null:
+	if slot != null:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = MOUSE_BUTTON_LEFT
 		ev.pressed = true
-		screen._on_slot_input(ev, stock_slot)
-
-	check_eq(int(RunState.gs["stock"].size()), waste_before,
-		"clicking the emptied stock recycles the waste back into it")
-	check_eq(int(RunState.gs["waste"].size()), 0, "the waste is emptied by the recycle")
-
+		screen._on_slot_input(ev, slot)
 	remove_child(screen)
 	screen.queue_free()
 	await get_tree().process_frame
+
+
+## Regression + coverage for every variant that recycles. The bug: once a stock
+## ran out it became a "↻" slot whose click was routed as a move target, not a
+## draw, so the waste could never be recycled. Verifies Klondike and Pyramid
+## recycle (and respect their caps), and that TriPeaks — which has no recycle —
+## is a clean no-op.
+func test_stock_recycle_click() -> void:
+	suite("stock recycle across variants")
+
+	# ── Klondike (medium): an emptied stock recycles the waste back in ──
+	RunState.new_run()
+	RunState.start_game("klondike", 5)  # medium: unlimited recycles (999)
+	_empty_stock_into_waste()
+	var kl_waste: int = RunState.gs["waste"].size()
+	check(kl_waste > 0, "klondike has a waste to recycle")
+	await _click_the_stock_slot()
+	check_eq(int(RunState.gs["stock"].size()), kl_waste, "klondike recycles the waste into the stock")
+	check_eq(int(RunState.gs["waste"].size()), 0, "klondike waste is emptied by the recycle")
+
+	# ── Klondike (hard): recycles exhausted → clicking does nothing ──
+	RunState.new_run()
+	RunState.start_game("klondike", 9)  # hard: only 3 recycles
+	_empty_stock_into_waste()
+	var spent := Cards.clone_state(RunState.gs)
+	spent["draws_left"] = 0
+	RunState.gs = spent
+	var kl_spent_waste: int = RunState.gs["waste"].size()
+	await _click_the_stock_slot()
+	check_eq(int(RunState.gs["stock"].size()), 0, "klondike with no recycles left does not refill")
+	check_eq(int(RunState.gs["waste"].size()), kl_spent_waste, "klondike waste untouched when spent")
+
+	# ── Pyramid (medium): recycle keeps the top card, flips the rest to stock ──
+	RunState.new_run()
+	RunState.start_game("pyramid", 5)  # medium: 2 cycles
+	_empty_stock_into_waste()
+	var py := Cards.clone_state(RunState.gs)
+	py["cycles"] = 0
+	RunState.gs = py
+	var py_waste: int = RunState.gs["waste"].size()
+	check(py_waste >= 2, "pyramid has a waste to recycle")
+	await _click_the_stock_slot()
+	check_eq(int(RunState.gs["stock"].size()), py_waste - 1, "pyramid recycles all but the top card")
+	check_eq(int(RunState.gs["waste"].size()), 1, "pyramid keeps the top card as the waste")
+	check_eq(int(RunState.gs["cycles"]), 1, "pyramid counts the recycle")
+
+	# ── Pyramid: at the cycle cap → clicking does nothing ──
+	_empty_stock_into_waste()
+	var capped := Cards.clone_state(RunState.gs)
+	capped["cycles"] = int(capped["max_cycles"])
+	RunState.gs = capped
+	var py_capped_waste: int = RunState.gs["waste"].size()
+	await _click_the_stock_slot()
+	check_eq(int(RunState.gs["stock"].size()), 0, "pyramid at its cycle cap does not recycle")
+	check_eq(int(RunState.gs["waste"].size()), py_capped_waste, "pyramid waste untouched at the cap")
+
+	# ── TriPeaks: no recycle mechanic → an emptied stock click is a no-op ──
+	RunState.new_run()
+	RunState.start_game("tripeaks", 0)
+	var tp := Cards.clone_state(RunState.gs)
+	tp["stock"] = []
+	RunState.gs = tp
+	var tp_waste: int = RunState.gs["waste"].size()
+	await _click_the_stock_slot()
+	check_eq(int(RunState.gs["stock"].size()), 0, "tripeaks has no recycle: stock stays empty")
+	check_eq(int(RunState.gs["waste"].size()), tp_waste, "tripeaks waste is unchanged")
+
 	RunState.new_run()
 
 
