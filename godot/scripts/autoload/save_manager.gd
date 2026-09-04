@@ -394,6 +394,71 @@ func is_patron_revealed(id: String) -> bool:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  Compendium "new content" notifications
+# ══════════════════════════════════════════════════════════════════════════════
+
+## A patron/lore entry is visible when it is flagged unlocked or revealed —
+## the same test the compendium screen uses to decide silhouette vs. full entry.
+func _compendium_entry_visible(entry: Dictionary) -> bool:
+	if bool(entry.get("unlocked", false)) or bool(entry.get("revealed", false)):
+		return true
+	return is_patron_revealed(String(entry["id"]))
+
+
+## John Dee's connection can only be uncovered after his third transmission —
+## mirrors connectionAvailable() in the web build and _connection_available()
+## in the compendium screen.
+func _compendium_connection_available(entry: Dictionary) -> bool:
+	if String(entry["id"]) == "johndee":
+		return bool(profile.get("dee_dialogue3_done", false))
+	return true
+
+
+## A signature of everything currently discoverable in the compendium. When a
+## key appears here that the player has not marked seen, the Compendium button
+## on the map badges it. Ported from compendiumSignature() in index.html.
+func compendium_signature() -> Array:
+	var keys: Array = []
+	var entries: Array = []
+	for p in Narrative.PATRONS:
+		entries.append(p)
+	for l in Narrative.LORE:
+		entries.append(l)
+	for entry in entries:
+		var id := String(entry["id"])
+		if _compendium_entry_visible(entry):
+			keys.append("entry:" + id)
+		if entry.has("lore"):
+			if has_seen("unlocked_connections", id):
+				keys.append("conn:" + id)
+			elif _compendium_connection_available(entry):
+				keys.append("conn-ready:" + id)
+	for t in profile.get("seen_dee_topics", []):
+		keys.append("dlg-checkin:" + String(t))
+	for t in profile.get("seen_dee3_topics", []):
+		keys.append("dlg-d3:" + String(t))
+	if bool(profile.get("dee_final_done", false)):
+		keys.append("dlg-final")
+	return keys
+
+
+## How many signature keys the player has not yet seen in the compendium.
+func compendium_unseen_count() -> int:
+	var seen: Array = profile.get("seen_compendium", [])
+	var count := 0
+	for key in compendium_signature():
+		if not seen.has(key):
+			count += 1
+	return count
+
+
+## Records the current discoverable set as seen, clearing the map badge.
+func mark_compendium_seen() -> void:
+	profile["seen_compendium"] = compendium_signature()
+	mark_dirty()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Local high scores — global across slots, replacing the Firestore leaderboard
 # ══════════════════════════════════════════════════════════════════════════════
 

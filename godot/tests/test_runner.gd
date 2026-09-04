@@ -44,6 +44,7 @@ func _ready() -> void:
 	await test_stock_recycle_click()
 	test_item_effects()
 	test_narrative()
+	test_compendium_features()
 	test_every_scene_loads()
 	test_unlockables()
 
@@ -1749,6 +1750,56 @@ func test_narrative() -> void:
 	check(marie.has("true_name"), "the other queen has a true name")
 	check(SaveManager.is_patron_revealed("marie"),
 		"Mary is revealed once John Dee's connection is unlocked")
+
+	SaveManager.erase_all()
+
+
+## The compendium's web-parity extras: the "new content" badge signature, the
+## Timeline of Civilization, and John Dee's Recorded Transmissions.
+func test_compendium_features() -> void:
+	suite("compendium extras")
+	SaveManager.erase_all()
+
+	# ── Signature / badge (compendiumSignature/compendiumUnseenCount) ──
+	var sig: Array = SaveManager.compendium_signature()
+	check(sig.has("entry:johndee"), "John Dee is a visible entry in the signature")
+	check(sig.has("entry:cult"), "the Cult lore is a visible entry")
+	check(not sig.has("conn-ready:johndee"),
+		"Dee's connection is not offered before the third transmission")
+	check(SaveManager.compendium_unseen_count() > 0, "a fresh profile has unseen content")
+	SaveManager.mark_compendium_seen()
+	check_eq(SaveManager.compendium_unseen_count(), 0, "marking seen clears the badge")
+
+	# Reaching Dee's third transmission opens his connection and re-badges.
+	SaveManager.profile["dee_dialogue3_done"] = true
+	check(SaveManager.compendium_signature().has("conn-ready:johndee"),
+		"Dee's connection becomes ready after the third transmission")
+	check(SaveManager.compendium_unseen_count() > 0, "the newly ready connection badges as new")
+
+	# ── Screen renders the timeline and the transmissions ──
+	SaveManager.erase_all()
+	SaveManager.profile["dee_dialogue3_done"] = true
+	SaveManager.profile["dee_final_done"] = true
+	SaveManager.mark_seen("seen_dee_topics", String(Narrative.DEE_CHECKIN_TOPICS[0]["id"]))
+	SaveManager.mark_seen("unlocked_connections", "johndee")  # reveals Mary; links the timeline
+
+	RunState.set_screen("compendium")
+	var screen: Control = load("res://scenes/screens/compendium_screen.tscn").instantiate()
+	add_child(screen)
+	var texts := ""
+	for l in screen.find_children("*", "Label", true, false):
+		texts += (l as Label).text + "\n"
+	check(texts.contains("TIMELINE OF CIVILIZATION"), "the timeline heading renders")
+	check(texts.contains("Recorded Transmissions"), "John Dee's transmissions render")
+	check(texts.contains("The First Contact"), "the intro transmission subsection renders")
+	check(texts.contains("The Final Threshold"), "the final-threshold subsection renders")
+	check(texts.contains("Time Energy"), "the banked-credits strip renders")
+	# A discovered checkin topic surfaces its question transcript.
+	check(texts.contains(String(Narrative.DEE_CHECKIN_TOPICS[0]["question"])),
+		"a reached check-in topic shows its question")
+	# Opening the compendium clears the badge (mark_compendium_seen on _ready).
+	check_eq(SaveManager.compendium_unseen_count(), 0, "opening the compendium clears the badge")
+	screen.queue_free()
 
 	SaveManager.erase_all()
 
