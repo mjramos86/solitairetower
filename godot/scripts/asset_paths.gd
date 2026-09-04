@@ -50,7 +50,7 @@ const INTRO := {
 # ── UI / branding ─────────────────────────────────────────────────────────────
 const UI := {
 	"logo_sigil": "res://assets/ui/logo_sigil.png",
-	"title_keyart": "res://assets/ui/title_keyart.png",
+	"title_keyart": "res://assets/ui/title_keyart.jpg",
 	"tower_static": "res://assets/ui/tower_static.jpg",
 }
 

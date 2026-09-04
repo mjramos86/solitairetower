@@ -60,7 +60,7 @@ this project keep them lossless so an upgrade is a drop-in replacement.
 
 | Web file | Godot file | Use |
 |---|---|---|
-| `Solitaire Tower of Doom Key art - 1.png.png` (2496×1274) | `title_keyart.png` | Title screen (`TITLE_KEYART`) |
+| `KeyArt_SolitaireDoom_logo2.0_eng.jpg` (2648×2219) | `title_keyart.jpg` | Title screen (`TITLE_KEYART`) |
 | `solitairedoom_favicon.png` (692×692) | `logo_sigil.png` | App icon + boot splash |
 | `tower.jpg` (880×1039) | `tower_static.jpg` | Static tower art |
 
