@@ -131,8 +131,7 @@ func _build_side() -> void:
 
 	_add_section("🎒 Inventory", _inventory_slots())
 
-	_add_section("Lore", _panel_button("📖 Compendium",
-		func(): RunState.set_screen("compendium")))
+	_add_section("Lore", _compendium_button())
 	_add_section("Customize", _panel_button("🂠 Cardback", func():
 		RunState.cardback_return = "map"
 		RunState.set_screen("cardback-select")))
@@ -259,6 +258,36 @@ func _panel_button(text: String, action: Callable) -> Button:
 	button.add_theme_stylebox_override("hover", _ghost_button_box(0.8))
 	button.add_theme_stylebox_override("pressed", _ghost_button_box(0.8))
 	button.pressed.connect(action)
+	return button
+
+
+## The Compendium button, with a red "new content" badge in its top-right
+## corner when the player has discoverable lore they have not yet seen —
+## the .compendium-badge on the map button in index.html.
+func _compendium_button() -> Button:
+	var button := _panel_button("📖 Compendium",
+		func(): RunState.set_screen("compendium"))
+	var unseen := SaveManager.compendium_unseen_count()
+	if unseen > 0:
+		var badge := Label.new()
+		badge.text = str(unseen)
+		badge.add_theme_font_override("font", UITheme.font("pixel"))
+		badge.add_theme_font_size_override("font_size", 13)
+		badge.add_theme_color_override("font_color", Color.WHITE)
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		badge.custom_minimum_size = Vector2(20, 20)
+		var pill := StyleBoxFlat.new()
+		pill.bg_color = Color("c0392b")  # the badge's crimson
+		pill.set_corner_radius_all(10)
+		pill.content_margin_left = 5
+		pill.content_margin_right = 5
+		badge.add_theme_stylebox_override("normal", pill)
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		badge.position = Vector2(-8, -8)
+		badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		button.add_child(badge)
 	return button
 
 

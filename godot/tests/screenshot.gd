@@ -36,8 +36,13 @@ func _ready() -> void:
 	# Map.
 	await _shoot_screen("map", "map")
 
-	# Compendium, with credits to show the purchase buttons.
+	# Compendium, with credits to show the purchase buttons and enough of John
+	# Dee's story reached to show the timeline links and Recorded Transmissions.
 	SaveManager.add_banked_credits(1500)
+	SaveManager.profile["dee_dialogue3_done"] = true
+	SaveManager.profile["dee_final_done"] = true
+	SaveManager.mark_seen("seen_dee_topics", String(Narrative.DEE_CHECKIN_TOPICS[0]["id"]))
+	SaveManager.mark_seen("unlocked_connections", "johndee")
 	await _shoot_screen("compendium", "compendium")
 
 	# Title and end screens.
