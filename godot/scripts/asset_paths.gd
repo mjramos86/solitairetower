@@ -90,19 +90,21 @@ const SFX := {
 #     f.base_font = load(AssetPaths.FONTS["display"])
 #     f.variation_opentype = { "wght": 700 }
 #
-# Readability was chosen over the period look: every text role now resolves to
-# Inter, a clean humanist sans that stays legible at small sizes and in the
-# pixel-font UI chrome. The keys are kept so existing call sites (and their
-# weights, via font_at) keep working — hierarchy now comes from weight, not
-# from switching families. Inter is variable, so 400/500/600/700/900 all work.
+# Hybrid typography: Cinzel (a stately titling serif) carries headings, labels,
+# buttons and UI chrome for period flavour, while Inter (a clean humanist sans)
+# carries body prose — dialogue, bios, item descriptions, score rows — where
+# readability matters most. The keys are semantic, so call sites and their
+# font_at weights keep working; only the family behind each role changed.
+# Both are variable fonts, so every weight resolves from one file each.
+const _CINZEL := "res://fonts/Cinzel-Variable.ttf"
 const _INTER := "res://fonts/Inter-Variable.ttf"
 const FONTS := {
-	"display": _INTER,       # headings (use weights 600/700)
-	"body": _INTER,          # prose (400/500)
-	"body_italic": _INTER,   # Inter has no separate italic file; falls back to upright
-	"title": _INTER,         # big titles (700/900)
-	"pixel": _INTER,         # former Win95/VT323 chrome, now clean sans
-	"mono": _INTER,          # former ShareTechMono
+	"display": _CINZEL,      # headings / section labels (weights 500/600/700)
+	"title": _CINZEL,        # big titles (700/900)
+	"pixel": _CINZEL,        # UI chrome, buttons and short labels
+	"body": _INTER,          # prose: dialogue, bios, descriptions
+	"body_italic": _INTER,   # Inter ships no italic file; falls back to upright
+	"mono": _INTER,          # score/number columns
 }
 
 ## Every asset expected to exist after a clean import, for the verification

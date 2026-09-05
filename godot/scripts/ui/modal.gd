@@ -105,8 +105,8 @@ static func _message_body(message: String) -> Control:
 	label.text = message
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.custom_minimum_size.x = 380
-	label.add_theme_font_override("font", UITheme.font("pixel"))
-	label.add_theme_font_size_override("font_size", 23)
+	label.add_theme_font_override("font", UITheme.font("body"))  # message prose → Inter
+	label.add_theme_font_size_override("font_size", 21)
 	label.add_theme_color_override("font_color", UITheme.W95_DARKER)
 	return label
 

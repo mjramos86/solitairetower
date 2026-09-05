@@ -233,7 +233,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	desc.add_theme_font_override("font", UITheme.font("pixel"))
+	desc.add_theme_font_override("font", UITheme.font("body"))  # item prose → Inter
 	desc.add_theme_font_size_override("font_size", 16)
 	desc.add_theme_color_override("font_color", UITheme.TEXT)
 	col.add_child(desc)
@@ -242,7 +242,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	use.text = "📋 %s" % String(item["use"])
 	use.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	use.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	use.add_theme_font_override("font", UITheme.font("pixel"))
+	use.add_theme_font_override("font", UITheme.font("body"))  # item prose → Inter
 	use.add_theme_font_size_override("font_size", 15)
 	use.add_theme_color_override("font_color", DESC_DIM)
 	col.add_child(use)
@@ -251,7 +251,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	best.text = "Best for: %s" % String(item.get("best_for", ""))
 	best.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	best.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	best.add_theme_font_override("font", UITheme.font("pixel"))
+	best.add_theme_font_override("font", UITheme.font("body"))  # item prose → Inter
 	best.add_theme_font_size_override("font_size", 14)
 	best.add_theme_color_override("font_color", BEST_DIM)
 	col.add_child(best)

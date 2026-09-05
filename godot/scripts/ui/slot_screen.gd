@@ -142,7 +142,7 @@ func _ask_name(index: int) -> void:
 	field.placeholder_text = "Player %d" % (index + 1)
 	field.max_length = SaveManager.MAX_NAME_LEN
 	field.custom_minimum_size = Vector2(320, 0)
-	field.add_theme_font_override("font", UITheme.font("pixel"))
+	field.add_theme_font_override("font", UITheme.font("body"))  # typed name → Inter
 	field.add_theme_font_size_override("font_size", 22)
 
 	var layer: CanvasLayer

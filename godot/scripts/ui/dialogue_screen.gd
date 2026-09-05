@@ -201,7 +201,7 @@ func _build_plain() -> void:
 	_plain_text.custom_minimum_size.x = 800
 	_plain_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_plain_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_plain_text.add_theme_font_override("font", UITheme.font("pixel"))
+	_plain_text.add_theme_font_override("font", UITheme.font("body"))  # narration prose → Inter
 	_plain_text.add_theme_color_override("font_color", PLAIN_TEXT)
 	text_holder.add_child(_plain_text)
 
@@ -551,8 +551,8 @@ func _call_content(beat: Dictionary) -> void:
 		var label := Label.new()
 		label.text = text
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.add_theme_font_override("font", UITheme.font("pixel"))
-		label.add_theme_font_size_override("font_size", 26)
+		label.add_theme_font_override("font", UITheme.font("body"))  # prose → Inter
+		label.add_theme_font_size_override("font_size", 24)
 		label.add_theme_color_override("font_color", UITheme.W95_DARKER)
 		box.add_child(label)
 		_content.add_child(box)
@@ -599,8 +599,8 @@ func _speech_bubble(text: String, tail_dir := "left") -> Control:
 	var label := Label.new()
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_override("font", UITheme.font("pixel"))
-	label.add_theme_font_size_override("font_size", 28)
+	label.add_theme_font_override("font", UITheme.font("body"))  # spoken prose → Inter
+	label.add_theme_font_size_override("font_size", 26)
 	label.add_theme_color_override("font_color", Color.BLACK)
 	bubble.add_child(label)
 	tail.add_child(bubble)
