@@ -256,8 +256,11 @@ func _build_status_panes() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status_row.add_child(spacer)
 
+	# Version is read from the project settings (application/config/version) so it
+	# is single-sourced; the build is pre-1.0, shipping in Early Access.
+	var ver := str(ProjectSettings.get_setting("application/config/version", "0.1.0"))
 	var version := _make_status_label()
-	version.text = "Solitaire Tower of Doom v2.0"
+	version.text = "Solitaire Tower of Doom · Early Access v%s" % ver
 	_status_row.add_child(_wrap_pane(version))
 
 
