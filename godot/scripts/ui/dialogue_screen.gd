@@ -1,19 +1,41 @@
 extends Control
 
 
-## A speech bubble's left-pointing tail, drawn in _draw so it cannot be resized
-## by the layout the way a Panel child would be. Extends MarginContainer, whose
-## left margin reserves the space the tail is painted into.
+## A speech bubble's pointy tail, drawn in _draw so it cannot be resized by the
+## layout the way a Panel child would be. Extends MarginContainer, whose margin
+## on the pointing side reserves the space the triangle is painted into.
+##   "left" — points toward John Dee's portrait (his lines)
+##   "down" — points down toward the viewer (the player's lines)
+## The base of the triangle overlaps a few pixels into the bubble so the white
+## fill blends over the bubble's black border, and only the two outer edges are
+## outlined — so it reads as a real comic-book tail, not a square notch.
 class BubbleTail extends MarginContainer:
+	const REACH := 22.0   # how far the point sticks out past the bubble
+	const SPREAD := 28.0  # width of the tail where it meets the bubble
+	var dir := "left"
+
 	func _draw() -> void:
-		# A small white notch with a black outline, sitting at the bubble's left
-		# edge — the CSS ::after/::before tail.
-		var y := 24.0
-		var rect := Rect2(6, y, 12, 16)
-		draw_rect(rect, Color.WHITE)
-		draw_line(Vector2(6, y), Vector2(6, y + 16), Color.BLACK, 3.0)
-		draw_line(Vector2(6, y), Vector2(18, y), Color.BLACK, 3.0)
-		draw_line(Vector2(6, y + 16), Vector2(18, y + 16), Color.BLACK, 3.0)
+		var fill := Color.WHITE
+		var line := Color.BLACK
+		var overlap := 4.0  # push the base into the bubble to cover its border
+		if dir == "down":
+			var base_y := size.y - REACH
+			var cx := 46.0
+			var a := Vector2(cx, base_y - overlap)
+			var b := Vector2(cx + SPREAD, base_y - overlap)
+			var tip := Vector2(cx + SPREAD * 0.4, size.y - 1.0)
+			draw_colored_polygon([a, b, tip], fill)
+			draw_line(a, tip, line, 3.0)
+			draw_line(b, tip, line, 3.0)
+		else:  # left
+			var base_x := REACH
+			var cy := 26.0
+			var a := Vector2(base_x + overlap, cy)
+			var b := Vector2(base_x + overlap, cy + SPREAD)
+			var tip := Vector2(1.0, cy + SPREAD * 0.4)
+			draw_colored_polygon([a, b, tip], fill)
+			draw_line(a, tip, line, 3.0)
+			draw_line(b, tip, line, 3.0)
 
 
 ## Every conversation in the game, rebuilt to match the web build's two modes.
@@ -537,26 +559,25 @@ func _call_content(beat: Dictionary) -> void:
 		return
 
 	if speaker == "dee":
-		_content.add_child(_speech_bubble(text))
+		_content.add_child(_speech_bubble(text, "left"))
 		return
 
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_override("font", UITheme.font("pixel"))
-	label.add_theme_font_size_override("font_size", 27)
-	label.add_theme_color_override("font_color", Color.WHITE)
-	_content.add_child(label)
+	# The player also speaks from a comic bubble, its tail pointing down toward
+	# the viewer, so it is clear these are the player's own words.
+	_content.add_child(_speech_bubble(text, "down"))
 
 
-## White box, heavy black border, hard offset shadow and a tail on the left,
-## matching .patron-bubble and its ::before/::after pseudo-elements. The tail is
-## drawn rather than built from nodes: a Panel child of a Container gets stretched
-## to fill by the layout and would cover the text, so BubbleTail paints it in
-## _draw at the bubble's left edge instead.
-func _speech_bubble(text: String) -> Control:
+## White box, heavy black border, hard offset shadow and a pointy tail. The tail
+## direction ("left" for Dee, "down" for the player) is reserved as a margin so
+## the triangle has room, and BubbleTail paints it in _draw (a Panel child of a
+## Container would be stretched to fill and cover the text).
+func _speech_bubble(text: String, tail_dir := "left") -> Control:
 	var tail := BubbleTail.new()
-	tail.add_theme_constant_override("margin_left", 18)
+	tail.dir = tail_dir
+	if tail_dir == "down":
+		tail.add_theme_constant_override("margin_bottom", BubbleTail.REACH)
+	else:
+		tail.add_theme_constant_override("margin_left", BubbleTail.REACH)
 
 	var bubble := PanelContainer.new()
 	var style := StyleBoxFlat.new()

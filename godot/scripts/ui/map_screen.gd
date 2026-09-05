@@ -64,9 +64,11 @@ var _credits: VBoxContainer
 
 func _build_music_credits() -> void:
 	_credits = VBoxContainer.new()
-	# top_level keeps it out of the root VBox's layout so it can float bottom-left.
+	# top_level keeps it out of the root VBox's layout so it can float in the
+	# bottom-RIGHT corner, clear of the left menu it used to overlap.
 	_credits.top_level = true
 	_credits.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_credits.alignment = BoxContainer.ALIGNMENT_END
 	_credits.add_theme_constant_override("separation", 1)
 
 	var head := _credit_line("Royalty-free music from Pixabay.com", UITheme.GOLD)
@@ -83,6 +85,7 @@ func _credit_line(text: String, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.add_theme_font_override("font", UITheme.font("body"))
 	label.add_theme_font_size_override("font_size", 14)
 	label.add_theme_color_override("font_color", color)
@@ -97,7 +100,9 @@ func _place_credits() -> void:
 	if not is_instance_valid(_credits):
 		return
 	_credits.reset_size()
-	_credits.position = Vector2(14, size.y - _credits.size.y - 12)
+	# Bottom-right, so it never overlaps the menu on the left.
+	_credits.position = Vector2(
+		size.x - _credits.size.x - 16, size.y - _credits.size.y - 12)
 
 
 func _refresh() -> void:
@@ -114,20 +119,20 @@ func _build_side() -> void:
 		child.queue_free()
 
 	var pname: String = SaveManager.player_name if SaveManager.player_name != "" else "—"
-	_add_section("Player", _text_value(pname, UITheme.GOLD, 30))
-
-	_add_section("Time Patron", _patron_badge())
-
 	var hearts := ""
 	for i in RunState.lives:
 		hearts += "♥ "
 	if hearts == "":
 		hearts = "—"
-	_add_section("Lives", _text_value(hearts.strip_edges(), HEART, 30))
+	# Short stats share two-column rows so the whole menu fits without scrolling.
+	_add_pair("Player", _text_value(pname, UITheme.GOLD, 26),
+		"Lives", _text_value(hearts.strip_edges(), HEART, 26))
 
-	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 28))
-	_add_section("Time Energy",
-		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 28))
+	_add_section("Time Patron", _patron_badge())
+
+	_add_pair(
+		"Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 26),
+		"Time Energy", _text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 26))
 
 	_add_section("🎒 Inventory", _inventory_slots())
 
@@ -152,23 +157,40 @@ func _confirm_new_run() -> void:
 		"New Run", "Cancel", true)
 
 
+## A gold small-caps label over its value/content, the .map-side-label block.
+func _labeled(label_text: String, content: Control) -> Control:
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 2)
+
+	var label := Label.new()
+	label.text = label_text.to_upper()
+	label.add_theme_font_override("font", UITheme.font_at("display", 600))
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", UITheme.GOLD)
+	box.add_child(label)
+	box.add_child(content)
+	return box
+
+
 ## Each side entry is a gold-bordered card with a Cinzel small-caps label, like
 ## .map-side-section / .map-side-label.
 func _add_section(label_text: String, content: Control) -> void:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", _section_box())
+	panel.add_child(_labeled(label_text, content))
+	_side.add_child(panel)
 
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
-	panel.add_child(box)
 
-	var label := Label.new()
-	label.text = label_text.to_upper()
-	label.add_theme_font_override("font", UITheme.font_at("display", 600))
-	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_color", UITheme.GOLD)
-	box.add_child(label)
-	box.add_child(content)
+## Two labelled values sharing one row, to keep the menu short enough to fit.
+func _add_pair(l1: String, c1: Control, l2: String, c2: Control) -> void:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _section_box())
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	row.add_child(_labeled(l1, c1))
+	row.add_child(_labeled(l2, c2))
+	panel.add_child(row)
 	_side.add_child(panel)
 
 
@@ -183,8 +205,8 @@ func _section_box() -> StyleBoxFlat:
 	s.set_corner_radius_all(5)
 	s.content_margin_left = 16
 	s.content_margin_right = 16
-	s.content_margin_top = 8
-	s.content_margin_bottom = 8
+	s.content_margin_top = 6
+	s.content_margin_bottom = 6
 	return s
 
 
@@ -205,7 +227,7 @@ func _patron_badge() -> Control:
 
 	var portrait := TextureRect.new()
 	portrait.texture = load(AssetPaths.PATRONS.get(RunState.patron, AssetPaths.PATRONS["johndee"]))
-	portrait.custom_minimum_size = Vector2(96, 96)
+	portrait.custom_minimum_size = Vector2(68, 68)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

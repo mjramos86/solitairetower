@@ -60,6 +60,17 @@ func _ready() -> void:
 	if punster >= 0:
 		await _shoot_dialogue(punster, "dialogue_punster")
 
+	# A pure John Dee speech beat, to check his (left-pointing) speech bubble.
+	var deebeat := -1
+	for i in Narrative.DEE_DIALOGUE.size():
+		var b = Narrative.DEE_DIALOGUE[i]
+		if String(b.get("speaker", "")) == "dee" and not bool(b.get("scene", false)) \
+				and b.get("text", "") is String and String(b.get("text", "")) != "":
+			deebeat = i
+			break
+	if deebeat >= 0:
+		await _shoot_dialogue(deebeat, "dialogue_dee_bubble")
+
 	# Waste fan with three drawn face-up cards, to check the dividers.
 	RunState.new_run()
 	RunState.start_game("klondike", 4)
