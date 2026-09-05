@@ -11,7 +11,10 @@ extends Control
 signal card_pressed(view: Control)
 
 const CORNER_RADIUS := 4.0
-const BORDER_WIDTH := 1.0
+## 2px so an overlapping (fanned) card always shows a crisp separating edge —
+## a 1px line was lost to anti-aliasing when the canvas is scaled, so the first
+## of three fanned waste cards had no visible divider from the second.
+const BORDER_WIDTH := 2.0
 
 ## Card face metrics as fractions of card width, from the CSS --cfs/--cfss/--cfc
 ## on a 116px card: rank 32, corner suit 18, centre pip 84.

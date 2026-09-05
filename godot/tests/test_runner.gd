@@ -1690,6 +1690,33 @@ func test_narrative() -> void:
 		check(topic.has("question"), "topic has a question")
 		check((topic.get("beats", []) as Array).size() > 0, "topic has beats")
 
+	# A couple of "you" beats store their text as a single-element array (the
+	# "Queen's official punster" line). The dialogue screen must render those as
+	# plain text, never a bracketed array literal.
+	var punster_index := -1
+	for i in Narrative.DEE_DIALOGUE.size():
+		var t = Narrative.DEE_DIALOGUE[i].get("text", "")
+		if t is Array and t.size() > 0 and String(t[0]).contains("punster"):
+			punster_index = i
+			break
+	check(punster_index >= 0, "the punster beat exists with array text")
+	if punster_index >= 0:
+		RunState.screen = "patron-dialogue"
+		var dlg: Control = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+		add_child(dlg)
+		dlg._index = punster_index
+		dlg._render()
+		var seen_clean := false
+		for l in dlg.find_children("*", "Label", true, false):
+			var txt := (l as Label).text
+			check(not txt.begins_with("["), "no array-literal text renders: %s" % txt)
+			if txt.contains("punster"):
+				seen_clean = true
+				check_eq(txt, "Were you the Queen's official punster?",
+					"the punster line renders as plain text")
+		check(seen_clean, "the punster line is shown")
+		dlg.queue_free()
+
 	# ── Interlude routing ──
 	# Dee interrupts after floors 3, 6 and 9 (indices 2, 5, 8), once per profile.
 	# Match the screen names exactly: "dee-dialogue3" does not end in

@@ -484,6 +484,16 @@ func _build_titlebar() -> Control:
 	return bar
 
 
+## A beat's `text` is usually a String, but a few of the web build's "you"
+## beats carry it as a single-element array (e.g. the "Queen's official punster"
+## line). Join those so they never render as a bracketed array literal.
+func _beat_text(beat: Dictionary) -> String:
+	var t = beat.get("text", "")
+	if t is Array:
+		return " ".join(PackedStringArray(t.map(func(x): return str(x))))
+	return str(t)
+
+
 ## Narration sits in a sunken grey box; Dee speaks from a bordered white bubble;
 ## the player is plain white text.
 func _call_content(beat: Dictionary) -> void:
@@ -491,7 +501,7 @@ func _call_content(beat: Dictionary) -> void:
 		child.queue_free()
 
 	var speaker := String(beat.get("speaker", "scene"))
-	var text := str(beat.get("text", ""))
+	var text := _beat_text(beat)
 	var narration := bool(beat.get("scene", false)) or speaker == "scene"
 	var choices: Array = beat.get("choices", [])
 
@@ -696,7 +706,7 @@ func _render_plain(beat: Dictionary) -> void:
 
 	if choices.is_empty():
 		_plain_text.visible = true
-		_plain_text.text = str(beat.get("text", ""))
+		_plain_text.text = _beat_text(beat)
 		_plain_text.add_theme_font_size_override("font_size", 30)
 		_plain_choices.visible = false
 		_plain_next.visible = true

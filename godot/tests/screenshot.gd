@@ -49,6 +49,32 @@ func _ready() -> void:
 	await _shoot_dialogue(12, "dialogue_plain_choice")
 	await _shoot_dialogue(16, "dialogue_call_choice")
 
+	# The "Queen's official punster" beat: its text is a single-element array in
+	# the data, and must render as plain text (not a bracketed array literal).
+	var punster := -1
+	for i in Narrative.DEE_DIALOGUE.size():
+		var t = Narrative.DEE_DIALOGUE[i].get("text", "")
+		if t is Array and t.size() > 0 and String(t[0]).contains("punster"):
+			punster = i
+			break
+	if punster >= 0:
+		await _shoot_dialogue(punster, "dialogue_punster")
+
+	# Waste fan with three drawn face-up cards, to check the dividers.
+	RunState.new_run()
+	RunState.start_game("klondike", 4)
+	var gs: Dictionary = RunState.gs
+	for k in 3:
+		if not (gs["stock"] as Array).is_empty():
+			var c: Dictionary = (gs["stock"] as Array).pop_back()
+			c["face_up"] = true
+			(gs["waste"] as Array).append(c)
+	await _capture("waste_fan")
+
+	# Win overlay, to confirm it is centred on the screen.
+	RunState.start_game("klondike", 4)
+	await _shoot_win_overlay("win_overlay")
+
 	# Title and end screens.
 	await _shoot_screen("title", "title")
 	RunState.done = [0,1,2,3,4,5,6,7,8,9]
@@ -57,6 +83,23 @@ func _ready() -> void:
 
 	print("SCREENSHOTS DONE")
 	get_tree().quit()
+
+
+func _shoot_win_overlay(name: String) -> void:
+	if _host and is_instance_valid(_host):
+		_host.queue_free()
+		await get_tree().process_frame
+	_host = load("res://scenes/screens/game_screen.tscn").instantiate()
+	_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_host)
+	for i in 4:
+		await get_tree().process_frame
+	_host._show_win_overlay()
+	for i in 4:
+		await get_tree().process_frame
+	var img := get_viewport().get_texture().get_image()
+	img.save_png("user://ss_%s.png" % name)
+	print("shot ss_%s.png" % name)
 
 
 func _shoot_dialogue(beat_index: int, name: String) -> void:
