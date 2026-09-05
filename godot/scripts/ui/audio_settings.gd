@@ -1,7 +1,11 @@
-class_name AudioSettings
 extends RefCounted
 
 ## Reusable Music / Sound-effects volume sliders.
+##
+## Callers reach this via `preload("res://scripts/ui/audio_settings.gd")` rather
+## than a global `class_name`, so the identifier always resolves at parse time —
+## a global class name is only registered after an editor rescan, which caused a
+## spurious "Identifier not declared" error on fresh checkouts.
 ##
 ## The volume backend already lives in AudioManager (two buses, Music and SFX,
 ## driven by the profile's `music_volume` / `sfx_volume`). This just builds the

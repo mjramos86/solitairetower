@@ -8,6 +8,8 @@ extends Control
 ## sections with Cinzel small-caps labels, a Playfair title with a soft glow, and
 ## a gold-framed high-score panel with a header band.
 
+const AudioSettings := preload("res://scripts/ui/audio_settings.gd")
+
 @onready var _title: Label = $Head/Title
 @onready var _sub: Label = $Head/Sub
 @onready var _tagline: Label = $Head/Tagline
