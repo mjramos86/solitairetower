@@ -2201,6 +2201,9 @@ func _show_pause_overlay() -> void:
 	title.add_theme_color_override("font_color", UITheme.GOLD)
 	box.add_child(title)
 
+	# Volume sliders, so the player can balance music and effects mid-run.
+	box.add_child(AudioSettings.build_controls(true))
+
 	var resume := Button.new()
 	resume.text = "▶ Continue"
 	resume.pressed.connect(func():
