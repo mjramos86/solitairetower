@@ -1,4 +1,6 @@
 extends Node
+
+const AudioSettings := preload("res://scripts/ui/audio_settings.gd")
 # Renders each screen to a PNG under user:// for a visual pass. Not part of the
 # test suite; run manually under Xvfb. Stages a plausible run so every screen
 # has real content to show.

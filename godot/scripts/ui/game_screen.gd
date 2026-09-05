@@ -1,5 +1,7 @@
 extends PanelContainer
 
+const AudioSettings := preload("res://scripts/ui/audio_settings.gd")
+
 ## The card table. Lays out and drives all five variants.
 ##
 ## Interaction is click-to-select / click-to-place, which is what the web build

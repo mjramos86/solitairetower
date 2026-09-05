@@ -10,7 +10,7 @@ config_version=5
 
 config/name="The Solitaire Tower of Doom"
 config/description="A roguelike solitaire descent through 10 floors of card chaos."
-config/version="0.1.0"
+config/version="0.5.0"
 run/main_scene="res://scenes/app.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://assets/ui/logo_sigil.png"
