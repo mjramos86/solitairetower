@@ -47,8 +47,6 @@ const FRAME_TOP_RATIO := 0.06
 const FRAME_MAX_HEIGHT_RATIO := 0.64
 
 const PLAIN_TEXT := Color("e8e0d0")
-const PLAIN_DIM := Color("aaaaaa")
-const PLAIN_BORDER := Color("555555")
 const PORTRAIT_LABEL := Color("39ff6a")
 
 ## The flicker overlay's keyframes, as (time in seconds, alpha). Taken from
@@ -204,15 +202,12 @@ func _build_plain() -> void:
 	footer_holder.add_child(_plain_footer)
 
 	_plain_next = Button.new()
+	_style_next(_plain_next)
 	_plain_next.pressed.connect(_advance)
 	_plain_footer.add_child(_plain_next)
 
 	_plain_skip = Button.new()
-	_plain_skip.text = "Skip ▸▸"
-	_plain_skip.flat = true
-	_plain_skip.add_theme_font_override("font", UITheme.font("pixel"))
-	_plain_skip.add_theme_font_size_override("font_size", 14)
-	_plain_skip.add_theme_color_override("font_color", PLAIN_DIM)
+	_style_skip(_plain_skip)
 	_plain_skip.pressed.connect(_finish)
 	_plain_footer.add_child(_plain_skip)
 
@@ -442,11 +437,12 @@ func _build_call() -> void:
 	area_stack.add_child(_call_footer)
 
 	_call_next = Button.new()
+	_style_next(_call_next)
 	_call_next.pressed.connect(_advance)
 	_call_footer.add_child(_call_next)
 
 	var skip := Button.new()
-	skip.text = "Skip ▸▸"
+	_style_skip(skip)
 	skip.pressed.connect(_finish)
 	_call_footer.add_child(skip)
 
@@ -501,10 +497,7 @@ func _call_content(beat: Dictionary) -> void:
 
 	if not choices.is_empty():
 		for line in choices:
-			var button := Button.new()
-			button.text = str(line)
-			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var button := _choice_button(str(line))
 			button.pressed.connect(_advance)
 			_content.add_child(button)
 		return
@@ -585,6 +578,88 @@ func _speech_bubble(text: String) -> Control:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  Shared controls — clearly clickable choice buttons and the skip control
+# ══════════════════════════════════════════════════════════════════════════════
+
+## Every choice, topic and victory option is one of these: a raised Windows-95
+## button with a big readable label. The web build left the intro's "plain" mode
+## choices as near-invisible outlined text; here every choice reads as a real,
+## pressable button so nothing looks like inert text.
+func _choice_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.add_theme_font_override("font", UITheme.font("pixel"))
+	button.add_theme_font_size_override("font_size", 28)
+	button.add_theme_color_override("font_color", UITheme.CARD_BLACK)
+	button.add_theme_color_override("font_hover_color", Color.BLACK)
+	button.add_theme_color_override("font_pressed_color", Color.BLACK)
+	button.add_theme_stylebox_override("normal", UITheme.bevel_raised(UITheme.W95_BG, Vector2(20, 14)))
+	button.add_theme_stylebox_override("hover", UITheme.bevel_raised(UITheme.W95_HOVER, Vector2(20, 14)))
+	button.add_theme_stylebox_override("pressed", UITheme.bevel_sunken(UITheme.W95_HOVER, Vector2(20, 14)))
+	button.add_theme_stylebox_override("focus", UITheme.bevel_raised(UITheme.W95_BG, Vector2(20, 14)))
+	return button
+
+
+## The gold "Skip" control, matching .patron-choice-btn-skip: gold text on a dark
+## panel with a gold border. Full opacity and large enough to read at a glance —
+## secondary to the choices, but never a dim afterthought.
+func _style_skip(button: Button) -> void:
+	button.text = "Skip ▸▸"
+	button.flat = false
+	button.add_theme_font_override("font", UITheme.font("pixel"))
+	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_color_override("font_color", UITheme.GOLD)
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_color_override("font_pressed_color", Color.WHITE)
+	button.add_theme_stylebox_override("normal", _skip_box(UITheme.W95_TITLEBAR2))
+	button.add_theme_stylebox_override("hover", _skip_box(Color("3a2814")))
+	button.add_theme_stylebox_override("pressed", _skip_box(Color("3a2814")))
+	button.add_theme_stylebox_override("focus", _skip_box(UITheme.W95_TITLEBAR2))
+
+
+## The primary "Continue ▸" / "Begin" advance button — a raised gold-bordered
+## panel, larger than Skip so the way forward is obvious.
+func _style_next(button: Button) -> void:
+	button.add_theme_font_override("font", UITheme.font("pixel"))
+	button.add_theme_font_size_override("font_size", 24)
+	button.add_theme_color_override("font_color", UITheme.GOLD)
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_color_override("font_pressed_color", Color.WHITE)
+	button.add_theme_stylebox_override("normal", _next_box(UITheme.W95_TITLEBAR2, UITheme.GOLD_DIM))
+	button.add_theme_stylebox_override("hover", _next_box(Color("3a2814"), UITheme.GOLD))
+	button.add_theme_stylebox_override("pressed", _next_box(Color("241a0c"), UITheme.GOLD))
+	button.add_theme_stylebox_override("focus", _next_box(UITheme.W95_TITLEBAR2, UITheme.GOLD_DIM))
+
+
+func _next_box(bg: Color, border: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.set_border_width_all(2)
+	s.border_color = border
+	s.set_corner_radius_all(3)
+	s.content_margin_left = 26
+	s.content_margin_right = 26
+	s.content_margin_top = 10
+	s.content_margin_bottom = 10
+	return s
+
+
+func _skip_box(bg: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.set_border_width_all(1)
+	s.border_color = UITheme.GOLD_DIM
+	s.set_corner_radius_all(3)
+	s.content_margin_left = 16
+	s.content_margin_right = 16
+	s.content_margin_top = 7
+	s.content_margin_bottom = 7
+	return s
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Render
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -632,27 +707,7 @@ func _render_plain(beat: Dictionary) -> void:
 		_plain_choices.visible = true
 		_plain_next.visible = false
 		for line in choices:
-			var button := Button.new()
-			button.text = str(line)
-			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			button.flat = true
-			button.add_theme_font_override("font", UITheme.font("pixel"))
-			button.add_theme_font_size_override("font_size", 24)
-			button.add_theme_color_override("font_color", PLAIN_TEXT)
-			button.add_theme_color_override("font_hover_color", Color.WHITE)
-			var style := StyleBoxFlat.new()
-			style.draw_center = false
-			style.border_width_left = 1
-			style.border_width_top = 1
-			style.border_width_right = 1
-			style.border_width_bottom = 1
-			style.border_color = PLAIN_BORDER
-			style.content_margin_left = 18
-			style.content_margin_right = 18
-			style.content_margin_top = 12
-			style.content_margin_bottom = 12
-			button.add_theme_stylebox_override("normal", style)
+			var button := _choice_button(str(line))
 			button.pressed.connect(_advance)
 			_plain_choices.add_child(button)
 
@@ -674,21 +729,17 @@ func _show_topic_menu() -> void:
 	var prompt := Label.new()
 	prompt.text = "What would you like to ask?"
 	prompt.add_theme_font_override("font", UITheme.font("pixel"))
-	prompt.add_theme_font_size_override("font_size", 24)
+	prompt.add_theme_font_size_override("font_size", 26)
 	prompt.add_theme_color_override("font_color", Color.WHITE)
 	_content.add_child(prompt)
 
 	for topic in _topics:
-		var button := Button.new()
 		var seen := SaveManager.has_seen(_seen_key, String(topic["id"]))
-		button.text = ("✓ " if seen else "") + String(topic["question"])
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var button := _choice_button(("✓ " if seen else "") + String(topic["question"]))
 		button.pressed.connect(_open_topic.bind(topic))
 		_content.add_child(button)
 
-	var done := Button.new()
-	done.text = "That's all for now."
+	var done := _choice_button("That's all for now.")
 	done.pressed.connect(_finish)
 	_content.add_child(done)
 	_call_footer.visible = false
@@ -709,9 +760,7 @@ func _show_victory_choices() -> void:
 	for child in _content.get_children():
 		child.queue_free()
 	for i in Narrative.VICTORY_CHOICES.size():
-		var button := Button.new()
-		button.text = String(Narrative.VICTORY_CHOICES[i])
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var button := _choice_button(String(Narrative.VICTORY_CHOICES[i]))
 		button.pressed.connect(_choose_victory.bind(i))
 		_content.add_child(button)
 	_call_footer.visible = false

@@ -33,6 +33,12 @@ func _ready() -> void:
 	_new_button.pressed.connect(_on_new)
 	_scores_button.pressed.connect(_on_scores)
 	_exit_button.pressed.connect(_on_exit)
+
+	# Bigger, clearly readable menu buttons — the key art leaves plenty of room.
+	for button in [_load_button, _new_button, _scores_button, _exit_button]:
+		button.custom_minimum_size = Vector2(220, 56)
+		button.add_theme_font_override("font", UITheme.font("pixel"))
+		button.add_theme_font_size_override("font_size", 26)
 	_exit_button.add_theme_color_override("font_color", UITheme.MAROON)
 
 
