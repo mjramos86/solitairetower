@@ -86,6 +86,13 @@ func _ready() -> void:
 	RunState.start_game("klondike", 4)
 	await _shoot_win_overlay("win_overlay")
 
+	# Pause overlay with the volume sliders.
+	RunState.start_game("klondike", 4)
+	await _shoot_overlay_method("game_screen", "_show_pause_overlay", "pause_volume")
+
+	# The Sound popup opened from the map (tower hub).
+	await _shoot_popup("map_screen", "sound_volume")
+
 	# Title and end screens.
 	await _shoot_screen("title", "title")
 	RunState.done = [0,1,2,3,4,5,6,7,8,9]
@@ -94,6 +101,38 @@ func _ready() -> void:
 
 	print("SCREENSHOTS DONE")
 	get_tree().quit()
+
+
+func _shoot_overlay_method(scene: String, method: String, name: String) -> void:
+	if _host and is_instance_valid(_host):
+		_host.queue_free()
+		await get_tree().process_frame
+	_host = load("res://scenes/screens/%s.tscn" % scene).instantiate()
+	_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_host)
+	for i in 4:
+		await get_tree().process_frame
+	_host.call(method)
+	for i in 6:
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png("user://ss_%s.png" % name)
+	print("shot ss_%s.png" % name)
+
+
+func _shoot_popup(scene: String, name: String) -> void:
+	if _host and is_instance_valid(_host):
+		_host.queue_free()
+		await get_tree().process_frame
+	_host = load("res://scenes/screens/%s.tscn" % scene).instantiate()
+	_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_host)
+	for i in 4:
+		await get_tree().process_frame
+	AudioSettings.open_popup(_host)
+	for i in 6:
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png("user://ss_%s.png" % name)
+	print("shot ss_%s.png" % name)
 
 
 func _shoot_win_overlay(name: String) -> void:

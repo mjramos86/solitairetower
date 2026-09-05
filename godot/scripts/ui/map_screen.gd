@@ -140,6 +140,7 @@ func _build_side() -> void:
 	_add_section("Customize", _panel_button("🂠 Cardback", func():
 		RunState.cardback_return = "map"
 		RunState.set_screen("cardback-select")))
+	_side.add_child(_panel_button("🔊 Sound", func(): AudioSettings.open_popup(self)))
 	_side.add_child(_panel_button("▶ Watch Intro", func():
 		RunState.intro_replay = true
 		RunState.set_screen("patron-dialogue")))
