@@ -516,7 +516,7 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 	var desc := Label.new()
 	desc.text = String(item["desc"])
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.add_theme_font_override("font", UITheme.font("pixel"))
+	desc.add_theme_font_override("font", UITheme.font("body"))  # tooltip prose → Inter
 	desc.add_theme_font_size_override("font_size", 15)
 	desc.add_theme_color_override("font_color", UITheme.TEXT)
 	col.add_child(desc)
@@ -524,7 +524,7 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 	var use := Label.new()
 	use.text = "📋 %s" % String(item["use"])
 	use.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	use.add_theme_font_override("font", UITheme.font("pixel"))
+	use.add_theme_font_override("font", UITheme.font("body"))  # tooltip prose → Inter
 	use.add_theme_font_size_override("font_size", 14)
 	use.add_theme_color_override("font_color", Color("b9afca"))  # DESC_DIM
 	col.add_child(use)
@@ -535,7 +535,7 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 	var verdict := Label.new()
 	verdict.text = ("✓ Usable in %s" % variant) if usable else ("✗ No effect in %s" % variant)
 	verdict.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	verdict.add_theme_font_override("font", UITheme.font("pixel"))
+	verdict.add_theme_font_override("font", UITheme.font("body"))
 	verdict.add_theme_font_size_override("font_size", 15)
 	verdict.add_theme_color_override("font_color",
 		Color("4dff91") if usable else Color("ff6b6b"))

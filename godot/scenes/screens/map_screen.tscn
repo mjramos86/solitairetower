@@ -42,7 +42,7 @@ horizontal_scroll_mode = 0
 [node name="Side" type="VBoxContainer" parent="Body/SidePanel"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 7
+theme_override_constants/separation = 5
 
 [node name="Tower" type="Control" parent="Body"]
 custom_minimum_size = Vector2(420, 0)
