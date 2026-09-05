@@ -2169,7 +2169,13 @@ func _overlay_root(dim: float) -> Control:
 func _framed_panel() -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UITheme.occult_panel())
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	# Anchor to the centre and grow symmetrically. PRESET_CENTER on its own bakes
+	# the offsets from the panel's size at call time — which is zero, since the
+	# content is added afterward — so the panel then grew down-right of centre.
+	# Growing in both directions keeps it centred as the content sizes it.
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	return panel
 
 
