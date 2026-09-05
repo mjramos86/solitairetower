@@ -41,10 +41,16 @@ const BOSS_FILL := [Color("a01818"), Color("ff5a1e"), Color("ffd0a8")]
 const BOSS_BORDER := Color("ffd0b0")
 const PENDING_RING := Color(1.0, 0.847, 0.227, 0.55)
 
+## Size of a variant-choice button. Big enough to read at a glance and to give
+## a comfortable click target flanking the glowing node.
+const OPT_SIZE := Vector2(172, 58)
+## Gap between the node's edge and the nearest edge of a choice button.
+const OPT_GAP := 22.0
+
 var _tower: Control
 var _overlay: Control
 var _tower_rect := Rect2()
-var _options := VBoxContainer.new()
+var _options := Control.new()
 var _pulse := 0.0
 
 
@@ -62,7 +68,10 @@ func _ready() -> void:
 	add_child(_overlay)
 	_overlay.draw.connect(_paint_overlay)
 
-	_options.add_theme_constant_override("separation", 6)
+	# Choice buttons are placed absolutely to flank the node, so the container is
+	# a full-rect passthrough layer and each button sets its own position.
+	_options.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_options.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_options)
 
 	resized.connect(_relayout)
@@ -175,13 +184,16 @@ func _build_options() -> void:
 		if choice.has("right") and choice["right"] != choice.get("left"):
 			types.append(choice["right"])
 
+	var buttons: Array[Button] = []
 	for type in types:
 		var button := Button.new()
 		button.text = "%s %s" % [GameData.ICONS.get(type, ""), GameData.NAMES.get(type, type)]
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(96, 0)
+		button.custom_minimum_size = OPT_SIZE
+		button.size = OPT_SIZE
+		button.clip_text = true
 		button.add_theme_font_override("font", UITheme.font_at("display", 600))
-		button.add_theme_font_size_override("font_size", 13)
+		button.add_theme_font_size_override("font_size", 20)
 		button.add_theme_color_override("font_color", Color("ffe98a"))
 		button.add_theme_color_override("font_hover_color", Color.WHITE)
 		button.add_theme_stylebox_override("normal", _opt_box(Color("ffd83a")))
@@ -189,19 +201,27 @@ func _build_options() -> void:
 		button.add_theme_stylebox_override("pressed", _opt_box(Color.WHITE, Color("3a2600")))
 		button.pressed.connect(func(): game_chosen.emit(type, f))
 		_options.add_child(button)
+		buttons.append(button)
 
-	# Position the stack to the node's right, nudged left near the right edge so
-	# it never leaves the tower frame.
-	_options.reset_size()
-	await get_tree().process_frame
-	if not is_instance_valid(_options):
+	_place_options(buttons, center)
+
+
+## Flanks the node with its two choices — the first (left) variant to the left,
+## the second (right) to the right, both vertically centred on the dot. A single
+## choice (the boss floor, or a floor whose two rolls matched) sits centred just
+## below the node. Positions are clamped so a button never leaves the frame.
+func _place_options(buttons: Array[Button], center: Vector2) -> void:
+	var half := OPT_SIZE * 0.5
+	var y := clampf(center.y - half.y, 4.0, size.y - OPT_SIZE.y - 4.0)
+	if buttons.size() == 1:
+		var cx := clampf(center.x - half.x, 4.0, size.x - OPT_SIZE.x - 4.0)
+		var cy := clampf(center.y + CURRENT_RADIUS + OPT_GAP, 4.0, size.y - OPT_SIZE.y - 4.0)
+		buttons[0].position = Vector2(cx, cy)
 		return
-	var box := _options.size
-	var x := center.x + CURRENT_RADIUS + 12.0
-	if x + box.x > size.x:
-		x = center.x - CURRENT_RADIUS - 12.0 - box.x
-	var y := clampf(center.y - box.y * 0.5, 4.0, size.y - box.y - 4.0)
-	_options.position = Vector2(x, y)
+	var left_x := clampf(center.x - CURRENT_RADIUS - OPT_GAP - OPT_SIZE.x, 4.0, size.x - OPT_SIZE.x - 4.0)
+	var right_x := clampf(center.x + CURRENT_RADIUS + OPT_GAP, 4.0, size.x - OPT_SIZE.x - 4.0)
+	buttons[0].position = Vector2(left_x, y)
+	buttons[1].position = Vector2(right_x, y)
 
 
 ## The .tnode-opt look: near-black fill, bright gold rounded border, Cinzel text.
