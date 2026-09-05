@@ -45,6 +45,10 @@ func _ready() -> void:
 	SaveManager.mark_seen("unlocked_connections", "johndee")
 	await _shoot_screen("compendium", "compendium")
 
+	# Dialogue: plain-mode single choice, then a call-mode multi-choice.
+	await _shoot_dialogue(12, "dialogue_plain_choice")
+	await _shoot_dialogue(16, "dialogue_call_choice")
+
 	# Title and end screens.
 	await _shoot_screen("title", "title")
 	RunState.done = [0,1,2,3,4,5,6,7,8,9]
@@ -53,6 +57,23 @@ func _ready() -> void:
 
 	print("SCREENSHOTS DONE")
 	get_tree().quit()
+
+
+func _shoot_dialogue(beat_index: int, name: String) -> void:
+	RunState.screen = "patron-dialogue"
+	if _host and is_instance_valid(_host):
+		_host.queue_free()
+		await get_tree().process_frame
+	_host = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+	_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_host)
+	_host._index = beat_index
+	_host._render()
+	for i in 4:
+		await get_tree().process_frame
+	var img := get_viewport().get_texture().get_image()
+	img.save_png("user://ss_%s.png" % name)
+	print("shot ss_%s.png" % name)
 
 
 func _shoot_game(type: String, name: String) -> void:

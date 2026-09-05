@@ -26,17 +26,17 @@ const HEART := Color("e74c3c")                         # --life
 func _ready() -> void:
 	# The title carries a soft gold glow, as .map-title does with its text-shadow.
 	_title.add_theme_font_override("font", UITheme.font_at("title", 900))
-	_title.add_theme_font_size_override("font_size", 42)
+	_title.add_theme_font_size_override("font_size", 56)
 	_title.add_theme_color_override("font_color", UITheme.GOLD)
 	_title.add_theme_color_override("font_outline_color", UITheme.GOLD_GLOW)
-	_title.add_theme_constant_override("outline_size", 10)
+	_title.add_theme_constant_override("outline_size", 12)
 
 	_sub.add_theme_font_override("font", UITheme.font_at("body", 500))
-	_sub.add_theme_font_size_override("font_size", 20)
+	_sub.add_theme_font_size_override("font_size", 26)
 	_sub.add_theme_color_override("font_color", UITheme.TEXT)
 
 	_tagline.add_theme_font_override("font", UITheme.font_at("display", 500))
-	_tagline.add_theme_font_size_override("font_size", 16)
+	_tagline.add_theme_font_size_override("font_size", 22)
 	_tagline.add_theme_color_override("font_color", UITheme.GOLD)
 
 	_style_scores_panel()
@@ -114,7 +114,7 @@ func _build_side() -> void:
 		child.queue_free()
 
 	var pname: String = SaveManager.player_name if SaveManager.player_name != "" else "—"
-	_add_section("Player", _text_value(pname, UITheme.GOLD, 24))
+	_add_section("Player", _text_value(pname, UITheme.GOLD, 30))
 
 	_add_section("Time Patron", _patron_badge())
 
@@ -123,11 +123,11 @@ func _build_side() -> void:
 		hearts += "♥ "
 	if hearts == "":
 		hearts = "—"
-	_add_section("Lives", _text_value(hearts.strip_edges(), HEART, 24))
+	_add_section("Lives", _text_value(hearts.strip_edges(), HEART, 30))
 
-	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 22))
+	_add_section("Time Credits", _text_value("⏳ %d" % RunState.gold, UITheme.GOLD, 28))
 	_add_section("Time Energy",
-		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 22))
+		_text_value("⚡ %d" % int(SaveManager.profile.get("banked_credits", 0)), UITheme.GOLD, 28))
 
 	_add_section("🎒 Inventory", _inventory_slots())
 
@@ -165,7 +165,7 @@ func _add_section(label_text: String, content: Control) -> void:
 	var label := Label.new()
 	label.text = label_text.to_upper()
 	label.add_theme_font_override("font", UITheme.font_at("display", 600))
-	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_font_size_override("font_size", 20)
 	label.add_theme_color_override("font_color", UITheme.GOLD)
 	box.add_child(label)
 	box.add_child(content)
@@ -205,7 +205,7 @@ func _patron_badge() -> Control:
 
 	var portrait := TextureRect.new()
 	portrait.texture = load(AssetPaths.PATRONS.get(RunState.patron, AssetPaths.PATRONS["johndee"]))
-	portrait.custom_minimum_size = Vector2(76, 76)
+	portrait.custom_minimum_size = Vector2(96, 96)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -215,7 +215,7 @@ func _patron_badge() -> Control:
 	name.text = _patron_name(RunState.patron)
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name.add_theme_font_override("font", UITheme.font_at("display", 600))
-	name.add_theme_font_size_override("font_size", 18)
+	name.add_theme_font_size_override("font_size", 22)
 	name.add_theme_color_override("font_color", UITheme.GOLD)
 	box.add_child(name)
 	return box
@@ -241,7 +241,7 @@ func _inventory_slots() -> Control:
 			label.text = "[ empty ]"
 			label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		label.add_theme_font_override("font", UITheme.font("pixel"))
-		label.add_theme_font_size_override("font_size", 18)
+		label.add_theme_font_size_override("font_size", 22)
 		box.add_child(label)
 	return box
 
@@ -251,7 +251,7 @@ func _panel_button(text: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.add_theme_font_override("font", UITheme.font("pixel"))
-	button.add_theme_font_size_override("font_size", 18)
+	button.add_theme_font_size_override("font_size", 23)
 	button.add_theme_color_override("font_color", Color(UITheme.GOLD, 0.85))
 	button.add_theme_color_override("font_hover_color", UITheme.GOLD)
 	button.add_theme_stylebox_override("normal", _ghost_button_box(0.35))
@@ -331,8 +331,16 @@ func _style_scores_panel() -> void:
 	band.content_margin_bottom = 8
 	_scores_title.add_theme_stylebox_override("normal", band)
 	_scores_title.add_theme_font_override("font", UITheme.font_at("display", 700))
-	_scores_title.add_theme_font_size_override("font_size", 16)
+	_scores_title.add_theme_font_size_override("font_size", 22)
 	_scores_title.add_theme_color_override("font_color", UITheme.GOLD)
+
+
+## The font applied to every high-score row, so ranks, names and points read
+## at the same comfortable size as the rest of the panel.
+func _score_font(label: Label, color: Color) -> void:
+	label.add_theme_font_override("font", UITheme.font_at("body", 500))
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", color)
 
 
 func _refresh_scores() -> void:
@@ -342,7 +350,7 @@ func _refresh_scores() -> void:
 	if SaveManager.highscores.is_empty():
 		var none := Label.new()
 		none.text = "No runs recorded yet."
-		none.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		_score_font(none, UITheme.TEXT_DIM)
 		none.add_theme_constant_override("margin_left", 12)
 		_scores.add_child(_pad_row(none))
 		return
@@ -350,20 +358,20 @@ func _refresh_scores() -> void:
 	for i in mini(16, SaveManager.highscores.size()):
 		var e: Dictionary = SaveManager.highscores[i]
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
+		row.add_theme_constant_override("separation", 10)
 		var rank := Label.new()
 		rank.text = "%d." % (i + 1)
-		rank.custom_minimum_size.x = 30
-		rank.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		rank.custom_minimum_size.x = 36
+		_score_font(rank, UITheme.TEXT_DIM)
 		row.add_child(rank)
 		var who := Label.new()
 		who.text = str(e.get("name", "—"))
 		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		who.add_theme_color_override("font_color", UITheme.TEXT)
+		_score_font(who, UITheme.TEXT)
 		row.add_child(who)
 		var pts := Label.new()
 		pts.text = "%d" % int(e.get("score", 0))
-		pts.add_theme_color_override("font_color", UITheme.GOLD)
+		_score_font(pts, UITheme.GOLD)
 		row.add_child(pts)
 		_scores.add_child(_pad_row(row))
 

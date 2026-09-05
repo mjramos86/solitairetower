@@ -90,13 +90,19 @@ const SFX := {
 #     f.base_font = load(AssetPaths.FONTS["display"])
 #     f.variation_opentype = { "wght": 700 }
 #
+# Readability was chosen over the period look: every text role now resolves to
+# Inter, a clean humanist sans that stays legible at small sizes and in the
+# pixel-font UI chrome. The keys are kept so existing call sites (and their
+# weights, via font_at) keep working — hierarchy now comes from weight, not
+# from switching families. Inter is variable, so 400/500/600/700/900 all work.
+const _INTER := "res://fonts/Inter-Variable.ttf"
 const FONTS := {
-	"display": "res://fonts/Cinzel-Variable.ttf",           # headings (400/600/700)
-	"body": "res://fonts/EBGaramond-Variable.ttf",          # prose (400/500)
-	"body_italic": "res://fonts/EBGaramond-Italic-Variable.ttf",
-	"title": "res://fonts/PlayfairDisplay-Variable.ttf",    # title screen (700/900)
-	"pixel": "res://fonts/VT323-Regular.ttf",               # Win95 chrome, --pixel
-	"mono": "res://fonts/ShareTechMono-Regular.ttf",
+	"display": _INTER,       # headings (use weights 600/700)
+	"body": _INTER,          # prose (400/500)
+	"body_italic": _INTER,   # Inter has no separate italic file; falls back to upright
+	"title": _INTER,         # big titles (700/900)
+	"pixel": _INTER,         # former Win95/VT323 chrome, now clean sans
+	"mono": _INTER,          # former ShareTechMono
 }
 
 ## Every asset expected to exist after a clean import, for the verification
