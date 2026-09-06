@@ -21,6 +21,18 @@ const CARDBACKS := {
 
 const DEFAULT_CARDBACK := "classic"
 
+# ── Card faces ────────────────────────────────────────────────────────────────
+# 52 painted faces (750x1050, transparent rounded corners), named
+# Card_<rank>_<suit>.png. Suit files are indexed by Cards.Suit
+# (SPADES, HEARTS, DIAMONDS, CLUBS); note the source spells clubs "cubs".
+const CARD_FACE_DIR := "res://assets/cards/faces/"
+const _SUIT_FILE := ["spades", "hearts", "diamonds", "cubs"]
+
+
+## Path to a card's painted face, by suit index and rank (1=A … 13=K).
+static func card_face(suit: int, rank: int) -> String:
+	return "%sCard_%s_%s.png" % [CARD_FACE_DIR, Cards.RANK_NAMES[rank], _SUIT_FILE[suit]]
+
 # ── Patron / compendium portraits ─────────────────────────────────────────────
 const PATRONS := {
 	"johndee": "res://assets/patrons/john_dee.jpg",

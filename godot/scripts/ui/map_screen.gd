@@ -24,6 +24,11 @@ const SECTION_BG := Color(0.039, 0.024, 0.086, 0.7)   # rgba(10,6,22,.7)
 const SCORE_BG := Color(0.039, 0.024, 0.086, 0.85)
 const HEART := Color("e74c3c")                         # --life
 
+## The online top scores, refreshed when the leaderboard fetch returns. The
+## panel shows local + online merged, so this is folded in with SaveManager's
+## local list each time it is rebuilt.
+var _online: Array = []
+
 
 func _ready() -> void:
 	# The title carries a soft gold glow, as .map-title does with its text-shadow.
@@ -46,8 +51,20 @@ func _ready() -> void:
 
 	_tower.game_chosen.connect(func(type, floor_index): RunState.start_game(type, floor_index))
 
+	# Show local + online combined: seed with anything already fetched, then pull
+	# the latest and push up any local scores that never synced.
+	_online = Leaderboard.online_scores.duplicate()
+	Leaderboard.online_scores_updated.connect(_on_online_scores)
+	Leaderboard.fetch_online()
+	Leaderboard.sync_pending()
+
 	RunState.state_changed.connect(_refresh)
 	_refresh()
+
+
+func _on_online_scores(scores: Array) -> void:
+	_online = scores
+	_refresh_scores()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -372,37 +389,63 @@ func _refresh_scores() -> void:
 	for child in _scores.get_children():
 		child.queue_free()
 
-	if SaveManager.highscores.is_empty():
+	# Local and online scores merged into one board (deduped, sorted).
+	var merged := Leaderboard.merge_scores(SaveManager.highscores, _online, 16)
+
+	if merged.is_empty():
 		var none := Label.new()
 		none.text = "No runs recorded yet."
 		_score_font(none, UITheme.TEXT_DIM)
 		none.add_theme_constant_override("margin_left", 12)
-		_scores.add_child(_pad_row(none))
+		_scores.add_child(_pad_row(none, false))
 		return
 
-	for i in mini(16, SaveManager.highscores.size()):
-		var e: Dictionary = SaveManager.highscores[i]
+	for i in merged.size():
+		var e: Dictionary = merged[i]
+		var all_floors := bool(e.get("all_floors", false))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
+
 		var rank := Label.new()
 		rank.text = "%d." % (i + 1)
 		rank.custom_minimum_size.x = 36
-		_score_font(rank, UITheme.TEXT_DIM)
+		_score_font(rank, UITheme.GOLD if all_floors else UITheme.TEXT_DIM)
 		row.add_child(rank)
+
 		var who := Label.new()
-		who.text = str(e.get("name", "—"))
+		# A crown marks a run that cleared all ten floors — escaped the Tower.
+		who.text = ("👑 " if all_floors else "") + str(e.get("name", "—"))
 		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_score_font(who, UITheme.TEXT)
+		who.clip_text = true
+		_score_font(who, Color("ffe98a") if all_floors else UITheme.TEXT)
 		row.add_child(who)
+
 		var pts := Label.new()
 		pts.text = "%d" % int(e.get("score", 0))
-		_score_font(pts, UITheme.GOLD)
+		_score_font(pts, Color("ffe98a") if all_floors else UITheme.GOLD)
 		row.add_child(pts)
-		_scores.add_child(_pad_row(row))
+
+		_scores.add_child(_pad_row(row, all_floors))
 
 
-## Adds horizontal padding so score rows sit inside the framed panel.
-func _pad_row(inner: Control) -> Control:
+## Wraps a row in padding. All-floors runs get a gold-tinted band with a left
+## accent so a completed descent stands out from the rest of the board.
+func _pad_row(inner: Control, highlight: bool) -> Control:
+	if highlight:
+		var panel := PanelContainer.new()
+		var box := StyleBoxFlat.new()
+		box.bg_color = Color(UITheme.GOLD, 0.14)
+		box.border_width_left = 3
+		box.border_color = UITheme.GOLD
+		box.set_corner_radius_all(3)
+		box.content_margin_left = 11
+		box.content_margin_right = 14
+		box.content_margin_top = 3
+		box.content_margin_bottom = 3
+		panel.add_theme_stylebox_override("panel", box)
+		panel.add_child(inner)
+		return panel
+
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 14)
 	margin.add_theme_constant_override("margin_right", 14)

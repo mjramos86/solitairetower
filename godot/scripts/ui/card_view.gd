@@ -43,6 +43,7 @@ var playable := true
 var _hint_phase := 0.0
 
 var _back_texture: Texture2D
+var _face_texture: Texture2D
 var _rank_font: Font
 var _pip_font: Font
 
@@ -60,6 +61,11 @@ func _ready() -> void:
 func setup(card_data: Dictionary) -> void:
 	card = card_data
 	face_up = bool(card_data.get("face_up", false))
+	_face_texture = null
+	if not card.is_empty():
+		var path := AssetPaths.card_face(int(card.get("suit", 0)), int(card.get("rank", 1)))
+		if ResourceLoader.exists(path):
+			_face_texture = load(path) as Texture2D
 	queue_redraw()
 
 
@@ -115,6 +121,18 @@ func _draw_hint_glow(r: Rect2) -> void:
 	draw_rect(r.grow(-1.0), colour, false, 3.0 + pulse * 2.0)
 
 
+## A rounded border matching the painted face's corners, so overlapping cards in
+## a fan or tableau still show a clear separating edge.
+func _draw_face_border(r: Rect2) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.draw_center = false
+	sb.set_border_width_all(int(BORDER_WIDTH))
+	sb.border_color = UITheme.CARD_BORDER
+	var radius := int(maxf(2.0, r.size.x * 0.05))
+	sb.set_corner_radius_all(radius)
+	draw_style_box(sb, r)
+
+
 func _draw_back(r: Rect2) -> void:
 	if _back_texture != null:
 		draw_texture_rect(_back_texture, r, false)
@@ -124,6 +142,14 @@ func _draw_back(r: Rect2) -> void:
 
 
 func _draw_face(r: Rect2) -> void:
+	# Painted face art (parchment body with transparent rounded corners) when it
+	# exists; a thin rounded border over it keeps overlapping fanned cards apart.
+	if _face_texture != null:
+		draw_texture_rect(_face_texture, r, false)
+		_draw_face_border(r)
+		return
+
+	# Fallback: the procedural face, drawn only if the PNG is missing.
 	draw_rect(r, UITheme.CARD_FACE, true)
 	draw_rect(r, UITheme.CARD_BORDER, false, BORDER_WIDTH)
 

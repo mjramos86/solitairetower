@@ -164,20 +164,15 @@ them. **Exclude this folder from exports** (Project → Export → Resources →
 Marketing art must not ship inside the game build, so it lives in a sibling
 folder. See `steam/README.md` for the capsule sizes Valve requires.
 
-## There is no card face art
+## Card faces — `res://assets/cards/faces/`
 
-Worth knowing before you start: the web build has **no images for card faces**.
-Every card is HTML and CSS — a Unicode suit glyph (`♠♥♦♣`, `index.html:868`) over
-a white rounded rectangle, with rank as text. Only the *backs* are images.
+The 52 painted card faces (`Card_<rank>_<suit>.png`, 750×1050, transparent
+rounded corners). Ranks are `A 2 3 4 5 6 7 8 9 10 J Q K`; suit files are
+`spades hearts diamonds cubs` (the source spells clubs "cubs"), indexed by
+`Cards.Suit`. `AssetPaths.card_face(suit, rank)` resolves the path, and
+`card_view.gd` draws it as the card face (falling back to the old procedural
+face only if a PNG is missing).
 
-So card faces are the one visual asset with nothing to import. Two options in
-Godot, in rough order of effort:
-
-1. **Rebuild in nodes** — a `Card` scene with `Panel` + `Label` children and a
-   theme, matching the current CSS. Cheapest, closest to the current look, and
-   resolution-independent.
-2. **Commission or generate a 52-card sprite sheet** — better if you want the
-   Steam version to look less like a browser game. `TextureAtlas` import or a
-   single `AtlasTexture` per card.
-
-Option 1 is the direct port and keeps the Windows-95 aesthetic intact.
+The web build had **no** card-face images — every card was HTML/CSS, a Unicode
+suit glyph over a white rounded rectangle. These PNGs replace that procedural
+face in the Godot build; the *backs* remain the images under `backs/`.
