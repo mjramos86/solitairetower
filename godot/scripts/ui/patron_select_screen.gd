@@ -24,7 +24,7 @@ func _ready() -> void:
 	_title.add_theme_font_size_override("font_size", 34)
 	_title.add_theme_color_override("font_color", UITheme.GOLD)
 
-	_subtitle.text = "An ally for this descent, lending their nature to the wares you'll find along the way."
+	_subtitle.text = "An ally for this descent, lending their nature to the wares you can purchase along the way."
 	_subtitle.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
