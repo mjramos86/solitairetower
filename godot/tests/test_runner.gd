@@ -1662,9 +1662,9 @@ func test_narrative() -> void:
 	# Content survived extraction intact.
 	check_eq(Narrative.PATRONS.size(), 6, "six patrons")
 	check_eq(Narrative.LORE.size(), 1, "one lore entry")
-	check_eq(Narrative.DEE_DIALOGUE.size(), 59, "intro has 59 beats")
+	check_eq(Narrative.DEE_DIALOGUE.size(), 38, "intro has 38 beats")
 	check_eq(Narrative.DEE_FINAL.size(), 7, "final interlude has 7 beats")
-	check_eq(Narrative.DEE_CHECKIN_TOPICS.size(), 3, "checkin offers 3 topics")
+	check_eq(Narrative.DEE_CHECKIN_TOPICS.size(), 4, "checkin offers 4 topics")
 	check_eq(Narrative.DEE_DIALOGUE3_TOPICS.size(), 3, "third transmission offers 3 topics")
 	check_eq(Narrative.VICTORY_CHOICES.size(), Narrative.VICTORY_RESPONSES.size(),
 		"every victory choice has a response")
@@ -1704,32 +1704,33 @@ func test_narrative() -> void:
 		check(topic.has("question"), "topic has a question")
 		check((topic.get("beats", []) as Array).size() > 0, "topic has beats")
 
-	# A couple of "you" beats store their text as a single-element array (the
-	# "Queen's official punster" line). The dialogue screen must render those as
-	# plain text, never a bracketed array literal.
-	var punster_index := -1
-	for i in Narrative.DEE_DIALOGUE.size():
-		var t = Narrative.DEE_DIALOGUE[i].get("text", "")
-		if t is Array and t.size() > 0 and String(t[0]).contains("punster"):
-			punster_index = i
-			break
-	check(punster_index >= 0, "the punster beat exists with array text")
-	if punster_index >= 0:
-		RunState.screen = "patron-dialogue"
-		var dlg: Control = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
-		add_child(dlg)
-		dlg._index = punster_index
-		dlg._render()
-		var seen_clean := false
-		for l in dlg.find_children("*", "Label", true, false):
-			var txt := (l as Label).text
-			check(not txt.begins_with("["), "no array-literal text renders: %s" % txt)
-			if txt.contains("punster"):
-				seen_clean = true
-				check_eq(txt, "Were you the Queen's official punster?",
-					"the punster line renders as plain text")
-		check(seen_clean, "the punster line is shown")
-		dlg.queue_free()
+	# No dialogue text is left as a bracketed array literal, and the dialogue
+	# screen's array-safety helper joins any array-valued text into plain prose.
+	var array_text := 0
+	var all_beats: Array = Narrative.DEE_DIALOGUE.duplicate()
+	all_beats.append_array(Narrative.DEE_CHECKIN_INTRO)
+	all_beats.append_array(Narrative.DEE_DIALOGUE3_INTRO)
+	all_beats.append_array(Narrative.DEE_FINAL)
+	for topic in Narrative.DEE_CHECKIN_TOPICS + Narrative.DEE_DIALOGUE3_TOPICS:
+		all_beats.append_array(topic.get("beats", []))
+	for beat in all_beats:
+		if beat.get("text", "") is Array:
+			array_text += 1
+	check_eq(array_text, 0, "no dialogue text is left as an array literal")
+
+	var dlg: Control = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+	add_child(dlg)
+	check_eq(dlg._beat_text({"text": ["one", "two"]}), "one two",
+		"array-valued beat text is joined to plain prose")
+	check_eq(dlg._beat_text({"text": "plain"}), "plain", "string beat text is unchanged")
+	dlg.queue_free()
+
+	# The relocated "role" check-in topic carries the punster line as plain text.
+	var role := {}
+	for topic in Narrative.DEE_CHECKIN_TOPICS:
+		if String(topic.get("id", "")) == "role":
+			role = topic
+	check(not role.is_empty(), "the 'role' check-in topic exists")
 
 	# ── Interlude routing ──
 	# Dee interrupts after floors 3, 6 and 9 (indices 2, 5, 8), once per profile.

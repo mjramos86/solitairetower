@@ -22,12 +22,12 @@ text = "The Solitaire Tower of Doom"
 [node name="Sub" type="Label" parent="Head"]
 layout_mode = 2
 horizontal_alignment = 1
-text = "A horror roguelike Solitaire game by Emjayhar"
+text = "A narrative horror roguelike Solitaire by Emjayhar"
 
 [node name="Tagline" type="Label" parent="Head"]
 layout_mode = 2
 horizontal_alignment = 1
-text = "Face the Cult and uncover the secret history of Solitaire!"
+text = "Face the Cult of Patience and uncover the occult secret history of Solitaire"
 
 [node name="Body" type="HBoxContainer" parent="."]
 layout_mode = 2
