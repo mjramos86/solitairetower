@@ -18,6 +18,7 @@ func _ready() -> void:
 	print("\n══ Solitaire Tower of Doom — logic tests ══\n")
 
 	test_deck()
+	test_card_faces()
 	test_klondike()
 	test_spider()
 	test_tripeaks()
@@ -76,6 +77,19 @@ func check_eq(actual, expected, description: String) -> void:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+
+## Every card in the deck must resolve to a painted face PNG that exists.
+func test_card_faces() -> void:
+	suite("card faces")
+	var missing := 0
+	for c in Cards.make_deck():
+		var path := AssetPaths.card_face(int(c["suit"]), int(c["rank"]))
+		if not ResourceLoader.exists(path):
+			missing += 1
+			if missing <= 3:
+				print("    FAIL: missing face %s" % path)
+	check_eq(missing, 0, "all 52 painted card faces exist")
+
 
 func test_deck() -> void:
 	suite("deck and shuffle")
