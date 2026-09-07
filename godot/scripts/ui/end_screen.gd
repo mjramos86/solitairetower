@@ -91,8 +91,10 @@ func _refresh_table() -> void:
 
 
 func _on_again() -> void:
+	# A fresh run begins at the Time Patron selection, as the web build does,
+	# rather than dropping straight onto the map.
 	RunState.new_run()
-	RunState.set_screen("map")
+	RunState.set_screen("patron-select")
 
 
 func _on_title() -> void:

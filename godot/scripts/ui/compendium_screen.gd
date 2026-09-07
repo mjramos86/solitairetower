@@ -223,7 +223,8 @@ func _refresh() -> void:
 		var button := Button.new()
 		button.text = _display_name(entry) if visible else "Unknown Patron"
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.clip_text = true
+		# Wrap long names (e.g. "Mary, Queen of Scots") instead of clipping them.
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if visible and entry.has("img"):
 			button.icon = load(String(entry["img"]))
 			button.expand_icon = true
