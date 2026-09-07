@@ -26,9 +26,9 @@ const CARD_VIEW := preload("res://scenes/card_view.tscn")
 const LAYOUT := {
 	"klondike": {"w": 8.08, "h": 4.9, "header": 1.25},
 	"freecell": {"w": 9.26, "h": 4.8, "header": 1.25},
-	"spider": {"w": 11.62, "h": 5.0, "header": 0.75},
+	"spider": {"w": 11.62, "h": 5.5, "header": 1.18},
 	"tripeaks": {"w": 11.0, "h": 3.6, "header": 0.0},
-	"pyramid": {"w": 8.3, "h": 5.1, "header": 0.0},
+	"pyramid": {"w": 8.3, "h": 5.35, "header": 0.0},
 }
 
 ## Fan spacing as a fraction of card height. Both are fixed constants: a covered
@@ -1170,12 +1170,35 @@ func _layout_spider(gs: Dictionary) -> void:
 	var gap := _card_size.x * PILE_GAP
 	var step := _card_size.x + gap
 
-	var groups: int = gs["stock_groups"].size()
-	if groups > 0:
-		_spawn_slot(Vector2.ZERO, {"kind": "stock"}, "%d" % groups)
-	_spawn_slot(Vector2(step * 8, 0), {"kind": "info"}, "%d/8" % gs["foundations"].size())
+	# Draw pile: a fanned stack of card backs, one per remaining deal, so the
+	# stock reads as a real deck whose depth shows how many rows are left to
+	# deal. A spent stock shows a dim marker in its place.
+	var groups: Array = gs["stock_groups"]
+	if groups.is_empty():
+		_spawn_slot(Vector2.ZERO, {"kind": "stock"}, "—")
+	else:
+		var fan := _card_size.x * 0.10
+		for g in groups.size():
+			var back = (groups[g] as Array)[0]
+			_spawn(back, Vector2(g * fan, 0), {"kind": "stock"}, false)
 
-	var top := _card_size.y * 0.5 + gap
+	# Eight foundation slots along the top-right: a completed suit shows its King,
+	# each unfilled slot is a dashed outline. Spider tracks completions as a list
+	# of suits, so synthesise a King to top each finished pile. All are inert.
+	var done: Array = gs["foundations"]
+	for i in 8:
+		var pos := Vector2(step * (i + 2), 0)
+		if i < done.size():
+			var king := Cards.make_card(int(done[i]), 13, true)
+			_spawn(king, pos, {"kind": "foundation_done"}, true).mouse_filter = \
+				Control.MOUSE_FILTER_IGNORE
+		else:
+			_spawn_slot(pos, {"kind": "foundation_slot"}).mouse_filter = \
+				Control.MOUSE_FILTER_IGNORE
+
+	# The tableau starts a full card below the header row so the draw pile and
+	# foundations never overlap the play cards.
+	var top := _card_size.y + gap
 	for c in 10:
 		var pile: Array = gs["tableau"][c]
 		var x := step * c
@@ -1271,7 +1294,10 @@ func _layout_pyramid(gs: Dictionary) -> void:
 			var view := _spawn(c, pos, {"kind": "pyramid", "index": idx})
 			view.playable = not Rules.pyramid_blocked(gs["pyramid"], row, col)
 
-	var base_y := 7 * _card_size.y * 0.52 + _card_size.y * 0.3
+	# The draw row sits clear below the pyramid: the last row (index 6) tops out
+	# at 6 * 0.52 card-heights and is a full card tall, so start a card-plus below
+	# that to keep the stock and waste spots from overlapping the pyramid cards.
+	var base_y := 6 * _card_size.y * 0.52 + _card_size.y * 1.15
 	if gs["stock"].is_empty():
 		_spawn_slot(Vector2(0, base_y), {"kind": "stock"}, "↻")
 	else:
