@@ -28,6 +28,15 @@ func _ready() -> void:
 	await _shoot_game("freecell", "game_freecell")
 	await _shoot_game("tripeaks", "game_tripeaks")
 	await _shoot_game("pyramid", "game_pyramid")
+	# Pyramid with a few cards drawn, to show the two rotating draw spots.
+	RunState.start_game("pyramid", 4)
+	var pg: Dictionary = RunState.gs
+	for k in 3:
+		if not (pg["stock"] as Array).is_empty():
+			var c: Dictionary = (pg["stock"] as Array).pop_back()
+			c["face_up"] = true
+			(pg["waste"] as Array).append(c)
+	await _capture("pyramid_waste")
 
 	# Shop, after clearing a floor so the breakdown is populated.
 	RunState.new_run()

@@ -456,9 +456,8 @@ func _refresh_inventory() -> void:
 			var item: Dictionary = RunState.inventory[i]
 			var armed := not _item_mode.is_empty() and int(_item_mode.get("inv_index", -1)) == i
 			var button := _make_inv_slot(String(item["icon"]), armed)
-			# A rich hover card replaces the plain tooltip; keep the OS tooltip as
-			# a bare fallback for accessibility.
-			button.tooltip_text = "%s: %s" % [item["name"], item["use"]]
+			# The rich hover card (below) is the only tooltip — no native OS tooltip,
+			# which would otherwise show a second, duplicate popup over it.
 			button.pressed.connect(_on_item_pressed.bind(i))
 			button.mouse_entered.connect(_show_item_tooltip.bind(item, button))
 			button.mouse_exited.connect(_hide_item_tooltip)
@@ -1112,6 +1111,9 @@ func _on_slot_input(event: InputEvent, slot: Panel) -> void:
 func _is_selected(meta: Dictionary) -> bool:
 	if _selection.is_empty():
 		return false
+	# Pyramid's two draw spots are distinguished by their waste index.
+	if meta.get("kind") == "waste" and _selection.get("kind") == "waste":
+		return int(meta.get("windex", -1)) == int(_selection.get("windex", -2))
 	return _selection.get("kind") == meta.get("kind") \
 		and _selection.get("col", -1) == meta.get("col", -1) \
 		and int(meta.get("index", -1)) >= int(_selection.get("index", -1))
@@ -1274,9 +1276,30 @@ func _layout_pyramid(gs: Dictionary) -> void:
 		_spawn_slot(Vector2(0, base_y), {"kind": "stock"}, "↻")
 	else:
 		_spawn(gs["stock"][gs["stock"].size() - 1], Vector2(0, base_y), {"kind": "stock"}, false)
+	# Two draw spots, as the web build: WASTE 2 (older) then WASTE 1 (most recent).
+	# Both top cards are playable, and every stock draw rotates what they show.
 	var waste: Array = gs["waste"]
-	if not waste.is_empty():
-		_spawn(waste[waste.size() - 1], Vector2(_card_size.x * 1.3, base_y), {"kind": "waste"})
+	var spot := _card_size.x * 1.3
+	_spawn_pyramid_waste(waste, waste.size() - 2, Vector2(spot, base_y), "WASTE 2")
+	_spawn_pyramid_waste(waste, waste.size() - 1, Vector2(spot * 2.0, base_y), "WASTE 1")
+
+
+## One of Pyramid's two draw spots: a small gold label plus either the waste card
+## at `windex` (playable) or an inert empty frame.
+func _spawn_pyramid_waste(waste: Array, windex: int, pos: Vector2, label: String) -> void:
+	var lbl := Label.new()
+	lbl.text = label
+	lbl.add_theme_font_override("font", UITheme.font("pixel"))
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", UITheme.GOLD_DIM)
+	lbl.position = pos + Vector2(2, -_card_size.y * 0.18)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board.add_child(lbl)
+	if windex < 0 or windex >= waste.size():
+		var frame := _spawn_slot(pos, {"kind": "waste_inert"})
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return
+	_spawn(waste[windex], pos, {"kind": "waste", "windex": windex})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1928,19 +1951,23 @@ func _pyramid_click(meta: Dictionary) -> void:
 		_after_move()
 		return
 
-	# One-click: a free pyramid card that pairs with the waste top clears at once.
+	# One-click: a free pyramid card that pairs with EITHER of the two draw spots
+	# (the top two waste cards) clears at once.
 	if _selection.is_empty() and meta.get("kind") == "pyramid" and not gs["waste"].is_empty():
-		var waste_top = gs["waste"][gs["waste"].size() - 1]
-		if int(picked["rank"]) + int(waste_top["rank"]) == 13:
-			RunState.push_undo()
-			_pyramid_remove(gs, meta)
-			_pyramid_remove(gs, {"kind": "waste"})
-			RunState.gs = gs
-			RunState.add_score(Rules.PTS_PYRAMID_PAIR, "pair matched")
-			_selection = {}
-			AudioManager.card_moved()
-			_after_move()
-			return
+		var w: Array = gs["waste"]
+		for wi in [w.size() - 1, w.size() - 2]:
+			if wi < 0:
+				continue
+			if int(picked["rank"]) + int(w[wi]["rank"]) == 13:
+				RunState.push_undo()
+				_pyramid_remove(gs, meta)
+				_pyramid_remove(gs, {"kind": "waste", "windex": wi})
+				RunState.gs = gs
+				RunState.add_score(Rules.PTS_PYRAMID_PAIR, "pair matched")
+				_selection = {}
+				AudioManager.card_moved()
+				_after_move()
+				return
 
 	if _selection.is_empty():
 		_selection = meta
@@ -1981,16 +2008,24 @@ func _pyramid_card(gs: Dictionary, meta: Dictionary):
 				return null
 			return gs["pyramid"][idx]
 		"waste":
-			if gs["waste"].is_empty():
+			var w: Array = gs["waste"]
+			if w.is_empty():
 				return null
-			return gs["waste"][gs["waste"].size() - 1]
+			var wi := int(meta.get("windex", w.size() - 1))
+			if wi < 0 or wi >= w.size():
+				return null
+			return w[wi]
 	return null
 
 
 func _pyramid_remove(gs: Dictionary, meta: Dictionary) -> void:
 	match meta.get("kind"):
 		"pyramid": gs["pyramid"][int(meta["index"])] = null
-		"waste": gs["waste"].pop_back()
+		"waste":
+			var w: Array = gs["waste"]
+			var wi := int(meta.get("windex", w.size() - 1))
+			if wi >= 0 and wi < w.size():
+				w.remove_at(wi)
 
 
 func _resolve_item_click(meta: Dictionary) -> void:
