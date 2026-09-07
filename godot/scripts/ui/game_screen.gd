@@ -1462,7 +1462,12 @@ func _click_slot(meta: Dictionary) -> void:
 		# manual select (drag still lets the player place a card anywhere).
 		if _auto_play(meta):
 			return
-		_begin_selection(meta)
+		# A face-up card that neither auto-plays nor forms a movable run has no
+		# legal move — flag it so the click reads as "not allowed" rather than an
+		# unresponsive board (e.g. a mixed-suit Spider run cannot travel as a
+		# unit, only its top card can).
+		if not _begin_selection(meta) and _is_faceup_card(meta):
+			_reject_feedback(meta)
 	else:
 		_handle_target(meta)
 
@@ -1678,6 +1683,7 @@ func _end_drag(drop_point: Vector2) -> void:
 		_after_move()
 	else:
 		_rebuild()  # rejected: snap back
+		_reject_feedback(target)  # dropped on an illegal destination
 	_drag_source = {}
 	_drag_cards = []
 
@@ -1704,7 +1710,9 @@ func _target_at(local_pos: Vector2) -> Dictionary:
 	return {}
 
 
-func _begin_selection(meta: Dictionary) -> void:
+## Picks up the run at `meta` when it is legally movable. Returns whether a
+## selection was made, so the caller can flag an illegal pick-up.
+func _begin_selection(meta: Dictionary) -> bool:
 	var gs := RunState.gs
 	var kind: String = meta.get("kind", "")
 
@@ -1712,26 +1720,78 @@ func _begin_selection(meta: Dictionary) -> void:
 		var pile: Array = gs["tableau"][meta["col"]]
 		var idx := int(meta.get("index", pile.size() - 1))
 		if idx >= pile.size() or not pile[idx]["face_up"]:
-			return
+			return false
 		# A run must be legally movable as a unit before it can be picked up.
 		if gs["type"] == "klondike" and not _is_valid_run(pile, idx):
-			return
+			return false
 		if gs["type"] == "spider" and pile.size() - idx > Rules.spider_sequence_length(pile):
-			return
+			return false
 		if gs["type"] == "freecell" and pile.size() - idx > Rules.freecell_max_movable(gs):
-			return
+			return false
 	elif kind == "waste":
 		if gs["waste"].is_empty():
-			return
+			return false
 	elif kind == "freecell":
 		if gs["freecells"][meta["col"]] == null:
-			return
+			return false
 	elif kind == "foundation":
-		return
+		return false
 
 	_selection = meta
 	AudioManager.card_taken()
 	_rebuild()
+	return true
+
+
+## Whether `meta` points at a face-up, real card (not an empty slot or a
+## face-down tableau card) — the cards for which a refused move is worth
+## flagging.
+func _is_faceup_card(meta: Dictionary) -> bool:
+	var gs := RunState.gs
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			var idx := int(meta.get("index", pile.size() - 1))
+			return idx >= 0 and idx < pile.size() and bool(pile[idx]["face_up"])
+		"waste":
+			return not (gs.get("waste", []) as Array).is_empty()
+		"freecell":
+			return gs["freecells"][meta["col"]] != null
+	return false
+
+
+## The on-board card view for a slot meta, or null. Used to target move-refused
+## feedback at the exact card the player interacted with.
+func _view_for_meta(meta: Dictionary) -> Control:
+	var kind = meta.get("kind", "")
+	var col := int(meta.get("col", -1))
+	var idx := int(meta.get("index", -1))
+	for child in _board.get_children():
+		if not (child is Control) or not (child as Control).has_meta("slot"):
+			continue
+		var m: Dictionary = (child as Control).get_meta("slot")
+		if m.get("kind") != kind or int(m.get("col", -1)) != col:
+			continue
+		if kind == "tableau" and idx >= 0 and int(m.get("index", -1)) != idx:
+			continue
+		return child
+	return null
+
+
+## A short red shake on a card whose move was refused, so an illegal click reads
+## as "not a legal move" rather than an unresponsive board.
+func _reject_feedback(meta: Dictionary) -> void:
+	var view := _view_for_meta(meta)
+	if view == null:
+		return
+	var base := view.position
+	view.modulate = Color(1.0, 0.55, 0.55)
+	var tw := create_tween()
+	tw.tween_property(view, "position", base + Vector2(7, 0), 0.05)
+	tw.tween_property(view, "position", base - Vector2(6, 0), 0.05)
+	tw.tween_property(view, "position", base + Vector2(4, 0), 0.04)
+	tw.tween_property(view, "position", base, 0.04)
+	tw.parallel().tween_property(view, "modulate", Color.WHITE, 0.20)
 
 
 ## Klondike runs must descend in alternating colours to move together.
@@ -1760,6 +1820,7 @@ func _handle_target(target: Dictionary) -> void:
 		_after_move()
 	else:
 		_rebuild()
+		_reject_feedback(target)  # illegal destination for the held run
 
 
 ## Applies a move if the rules allow it. Returns whether the board changed.
