@@ -1280,21 +1280,13 @@ func _layout_pyramid(gs: Dictionary) -> void:
 	# Both top cards are playable, and every stock draw rotates what they show.
 	var waste: Array = gs["waste"]
 	var spot := _card_size.x * 1.3
-	_spawn_pyramid_waste(waste, waste.size() - 2, Vector2(spot, base_y), "WASTE 2")
-	_spawn_pyramid_waste(waste, waste.size() - 1, Vector2(spot * 2.0, base_y), "WASTE 1")
+	_spawn_pyramid_waste(waste, waste.size() - 2, Vector2(spot, base_y))
+	_spawn_pyramid_waste(waste, waste.size() - 1, Vector2(spot * 2.0, base_y))
 
 
-## One of Pyramid's two draw spots: a small gold label plus either the waste card
-## at `windex` (playable) or an inert empty frame.
-func _spawn_pyramid_waste(waste: Array, windex: int, pos: Vector2, label: String) -> void:
-	var lbl := Label.new()
-	lbl.text = label
-	lbl.add_theme_font_override("font", UITheme.font("pixel"))
-	lbl.add_theme_font_size_override("font_size", 14)
-	lbl.add_theme_color_override("font_color", UITheme.GOLD_DIM)
-	lbl.position = pos + Vector2(2, -_card_size.y * 0.18)
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_board.add_child(lbl)
+## One of Pyramid's two draw spots: either the waste card at `windex` (playable)
+## or an inert empty frame.
+func _spawn_pyramid_waste(waste: Array, windex: int, pos: Vector2) -> void:
 	if windex < 0 or windex >= waste.size():
 		var frame := _spawn_slot(pos, {"kind": "waste_inert"})
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
