@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Solitaire Tower of Doom — Coming soon to Steam</title>
+<meta name="description" content="Uncover the secret occult history of Solitaire and defeat The Cult of Patience in this roguelike horror narrative Solitaire game. Coming soon to Steam.">
+
+<link rel="icon" type="image/png" href="solitairedoom_favicon.png">
+
+<!-- Social media / Open Graph -->
+<meta property="og:title" content="The Solitaire Tower of Doom">
+<meta property="og:description" content="Uncover the secret occult history of Solitaire in this horror roguelike. Coming soon to Steam.">
+<meta property="og:image" content="https://solitairedoom.com/keyart_social.jpg">
+<meta property="og:url" content="https://solitairedoom.com/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Solitaire Tower of Doom">
+<meta name="twitter:description" content="Uncover the secret occult history of Solitaire in this horror roguelike. Coming soon to Steam.">
+<meta name="twitter:image" content="https://solitairedoom.com/keyart_social.jpg">
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#d4a84b;--gold-dim:#7a5f28;--gold-glow:rgba(212,168,75,0.35);
+  --red-suit:#c0322a;--text:#e8d5a3;--text-dim:#7a6a58;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+html{background-color:#000;}
+body{
+  min-height:100vh;
+  background-color:#000;
+  background-image:radial-gradient(ellipse at 50% 30%,#140a1c 0%,#0a0610 60%,#000 100%);
+  background-repeat:no-repeat;
+  background-position:center top;
+  background-size:100% 100vh;
+  color:var(--text);
+  font-family:'EB Garamond',Georgia,'Times New Roman',serif;
+  display:flex;flex-direction:column;align-items:center;
+  padding:24px 20px 40px;gap:22px;text-align:center;
+}
+.keyart-wrap{width:100%;max-width:900px;}
+.keyart{
+  width:100%;height:auto;display:block;border-radius:8px;
+  border:1px solid var(--gold-dim);
+  box-shadow:0 0 34px rgba(212,168,75,.22),0 10px 40px rgba(0,0,0,.6);
+}
+.copy{max-width:640px;display:flex;flex-direction:column;gap:16px;margin-top:4px;}
+.hook{
+  font-family:'Cinzel',Georgia,'Times New Roman',serif;font-size:clamp(1rem,2.2vw,1.2rem);
+  line-height:1.5;letter-spacing:.02em;text-shadow:0 0 12px rgba(212,168,75,.25);
+}
+.everything{
+  font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-weight:900;
+  font-size:clamp(1.6rem,4.4vw,2.4rem);color:var(--gold);
+  letter-spacing:.04em;text-shadow:0 0 26px var(--gold-glow);
+}
+.line{font-family:'Cinzel',Georgia,'Times New Roman',serif;font-size:clamp(1rem,2.2vw,1.2rem);line-height:1.5;letter-spacing:.02em;}
+.line strong{color:#bb3333;}
+
+/* Non-clickable status message — deliberately not a link or a button. */
+.soon-msg{
+  margin-top:8px;align-self:center;
+  font-family:'Cinzel',Georgia,'Times New Roman',serif;font-weight:700;
+  font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--gold);background:linear-gradient(#241018,#160a10);
+  border:2px solid var(--gold);border-radius:6px;padding:14px 34px;
+  text-shadow:0 0 14px var(--gold-glow);box-shadow:0 0 22px rgba(212,168,75,.25);
+  cursor:default;pointer-events:none;user-select:none;-webkit-user-select:none;
+}
+
+.trailer-wrap{width:100%;max-width:760px;margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:center;}
+.trailer-label{
+  font-family:'Cinzel',Georgia,'Times New Roman',serif;font-size:.8rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--gold);opacity:.75;
+}
+.trailer{
+  width:100%;display:block;background:#000;border-radius:8px;
+  aspect-ratio:1280/704;object-fit:cover;
+  border:1px solid var(--gold-dim);box-shadow:0 0 24px rgba(212,168,75,.16),0 8px 30px rgba(0,0,0,.6);
+}
+.footer{
+  margin-top:18px;font-size:.9rem;color:var(--text-dim);
+  font-family:'Cinzel',Georgia,'Times New Roman',serif;letter-spacing:.04em;line-height:1.7;
+}
+@media (max-width:520px){
+  body{padding:16px 14px 30px;gap:18px;}
+  .soon-msg{padding:12px 20px;}
+}
+</style>
+</head>
+<body>
+
+<div class="keyart-wrap">
+  <img class="keyart" src="KeyArt_SolitaireDoom_logo2.0_eng.jpg"
+       alt="The Solitaire Tower of Doom key art: historical figures and card-suit monsters gathered around an office worker playing solitaire on an old computer.">
+</div>
+
+<div class="copy">
+  <div class="hook">What do Louis XIV, Napoleon, Winston Churchill, Casanova, Donald Rumsfeld, Goethe and Mary Stuart, Queen of Scots have to do with Solitaire?</div>
+  <div class="everything">Everything!</div>
+  <div class="line">Uncover the secret occult history of Solitaire that spans centuries!</div>
+  <div class="line">Defeat <strong>The Cult of Patience</strong> in this roguelike horror narrative Solitaire game!</div>
+  <!-- Once the Steam store page is live, this is where a "Wishlist on Steam"
+       link belongs. Until then it stays a plain, non-clickable message. -->
+  <div class="soon-msg">Coming soon to Steam</div>
+</div>
+
+<div class="trailer-wrap">
+  <div class="trailer-label">Trailer</div>
+  <video class="trailer" controls preload="none" playsinline poster="tower.jpg">
+    <source src="Solitaire%20Doom%20Trailer%201.mp4" type="video/mp4">
+    Your browser cannot play this video.
+  </video>
+</div>
+
+<div class="footer">The Solitaire Tower of Doom</div>
+
+</body>
+</html>

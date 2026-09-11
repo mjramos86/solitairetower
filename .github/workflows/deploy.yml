@@ -1,7 +1,18 @@
+# Deploys the public site at https://solitairedoom.com
+#
+# Ahead of the Steam release the web build of the game is NOT published: this
+# workflow assembles the site from an explicit allowlist of teaser files, so
+# index.html (the playable web build), the Godot project, and the rest of the
+# repo never reach GitHub Pages. Nothing is deleted from the repository — the
+# game source stays in git, it is simply not part of the deployed artifact.
+#
+# To publish the playable build again after launch, replace the "Assemble
+# teaser site" step with a full checkout of the repo into ./site (see git
+# history for the previous version of this file).
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [main, elie]
+    branches: [main]
 
 jobs:
   deploy:
@@ -18,19 +29,47 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          path: site
+          path: repo
 
-      - name: Checkout elie branch
-        uses: actions/checkout@v4
-        with:
-          ref: elie
-          path: site/elie
-        continue-on-error: true
-
-      - name: Remove nested .git dirs
+      # Only the files listed here are published. Adding a file to the repo
+      # does not put it online; it has to be copied in below.
+      - name: Assemble teaser site
         run: |
-          rm -rf site/.git
-          rm -rf site/elie/.git
+          set -euo pipefail
+          mkdir -p site
+
+          # The teaser page itself, served at / and as the 404 page so that
+          # stale links to the old web build land on the teaser too.
+          cp "repo/teaser/index.html" site/index.html
+          cp "repo/teaser/index.html" site/404.html
+
+          # Assets the teaser page references.
+          cp "repo/KeyArt_SolitaireDoom_logo2.0_eng.jpg" site/
+          cp "repo/solitairedoom_favicon.png"            site/
+          cp "repo/tower.jpg"                           site/
+          cp "repo/Solitaire Doom Trailer 1.mp4"         site/
+          cp "repo/steam/keyart_social_1200x630.jpg"     site/keyart_social.jpg
+
+          # Custom domain.
+          cp "repo/CNAME" site/
+
+          echo "Deploying:"
+          ls -la site
+
+      - name: Fail if any game code slipped into the artifact
+        run: |
+          set -euo pipefail
+          # The teaser is a static page; the web build is recognisable by its
+          # game code. If either shows up, stop before publishing.
+          if grep -rlE "startIntroFromTitle|renderTitleScreen" site; then
+            echo "::error::Game code found in the deploy artifact - refusing to publish."
+            exit 1
+          fi
+          if [ -e site/godot ]; then
+            echo "::error::Godot project found in the deploy artifact - refusing to publish."
+            exit 1
+          fi
+          echo "Artifact contains no game code."
 
       - name: Remove stale github-pages artifacts from prior attempts of this run
         uses: actions/github-script@v7
