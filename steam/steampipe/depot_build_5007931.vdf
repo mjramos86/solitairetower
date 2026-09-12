@@ -1,0 +1,22 @@
+"DepotBuildConfig"
+{
+	// !! CONFIRM this DepotID on Steamworks -> app 5007930 -> SteamPipe -> Depots.
+	//    It is usually AppID+1 (5007931). Change here AND in app_build_5007930.vdf
+	//    if yours differs.
+	"DepotID" "5007931"
+
+	// Folder that holds the exported Windows build (the .exe, game data,
+	// steam_appid.txt, and steam_api64.dll). Trailing backslash required.
+	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\windows\"
+
+	// Ship everything in ContentRoot, recursively, to the depot root.
+	"FileMapping"
+	{
+		"LocalPath" "*"
+		"DepotPath" "."
+		"recursive" "1"
+	}
+
+	// Never ship debug symbol files.
+	"FileExclusion" "*.pdb"
+}
