@@ -71,6 +71,13 @@ const FRAME_MAX_HEIGHT_RATIO := 0.64
 const PLAIN_TEXT := Color("e8e0d0")
 const PORTRAIT_LABEL := Color("39ff6a")
 
+## Typewriter reveal for narration and spoken lines — seconds per character. Fast
+## and punchy so the intro reads as dynamic (and captures well for the trailer);
+## clamped so short lines still animate and long ones never drag.
+const TYPE_SPEED := 0.018
+const TYPE_MIN := 0.12
+const TYPE_MAX := 1.1
+
 ## The flicker overlay's keyframes, as (time in seconds, alpha). Taken from
 ## @keyframes patron-img-flicker: 1.1s, steps(1, end), infinite.
 const FLICKER_STEPS := [
@@ -114,6 +121,11 @@ var _call_footer: HBoxContainer
 var _call_next: Button
 
 var _arranged_rects: Array = []
+
+# The currently-running typewriter reveal, so a Continue press can snap it to
+# full instead of advancing with a half-shown line.
+var _type_tween: Tween
+var _typing_label: Label
 
 
 func _ready() -> void:
@@ -516,6 +528,23 @@ func _beat_text(beat: Dictionary) -> String:
 	return str(t)
 
 
+## Reveals a label's text one character at a time. The tween runs on its own; a
+## Continue press mid-reveal snaps it to full (see _advance). Only used for
+## narration and spoken lines — menus, choices and buttons stay instant.
+func _animate_type(label: Label) -> void:
+	if _type_tween != null and _type_tween.is_valid():
+		_type_tween.kill()
+	var chars := label.text.length()
+	if chars <= 0:
+		label.visible_ratio = 1.0
+		return
+	label.visible_ratio = 0.0
+	_typing_label = label
+	_type_tween = create_tween()
+	_type_tween.tween_property(label, "visible_ratio", 1.0,
+		clampf(chars * TYPE_SPEED, TYPE_MIN, TYPE_MAX))
+
+
 ## Narration sits in a sunken grey box; Dee speaks from a bordered white bubble;
 ## the player is plain white text.
 func _call_content(beat: Dictionary) -> void:
@@ -556,6 +585,7 @@ func _call_content(beat: Dictionary) -> void:
 		label.add_theme_color_override("font_color", UITheme.W95_DARKER)
 		box.add_child(label)
 		_content.add_child(box)
+		_animate_type(label)
 		return
 
 	if speaker == "dee":
@@ -605,6 +635,7 @@ func _speech_bubble(text: String, tail_dir := "left") -> Control:
 	bubble.add_child(label)
 	tail.add_child(bubble)
 
+	_animate_type(label)
 	return tail
 
 
@@ -732,6 +763,7 @@ func _render_plain(beat: Dictionary) -> void:
 		_plain_choices.visible = false
 		_plain_next.visible = true
 		_plain_next.text = str(beat.get("next_label", "Continue ▸"))
+		_animate_type(_plain_text)
 	else:
 		# A choosing beat drops the line and the Continue button; only Skip stays.
 		_plain_text.visible = false
@@ -806,6 +838,14 @@ func _choose_victory(index: int) -> void:
 
 
 func _advance() -> void:
+	# A press while a line is still typing completes it first, so it never
+	# advances with the line half-shown.
+	if _type_tween != null and _type_tween.is_valid() and _type_tween.is_running():
+		_type_tween.kill()
+		if is_instance_valid(_typing_label):
+			_typing_label.visible_ratio = 1.0
+		return
+
 	if _index >= _beats.size() - 1 and _topics.is_empty() and _active_topic.is_empty():
 		_finish()
 		return
