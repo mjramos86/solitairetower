@@ -1,0 +1,24 @@
+"AppBuild"
+{
+	"AppID" "5007930"
+
+	// Shows in the Steamworks Builds list — bump this each upload.
+	"Desc" "v0.5.0 review build"
+
+	// Same folder as ContentRoot in the depot script (trailing backslash).
+	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\windows\"
+
+	// Scratch/log folder steamcmd writes to. Any empty folder is fine; create it
+	// first. Kept out of git.
+	"BuildOutput" "C:\Users\mjram\OneDrive\Documents\GitHub\build\steampipe_output\"
+
+	// Leave SetLive empty for a review build — set the branch to `default` on the
+	// Steamworks website (SteamPipe -> Builds) after the upload succeeds.
+	// "SetLive" ""
+
+	"Depots"
+	{
+		// DepotID -> its depot script. Must match depot_build_5007931.vdf.
+		"5007931" "depot_build_5007931.vdf"
+	}
+}

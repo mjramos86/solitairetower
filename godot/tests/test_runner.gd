@@ -43,6 +43,7 @@ func _ready() -> void:
 	await test_cheat_codes()
 	await test_item_tooltip()
 	await test_stock_recycle_click()
+	await test_foundation_takeback()
 	test_item_effects()
 	test_narrative()
 	test_compendium_features()
@@ -1404,6 +1405,63 @@ func test_stock_recycle_click() -> void:
 	await _click_the_stock_slot()
 	check_eq(int(RunState.gs["stock"].size()), 0, "tripeaks has no recycle: stock stays empty")
 	check_eq(int(RunState.gs["waste"].size()), tp_waste, "tripeaks waste is unchanged")
+
+	RunState.new_run()
+
+
+## Regression: a card on a foundation must be playable back onto the tableau
+## (and a free cell), as the web build allows. The bug: _begin_selection refused
+## every "foundation" click and _take_cards had no foundation case, so a card
+## sent to the foundation could never come back — soft-locking otherwise winnable
+## Klondike deals.
+func test_foundation_takeback() -> void:
+	suite("foundation takeback")
+
+	# ── Klondike: 5 of diamonds (red) off the foundation onto a 6 of clubs ──
+	RunState.new_run()
+	RunState.start_game("klondike", 4)
+	var gs := Cards.clone_state(RunState.gs)
+	gs["foundations"][2] = [
+		Cards.make_card(2, 1, true), Cards.make_card(2, 2, true),
+		Cards.make_card(2, 3, true), Cards.make_card(2, 4, true),
+		Cards.make_card(2, 5, true)]
+	gs["tableau"][0] = [Cards.make_card(3, 6, true)]  # 6 of clubs
+	RunState.gs = gs
+
+	var screen := (load("res://scenes/screens/game_screen.tscn") as PackedScene).instantiate()
+	add_child(screen)
+	await get_tree().process_frame
+	screen._click_slot({"kind": "foundation", "col": 2})  # select the diamond pile
+	screen._click_slot({"kind": "tableau", "col": 0})      # drop onto the 6 clubs
+	check_eq(int(RunState.gs["foundations"][2].size()), 4,
+		"klondike foundation card leaves the foundation")
+	var kl_top: Dictionary = RunState.gs["tableau"][0][RunState.gs["tableau"][0].size() - 1]
+	check(int(kl_top["rank"]) == 5 and int(kl_top["suit"]) == 2,
+		"klondike foundation card lands on the tableau")
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+
+	# ── FreeCell: same takeback, onto a free cell this time ──
+	RunState.new_run()
+	RunState.start_game("freecell", 4)
+	var fg := Cards.clone_state(RunState.gs)
+	fg["foundations"][0] = [Cards.make_card(0, 1, true)]  # ace of spades
+	for i in fg["freecells"].size():
+		fg["freecells"][i] = null
+	RunState.gs = fg
+	var fscreen := (load("res://scenes/screens/game_screen.tscn") as PackedScene).instantiate()
+	add_child(fscreen)
+	await get_tree().process_frame
+	fscreen._click_slot({"kind": "foundation", "col": 0})
+	fscreen._click_slot({"kind": "freecell", "col": 0})
+	check_eq(int(RunState.gs["foundations"][0].size()), 0,
+		"freecell foundation card leaves the foundation")
+	check(RunState.gs["freecells"][0] != null,
+		"freecell foundation card lands in a free cell")
+	remove_child(fscreen)
+	fscreen.queue_free()
+	await get_tree().process_frame
 
 	RunState.new_run()
 

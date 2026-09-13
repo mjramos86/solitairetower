@@ -1600,6 +1600,13 @@ func _is_draggable(meta: Dictionary) -> bool:
 			return not gs["waste"].is_empty()
 		"freecell":
 			return gs["freecells"][meta["col"]] != null
+		"foundation":
+			# Only Klondike/FreeCell foundations are playable back onto the board.
+			if not (type in ["klondike", "freecell"]):
+				return false
+			var col := int(meta.get("col", -1))
+			return col >= 0 and col < gs["foundations"].size() \
+				and not (gs["foundations"][col] as Array).is_empty()
 	return false
 
 
@@ -1652,6 +1659,9 @@ func _cards_for_drag(gs: Dictionary, meta: Dictionary) -> Array:
 		"freecell":
 			var c = gs["freecells"][meta["col"]]
 			return [c] if c != null else []
+		"foundation":
+			var f: Array = gs["foundations"][meta["col"]]
+			return [f[f.size() - 1]] if not f.is_empty() else []
 	return []
 
 
@@ -1735,6 +1745,16 @@ func _begin_selection(meta: Dictionary) -> bool:
 		if gs["freecells"][meta["col"]] == null:
 			return false
 	elif kind == "foundation":
+		# A foundation card can be pulled back onto the tableau (or a free cell),
+		# exactly as the web build allows — only the single top card, and only in
+		# the games that actually have playable foundations.
+		if not (String(gs["type"]) in ["klondike", "freecell"]):
+			return false
+		var col := int(meta.get("col", -1))
+		if col < 0 or col >= gs["foundations"].size() \
+				or (gs["foundations"][col] as Array).is_empty():
+			return false
+	else:
 		return false
 
 	_selection = meta
@@ -1909,6 +1929,13 @@ func _take_cards(gs: Dictionary, from: Dictionary, peek: bool) -> Array:
 			if not peek:
 				gs["freecells"][from["col"]] = null
 			return [c]
+		"foundation":
+			var f: Array = gs["foundations"][from["col"]]
+			if f.is_empty():
+				return []
+			if peek:
+				return [f[f.size() - 1]]
+			return [f.pop_back()]
 	return []
 
 
