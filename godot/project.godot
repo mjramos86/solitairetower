@@ -81,5 +81,5 @@ mp3={
 ; laptops. Switch to "forward_plus" only if you add real 2D lighting/shaders.
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/vram_compression/import_etc2_astc=false
+textures/vram_compression/import_etc2_astc=true
 environment/defaults/default_clear_color=Color(0.039, 0.024, 0.086, 1)
