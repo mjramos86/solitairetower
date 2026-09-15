@@ -74,9 +74,9 @@ const PORTRAIT_LABEL := Color("39ff6a")
 ## Typewriter reveal for narration and spoken lines — seconds per character. Fast
 ## and punchy so the intro reads as dynamic (and captures well for the trailer);
 ## clamped so short lines still animate and long ones never drag.
-const TYPE_SPEED := 0.036
-const TYPE_MIN := 0.24
-const TYPE_MAX := 2.2
+const TYPE_SPEED := 0.072
+const TYPE_MIN := 0.48
+const TYPE_MAX := 4.4
 
 ## The flicker overlay's keyframes, as (time in seconds, alpha). Taken from
 ## @keyframes patron-img-flicker: 1.1s, steps(1, end), infinite.
