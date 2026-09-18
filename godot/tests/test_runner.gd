@@ -1791,7 +1791,7 @@ func test_narrative() -> void:
 	check(not role.is_empty(), "the 'role' check-in topic exists")
 
 	# ── Interlude routing ──
-	# Dee interrupts after floors 3, 6 and 9 (indices 2, 5, 8), once per profile.
+	# Dee interrupts after floors 3, 6 and 9 (indices 2, 5, 8) on every run.
 	# Match the screen names exactly: "dee-dialogue3" does not end in
 	# "dialogue", and a suffix test silently skipped it.
 	const DIALOGUE_SCREENS := ["dee-checkin-dialogue", "dee-dialogue3",
@@ -1812,16 +1812,19 @@ func test_narrative() -> void:
 	check_eq(String(seen.get(5, "")), "dee-dialogue3", "floor 5 is the third transmission")
 	check_eq(String(seen.get(8, "")), "dee-final-dialogue", "floor 8 is the final word")
 
-	# Second run: already seen, so no interludes and the shop follows directly.
+	# Second run: the interludes fire again — they are part of every descent, not
+	# a one-time unlock. (The compendium unlocks and the dialogues' ✓ topic marks
+	# persist separately, so replaying them costs nothing already seen.)
 	RunState.new_run()
-	var repeats := 0
+	var seen2 := {}
 	for f in GameData.TOTAL_FLOORS - 1:
 		RunState.start_game("klondike", f)
 		RunState.next_floor()
 		if DIALOGUE_SCREENS.has(RunState.screen):
-			repeats += 1
+			seen2[f] = RunState.screen
 			RunState.proceed_to_shop()
-	check_eq(repeats, 0, "interludes do not repeat once seen")
+	check(seen2.has(2) and seen2.has(5) and seen2.has(8),
+		"interludes fire again on a later run")
 
 	# ── Compendium economy ──
 	SaveManager.erase_all()

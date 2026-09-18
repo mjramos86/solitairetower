@@ -166,25 +166,28 @@ func next_floor() -> void:
 
 
 ## Returns the dialogue screen owed at this floor, or "" if none.
+##
+## The descent interludes play on EVERY run, not just the first, so the story
+## beats are part of each descent. Each still stamps its profile flag the first
+## time — the compendium's lore / Recorded Transmission unlocks key off these —
+## and the dialogues' own topic menus keep their ✓ marks across runs through the
+## separate seen_* records, so choices already explored stay checked.
 func _pending_interlude() -> String:
 	if patron != "johndee":
 		return ""
 	match floor_index:
 		2:
-			if not bool(SaveManager.profile.get("dee_checkin_done", false)):
-				SaveManager.profile["dee_checkin_done"] = true
-				SaveManager.mark_dirty()
-				return "dee-checkin-dialogue"
+			SaveManager.profile["dee_checkin_done"] = true
+			SaveManager.mark_dirty()
+			return "dee-checkin-dialogue"
 		5:
-			if not bool(SaveManager.profile.get("dee_dialogue3_done", false)):
-				SaveManager.profile["dee_dialogue3_done"] = true
-				SaveManager.mark_dirty()
-				return "dee-dialogue3"
+			SaveManager.profile["dee_dialogue3_done"] = true
+			SaveManager.mark_dirty()
+			return "dee-dialogue3"
 		8:
-			if not bool(SaveManager.profile.get("dee_final_done", false)):
-				SaveManager.profile["dee_final_done"] = true
-				SaveManager.mark_dirty()
-				return "dee-final-dialogue"
+			SaveManager.profile["dee_final_done"] = true
+			SaveManager.mark_dirty()
+			return "dee-final-dialogue"
 	return ""
 
 
