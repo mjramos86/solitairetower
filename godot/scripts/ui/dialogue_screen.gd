@@ -71,12 +71,10 @@ const FRAME_MAX_HEIGHT_RATIO := 0.64
 const PLAIN_TEXT := Color("e8e0d0")
 const PORTRAIT_LABEL := Color("39ff6a")
 
-## Typewriter reveal for narration and spoken lines — seconds per character. Fast
-## and punchy so the intro reads as dynamic (and captures well for the trailer);
-## clamped so short lines still animate and long ones never drag.
+## Typewriter reveal for narration and spoken lines — seconds per character. A
+## single constant rate for every line regardless of length (no clamps), so the
+## text always types on at the same speed.
 const TYPE_SPEED := 0.072
-const TYPE_MIN := 0.48
-const TYPE_MAX := 4.4
 
 ## The flicker overlay's keyframes, as (time in seconds, alpha). Taken from
 ## @keyframes patron-img-flicker: 1.1s, steps(1, end), infinite.
@@ -212,7 +210,10 @@ func _build_plain() -> void:
 	_plain_text = Label.new()
 	_plain_text.custom_minimum_size.x = 800
 	_plain_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_plain_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Left-aligned so revealed letters stay anchored in place as the line types
+	# on; a centred line re-centres itself on every new character, shoving the
+	# earlier words leftward.
+	_plain_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_plain_text.add_theme_font_override("font", UITheme.font("body"))  # narration prose → Inter
 	_plain_text.add_theme_color_override("font_color", PLAIN_TEXT)
 	text_holder.add_child(_plain_text)
@@ -541,8 +542,9 @@ func _animate_type(label: Label) -> void:
 	label.visible_ratio = 0.0
 	_typing_label = label
 	_type_tween = create_tween()
-	_type_tween.tween_property(label, "visible_ratio", 1.0,
-		clampf(chars * TYPE_SPEED, TYPE_MIN, TYPE_MAX))
+	# Duration is strictly proportional to length, so every line reveals at the
+	# same characters-per-second rate.
+	_type_tween.tween_property(label, "visible_ratio", 1.0, chars * TYPE_SPEED)
 
 
 ## Narration sits in a sunken grey box; Dee speaks from a bordered white bubble;
