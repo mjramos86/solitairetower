@@ -9,10 +9,17 @@
 # To publish the playable build again after launch, replace the "Assemble
 # teaser site" step with a full checkout of the repo into ./site (see git
 # history for the previous version of this file).
+#
+# GitHub Pages must be configured with Source = "GitHub Actions" (Settings ->
+# Pages). With Source = "Deploy from a branch", GitHub's built-in Jekyll builder
+# publishes the whole repo root and overwrites this workflow's artifact,
+# putting the game back online.
 name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Redeploy on demand, e.g. after changing the Pages source setting.
+  workflow_dispatch:
 
 jobs:
   deploy:
