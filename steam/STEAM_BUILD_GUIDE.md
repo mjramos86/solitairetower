@@ -37,7 +37,7 @@ branch and submitting the app to Valve so they can approve it for release.
      "64 bit only" box on the store).
    - **Export Path:** something outside the project, e.g.
      `build/windows/SolitaireTowerOfDoom.exe`.
-   - (Optional) **Application → Product/File version:** `0.5.0` to match
+   - (Optional) **Application → Product/File version:** `0.6.0` to match
      `project.godot`.
 4. Leave "Export With Debug" **off** for the review build.
 5. This writes `godot/export_presets.cfg` — commit it so the preset is
@@ -99,7 +99,7 @@ absolute path to your content root.
 "AppBuild"
 {
   "AppID" "5007930"
-  "Desc" "v0.5.0 review build"          // shows in the Builds list
+  "Desc" "v0.6.0 review build"          // shows in the Builds list
 
   "ContentRoot" "C:\path\to\solitairetower\build\windows\"
   "BuildOutput" "C:\path\to\solitairetower\steam\steampipe\output\"

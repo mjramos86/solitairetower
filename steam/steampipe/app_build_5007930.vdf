@@ -3,7 +3,7 @@
 	"AppID" "5007930"
 
 	// Shows in the Steamworks Builds list — bump this each upload.
-	"Desc" "v0.5.0 review build"
+	"Desc" "v0.6.0 review build"
 
 	// Same folder as ContentRoot in the depot script (trailing backslash).
 	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\windows\"
