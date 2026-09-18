@@ -766,7 +766,9 @@ padding:16px 12px;gap:8px;position:relative;transition:border-color .2s,box-shad
 .title-line strong{color:#bb3333;}
 .title-play-btn{margin-top:8px;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:.06em;color:var(--gold);background:linear-gradient(#241018,#160a10);border:2px solid var(--gold);border-radius:6px;padding:14px 34px;cursor:pointer;text-shadow:0 0 14px var(--gold-glow);box-shadow:0 0 22px rgba(212,168,75,.25);transition:color .2s,background .2s,box-shadow .2s,border-color .2s;}
 .title-play-btn:hover{color:#fff;background:linear-gradient(#7a1616,#3a0c0c);border-color:var(--red-suit);box-shadow:0 0 30px rgba(192,50,42,.6);text-shadow:0 0 16px rgba(192,50,42,.9);}
-.title-soon-msg{margin-top:8px;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:.06em;text-transform:uppercase;color:var(--gold);background:linear-gradient(#241018,#160a10);border:2px solid var(--gold);border-radius:6px;padding:14px 34px;text-align:center;text-shadow:0 0 14px var(--gold-glow);box-shadow:0 0 22px rgba(212,168,75,.25);cursor:default;pointer-events:none;user-select:none;-webkit-user-select:none;}
+.title-soon-msg{margin-top:8px;display:inline-block;text-decoration:none;font-family:'Cinzel',serif;font-weight:700;font-size:clamp(.95rem,2.5vw,1.3rem);letter-spacing:.06em;text-transform:uppercase;color:var(--gold);background:linear-gradient(#241018,#160a10);border:2px solid var(--gold);border-radius:6px;padding:14px 28px;text-align:center;text-wrap:balance;text-shadow:0 0 14px var(--gold-glow);box-shadow:0 0 22px rgba(212,168,75,.25);cursor:pointer;transition:color .2s,background .2s,box-shadow .2s,border-color .2s;}
+.title-soon-msg:hover,.title-soon-msg:focus-visible{color:#fff;background:linear-gradient(#7a1616,#3a0c0c);border-color:var(--red-suit);box-shadow:0 0 30px rgba(192,50,42,.6);text-shadow:0 0 16px rgba(192,50,42,.9);}
+.title-soon-msg:focus-visible{outline:2px solid var(--gold);outline-offset:3px;}
 
 /* ── TIME PATRON BADGE (map + variant screens) ── */
 .patron-badge{display:flex;flex-direction:column;align-items:center;gap:4px;}
@@ -1394,7 +1396,7 @@ function renderTitleScreen(app){
       <div class="title-everything">Everything!</div>
       <div class="title-line">Uncover the secret occult history of Solitaire that spans centuries!</div>
       <div class="title-line">Defeat <strong>The Cult of Patience</strong> in this roguelike horror narrative Solitaire game!</div>
-      <div class="title-soon-msg" aria-live="polite">Coming soon to Steam</div>
+      <a class="title-soon-msg" href="https://store.steampowered.com/app/5007930/The_Solitaire_Tower_of_Doom/" target="_blank" rel="noopener noreferrer">Coming soon to Steam - Wishlist today !</a>
     </div>
   </div>`;
 }
