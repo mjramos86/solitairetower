@@ -60,15 +60,23 @@ body{
 .line strong{color:#bb3333;}
 
 /* Non-clickable status message — deliberately not a link or a button. */
-.soon-msg{
-  margin-top:8px;align-self:center;
+.wishlist-btn{
+  margin-top:8px;align-self:center;display:inline-block;text-decoration:none;
   font-family:'Cinzel',Georgia,'Times New Roman',serif;font-weight:700;
-  font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:.06em;text-transform:uppercase;
+  font-size:clamp(.95rem,2.5vw,1.3rem);letter-spacing:.06em;text-transform:uppercase;
+  text-align:center;text-wrap:balance;
   color:var(--gold);background:linear-gradient(#241018,#160a10);
-  border:2px solid var(--gold);border-radius:6px;padding:14px 34px;
+  border:2px solid var(--gold);border-radius:6px;padding:14px 28px;
   text-shadow:0 0 14px var(--gold-glow);box-shadow:0 0 22px rgba(212,168,75,.25);
-  cursor:default;pointer-events:none;user-select:none;-webkit-user-select:none;
+  cursor:pointer;
+  transition:color .2s,background .2s,box-shadow .2s,border-color .2s;
 }
+.wishlist-btn:hover,.wishlist-btn:focus-visible{
+  color:#fff;background:linear-gradient(#7a1616,#3a0c0c);
+  border-color:var(--red-suit);box-shadow:0 0 30px rgba(192,50,42,.6);
+  text-shadow:0 0 16px rgba(192,50,42,.9);
+}
+.wishlist-btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px;}
 
 .trailer-wrap{width:100%;max-width:760px;margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:center;}
 .trailer-label{
@@ -86,7 +94,7 @@ body{
 }
 @media (max-width:520px){
   body{padding:16px 14px 30px;gap:18px;}
-  .soon-msg{padding:12px 20px;}
+  .wishlist-btn{padding:12px 18px;}
 }
 </style>
 </head>
@@ -102,9 +110,9 @@ body{
   <div class="everything">Everything!</div>
   <div class="line">Uncover the secret occult history of Solitaire that spans centuries!</div>
   <div class="line">Defeat <strong>The Cult of Patience</strong> in this roguelike horror narrative Solitaire game!</div>
-  <!-- Once the Steam store page is live, this is where a "Wishlist on Steam"
-       link belongs. Until then it stays a plain, non-clickable message. -->
-  <div class="soon-msg">Coming soon to Steam</div>
+  <a class="wishlist-btn"
+     href="https://store.steampowered.com/app/5007930/The_Solitaire_Tower_of_Doom/"
+     target="_blank" rel="noopener noreferrer">Coming soon to Steam - Wishlist today !</a>
 </div>
 
 <div class="trailer-wrap">
