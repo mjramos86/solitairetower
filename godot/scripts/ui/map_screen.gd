@@ -163,6 +163,9 @@ func _build_side() -> void:
 	_side.add_child(_panel_button("▶ Watch Intro", func():
 		RunState.intro_replay = true
 		RunState.set_screen("patron-dialogue")))
+	# Back to the title screen. set_screen persists the run, so the descent is
+	# kept and can be resumed from the slot — this is a safe exit, not a forfeit.
+	_side.add_child(_panel_button("🏠 Main Menu", func(): RunState.set_screen("title")))
 	# New Run gives up the whole descent — same as losing every life — and goes
 	# through the game-over / score-entry flow.
 	var new_run_btn := _panel_button("⚑ New Run", _confirm_new_run)
