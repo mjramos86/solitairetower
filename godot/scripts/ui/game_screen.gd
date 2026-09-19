@@ -126,6 +126,10 @@ func _ready() -> void:
 	_shuffle_button.pressed.connect(_on_shuffle)
 	_pause_button.pressed.connect(_on_pause)
 	_abandon_button.pressed.connect(_on_abandon)
+	# Localize the scene-authored toolbar labels (Undo is relabeled live elsewhere).
+	_shuffle_button.text = Locale.t(_shuffle_button.text)
+	_pause_button.text = Locale.t(_pause_button.text)
+	_abandon_button.text = Locale.t(_abandon_button.text)
 	_banner.visible = false
 	_style_chrome()
 	_build_window_buttons()
@@ -262,7 +266,7 @@ func _build_status_panes() -> void:
 	# is single-sourced; the build is pre-1.0, shipping in Early Access.
 	var ver := str(ProjectSettings.get_setting("application/config/version", "0.1.0"))
 	var version := _make_status_label()
-	version.text = "Solitaire Tower of Doom · Early Access v%s" % ver
+	version.text = Locale.t("Solitaire Tower of Doom · Early Access v%s") % ver
 	_status_row.add_child(_wrap_pane(version))
 
 
@@ -392,10 +396,10 @@ func _spawn_score_float(delta: int) -> void:
 
 func _refresh_header() -> void:
 	var floor_no := GameData.TOTAL_FLOORS - RunState.floor_index
-	var name: String = GameData.NAMES.get(RunState.gtype, RunState.gtype)
+	var name: String = Locale.t(GameData.NAMES.get(RunState.gtype, RunState.gtype))
 	var icon: String = GameData.ICONS.get(RunState.gtype, "")
 
-	_title_text.text = "Solitaire Tower of Doom — %s (Floor %d)" % [name, floor_no]
+	_title_text.text = Locale.t("Solitaire Tower of Doom — %s (Floor %d)") % [name, floor_no]
 
 	var hearts := ""
 	for i in RunState.lives:
@@ -405,7 +409,7 @@ func _refresh_header() -> void:
 	_gold_label.text = "⏳%d" % RunState.gold
 
 	if _status_panes.size() >= 5:
-		_status_panes[0].text = "Floor %d of 10" % floor_no
+		_status_panes[0].text = Locale.t("Floor %d of 10") % floor_no
 		_status_panes[1].text = "%s %s" % [icon, name]
 		_status_panes[2].text = "♥ %d" % RunState.lives
 		_status_panes[3].text = "★ %s pts" % _comma(RunState.score)
@@ -418,10 +422,10 @@ func _refresh_header() -> void:
 
 	var rule_items := PackedStringArray()
 	for r in GameData.RULES.get(RunState.gtype, []):
-		rule_items.append("▸ " + str(r))
+		rule_items.append("▸ " + Locale.t(str(r)))
 	_rules_label.text = "  ".join(rule_items)
 
-	_undo_button.text = "↩ Undo (%d)" % RunState.undos_remaining()
+	_undo_button.text = Locale.t("↩ Undo (%d)") % RunState.undos_remaining()
 	_undo_button.disabled = RunState.undo_stack.is_empty() or RunState.undos_remaining() <= 0
 	_abandon_button.add_theme_color_override("font_color", UITheme.MAROON)
 	_shuffle_button.add_theme_color_override("font_color", UITheme.MAROON)
@@ -508,7 +512,7 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 	icon.add_theme_font_size_override("font_size", 30)
 	head.add_child(icon)
 	var name_lbl := Label.new()
-	name_lbl.text = String(item["name"])
+	name_lbl.text = Locale.t(String(item["name"]))
 	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -518,7 +522,7 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 	head.add_child(name_lbl)
 
 	var desc := Label.new()
-	desc.text = String(item["desc"])
+	desc.text = Locale.t(String(item["desc"]))
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.add_theme_font_override("font", UITheme.font("body"))  # tooltip prose → Inter
 	desc.add_theme_font_size_override("font_size", 15)
@@ -526,7 +530,7 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 	col.add_child(desc)
 
 	var use := Label.new()
-	use.text = "📋 %s" % String(item["use"])
+	use.text = "📋 %s" % Locale.t(String(item["use"]))
 	use.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	use.add_theme_font_override("font", UITheme.font("body"))  # tooltip prose → Inter
 	use.add_theme_font_size_override("font_size", 14)
@@ -535,7 +539,7 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 
 	# The usability verdict for the variant currently being played.
 	var usable := ItemEffects.usable_in(String(item["effect"]), RunState.gtype)
-	var variant: String = GameData.NAMES.get(RunState.gtype, RunState.gtype)
+	var variant: String = Locale.t(GameData.NAMES.get(RunState.gtype, RunState.gtype))
 	var verdict := Label.new()
 	verdict.text = ("✓ Usable in %s" % variant) if usable else ("✗ No effect in %s" % variant)
 	verdict.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -598,7 +602,7 @@ func _make_inv_slot(glyph: String, armed: bool, empty := false) -> Button:
 func _build_toolbox_slot() -> Control:
 	var button := Button.new()
 	if RunState.toolbox_card == null:
-		button.text = "🗄️ stash empty (%d)" % RunState.toolbox_uses
+		button.text = Locale.t("🗄️ stash empty (%d)") % RunState.toolbox_uses
 	else:
 		var c: Dictionary = RunState.toolbox_card
 		button.text = "🗄️ %s%s (%d)" % [Cards.rank_name(c), Cards.symbol(c), RunState.toolbox_uses]
@@ -2255,7 +2259,7 @@ func _show_win_overlay() -> void:
 	panel.add_child(margin)
 
 	var title := Label.new()
-	title.text = "🚪 ESCAPED!" if last else "✅ FLOOR CLEARED"
+	title.text = Locale.t("🚪 ESCAPED!") if last else Locale.t("✅ FLOOR CLEARED")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_override("font", UITheme.font_at("display", 700))
 	title.add_theme_font_size_override("font_size", 34)
@@ -2271,7 +2275,7 @@ func _show_win_overlay() -> void:
 	box.add_child(message)
 
 	var descend := Button.new()
-	descend.text = "[ ESCAPE ]" if last else "[ DESCEND ]"
+	descend.text = Locale.t("[ ESCAPE ]") if last else Locale.t("[ DESCEND ]")
 	descend.pressed.connect(func():
 		# next_floor changes the screen, which frees this scene and its overlay.
 		RunState.next_floor())
@@ -2340,7 +2344,7 @@ func _show_pause_overlay() -> void:
 	panel.add_child(margin)
 
 	var title := Label.new()
-	title.text = "⏸ PAUSED"
+	title.text = Locale.t("⏸ PAUSED")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_override("font", UITheme.font_at("display", 700))
 	title.add_theme_font_size_override("font_size", 40)
@@ -2351,7 +2355,7 @@ func _show_pause_overlay() -> void:
 	box.add_child(AudioSettings.build_controls(true))
 
 	var resume := Button.new()
-	resume.text = "▶ Continue"
+	resume.text = Locale.t("▶ Continue")
 	resume.pressed.connect(func():
 		RunState.start_timer()
 		_clear_overlays())
@@ -2386,7 +2390,7 @@ func _show_score_history() -> void:
 	margin.add_child(box)
 
 	var title := Label.new()
-	title.text = "★ Score History — Floor %d" % (GameData.TOTAL_FLOORS - RunState.floor_index)
+	title.text = Locale.t("★ Score History — Floor %d") % (GameData.TOTAL_FLOORS - RunState.floor_index)
 	title.add_theme_font_override("font", UITheme.font_at("display", 700))
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", UITheme.GOLD)
@@ -2415,7 +2419,7 @@ func _show_score_history() -> void:
 
 	if count == 0:
 		var none := Label.new()
-		none.text = "No scoring events this floor yet."
+		none.text = Locale.t("No scoring events this floor yet.")
 		none.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		rows.add_child(none)
 	else:
@@ -2425,7 +2429,7 @@ func _show_score_history() -> void:
 			"%s%d pts" % ["+" if floor_total >= 0 else "", floor_total], UITheme.TEXT))
 
 	var close := Button.new()
-	close.text = "Close"
+	close.text = Locale.t("Close")
 	close.pressed.connect(_clear_overlays)
 	box.add_child(close)
 

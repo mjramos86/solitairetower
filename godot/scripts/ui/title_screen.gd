@@ -13,6 +13,9 @@ extends Control
 @onready var _scores_button: Button = $Center/Buttons/Scores
 @onready var _exit_button: Button = $Center/Buttons/Exit
 @onready var _keyart: TextureRect = $Keyart
+@onready var _buttons: HBoxContainer = $Center/Buttons
+
+var _options_button: Button
 
 
 func _ready() -> void:
@@ -34,9 +37,23 @@ func _ready() -> void:
 	_scores_button.pressed.connect(_on_scores)
 	_exit_button.pressed.connect(_on_exit)
 
+	# Options button, inserted before Exit — text language + audio volume.
+	_options_button = Button.new()
+	_options_button.custom_minimum_size = Vector2(170, 0)
+	_options_button.pressed.connect(func(): RunState.set_screen("options"))
+	_buttons.add_child(_options_button)
+	_buttons.move_child(_options_button, _exit_button.get_index())
+
+	# Localized labels (the scene text is the English fallback).
+	_load_button.text = Locale.t("LOAD GAME")
+	_new_button.text = Locale.t("NEW GAME")
+	_scores_button.text = Locale.t("HIGH SCORES")
+	_options_button.text = Locale.t("OPTIONS")
+	_exit_button.text = Locale.t("EXIT GAME")
+
 	# Bigger, clearly readable menu buttons — the key art leaves plenty of room.
-	for button in [_load_button, _new_button, _scores_button, _exit_button]:
-		button.custom_minimum_size = Vector2(220, 56)
+	for button in [_load_button, _new_button, _scores_button, _options_button, _exit_button]:
+		button.custom_minimum_size = Vector2(200, 56)
 		button.add_theme_font_override("font", UITheme.font("pixel"))
 		button.add_theme_font_size_override("font_size", 26)
 	_exit_button.add_theme_color_override("font_color", UITheme.MAROON)

@@ -497,7 +497,7 @@ func _build_titlebar() -> Control:
 	bar.add_child(row)
 
 	var title := Label.new()
-	title.text = "📞  Incoming Transmission -- John Dee"
+	title.text = Locale.t("📞  Incoming Transmission -- John Dee")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.add_theme_font_override("font", UITheme.font("pixel"))
 	title.add_theme_font_size_override("font_size", 18)
@@ -524,9 +524,12 @@ func _build_titlebar() -> Control:
 ## line). Join those so they never render as a bracketed array literal.
 func _beat_text(beat: Dictionary) -> String:
 	var t = beat.get("text", "")
+	var en := ""
 	if t is Array:
-		return " ".join(PackedStringArray(t.map(func(x): return str(x))))
-	return str(t)
+		en = " ".join(PackedStringArray(t.map(func(x): return str(x))))
+	else:
+		en = str(t)
+	return Locale.t(en)
 
 
 ## Reveals a label's text one character at a time. The tween runs on its own; a
@@ -560,7 +563,7 @@ func _call_content(beat: Dictionary) -> void:
 
 	if not choices.is_empty():
 		for line in choices:
-			var button := _choice_button(str(line))
+			var button := _choice_button(Locale.t(str(line)))
 			button.pressed.connect(_advance)
 			_content.add_child(button)
 		return
@@ -670,7 +673,7 @@ func _choice_button(text: String) -> Button:
 ## panel with a gold border. Full opacity and large enough to read at a glance —
 ## secondary to the choices, but never a dim afterthought.
 func _style_skip(button: Button) -> void:
-	button.text = "Skip ▸▸"
+	button.text = Locale.t("Skip ▸▸")
 	button.flat = false
 	button.add_theme_font_override("font", UITheme.font("pixel"))
 	button.add_theme_font_size_override("font_size", 20)
@@ -764,7 +767,7 @@ func _render_plain(beat: Dictionary) -> void:
 		_plain_text.add_theme_font_size_override("font_size", 30)
 		_plain_choices.visible = false
 		_plain_next.visible = true
-		_plain_next.text = str(beat.get("next_label", "Continue ▸"))
+		_plain_next.text = Locale.t(str(beat.get("next_label", "Continue ▸")))
 		_animate_type(_plain_text)
 	else:
 		# A choosing beat drops the line and the Continue button; only Skip stays.
@@ -772,7 +775,7 @@ func _render_plain(beat: Dictionary) -> void:
 		_plain_choices.visible = true
 		_plain_next.visible = false
 		for line in choices:
-			var button := _choice_button(str(line))
+			var button := _choice_button(Locale.t(str(line)))
 			button.pressed.connect(_advance)
 			_plain_choices.add_child(button)
 
@@ -782,7 +785,7 @@ func _render_call(beat: Dictionary) -> void:
 	var choosing := not (beat.get("choices", []) as Array).is_empty()
 	_call_footer.visible = not choosing
 	var last := _index == _beats.size() - 1
-	_call_next.text = "Begin" if (last and _is_intro) else "Continue ▸"
+	_call_next.text = Locale.t("Begin") if (last and _is_intro) else Locale.t("Continue ▸")
 
 
 func _show_topic_menu() -> void:
@@ -792,7 +795,7 @@ func _show_topic_menu() -> void:
 		child.queue_free()
 
 	var prompt := Label.new()
-	prompt.text = "What would you like to ask?"
+	prompt.text = Locale.t("What would you like to ask?")
 	prompt.add_theme_font_override("font", UITheme.font("pixel"))
 	prompt.add_theme_font_size_override("font_size", 26)
 	prompt.add_theme_color_override("font_color", Color.WHITE)
@@ -800,11 +803,11 @@ func _show_topic_menu() -> void:
 
 	for topic in _topics:
 		var seen := SaveManager.has_seen(_seen_key, String(topic["id"]))
-		var button := _choice_button(("✓ " if seen else "") + String(topic["question"]))
+		var button := _choice_button(("✓ " if seen else "") + Locale.t(String(topic["question"])))
 		button.pressed.connect(_open_topic.bind(topic))
 		_content.add_child(button)
 
-	var done := _choice_button("That's all for now.")
+	var done := _choice_button(Locale.t("That's all for now."))
 	done.pressed.connect(_finish)
 	_content.add_child(done)
 	_call_footer.visible = false
@@ -825,7 +828,7 @@ func _show_victory_choices() -> void:
 	for child in _content.get_children():
 		child.queue_free()
 	for i in Narrative.VICTORY_CHOICES.size():
-		var button := _choice_button(String(Narrative.VICTORY_CHOICES[i]))
+		var button := _choice_button(Locale.t(String(Narrative.VICTORY_CHOICES[i])))
 		button.pressed.connect(_choose_victory.bind(i))
 		_content.add_child(button)
 	_call_footer.visible = false

@@ -31,8 +31,8 @@ static func build_controls(on_dark: bool = true) -> Control:
 
 ## Shows the sliders centred in a Windows-95 modal — used from menu screens.
 static func open_popup(host: Node) -> void:
-	Modal.custom(host, "🔊  Sound", build_controls(false),
-		[{"text": "Done"}])
+	Modal.custom(host, Locale.t("🔊  Sound"), build_controls(false),
+		[{"text": Locale.t("Done")}])
 
 
 static func _slider_row(label_text: String, key: String, on_dark: bool, sample_sfx: bool) -> Control:
@@ -44,7 +44,7 @@ static func _slider_row(label_text: String, key: String, on_dark: bool, sample_s
 
 	var header := HBoxContainer.new()
 	var label := Label.new()
-	label.text = label_text
+	label.text = Locale.t(label_text)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.add_theme_font_override("font", UITheme.font_at("display", 600))
 	label.add_theme_font_size_override("font_size", 18)

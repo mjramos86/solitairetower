@@ -27,6 +27,8 @@ buses/default_bus_layout="res://default_bus_layout.tres"
 
 ; SaveManager first: RunState reads and writes through it on ready.
 SaveManager="*res://scripts/autoload/save_manager.gd"
+; Locale after SaveManager (it reads the saved language) and before the screens.
+Locale="*res://scripts/autoload/locale.gd"
 RunState="*res://scripts/autoload/run_state.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 ; Online leaderboard (Firestore REST). Best-effort; no-ops cleanly when offline.
