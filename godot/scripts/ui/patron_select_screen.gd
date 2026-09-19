@@ -19,16 +19,16 @@ const PORTRAIT := 176.0
 
 
 func _ready() -> void:
-	_title.text = "Choose Your Time Patron"
+	_title.text = Locale.t("Choose Your Time Patron")
 	_title.add_theme_font_override("font", UITheme.font_at("display", 700))
 	_title.add_theme_font_size_override("font_size", 34)
 	_title.add_theme_color_override("font_color", UITheme.GOLD)
 
-	_subtitle.text = "An ally for this descent, lending their nature to the wares you can purchase along the way."
+	_subtitle.text = Locale.t("An ally for this descent, lending their nature to the wares you can purchase along the way.")
 	_subtitle.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	_confirm.text = "Select John Dee to begin your descent."
+	_confirm.text = Locale.t("Select John Dee to begin your descent.")
 	_confirm.add_theme_font_override("font", UITheme.font("pixel"))
 	_confirm.add_theme_font_size_override("font_size", 14)
 	_confirm.add_theme_color_override("font_color", UITheme.TEXT_DIM)
@@ -123,7 +123,7 @@ func _build_card(patron: Dictionary) -> Control:
 	else:
 		# Revealed but not yet playable.
 		var tag := Label.new()
-		tag.text = "In development"
+		tag.text = Locale.t("In development")
 		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tag.add_theme_font_override("font", UITheme.font("pixel"))
 		tag.add_theme_font_size_override("font_size", 12)
@@ -138,7 +138,7 @@ func _patron_name(patron: Dictionary) -> String:
 	if bool(patron.get("revealed", false)) and patron.has("true_name") \
 			and SaveManager.is_patron_revealed(String(patron["id"])):
 		return String(patron["true_name"])
-	return String(patron["name"])
+	return Locale.t(String(patron["name"]))
 
 
 func _on_card_input(event: InputEvent, id: String) -> void:

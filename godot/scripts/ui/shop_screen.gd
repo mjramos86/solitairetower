@@ -106,7 +106,7 @@ func _titlebar_style() -> StyleBoxFlat:
 
 func _build_credits_window() -> void:
 	var floor_num := RunState.floor_index
-	var body := _make_window("⏳  Floor %d Cleared — Time Credits Awarded" % floor_num)
+	var body := _make_window(Locale.t("⏳  Floor %d Cleared — Time Credits Awarded") % floor_num)
 
 	var grid := HFlowContainer.new()
 	grid.add_theme_constant_override("h_separation", 8)
@@ -117,10 +117,10 @@ func _build_credits_window() -> void:
 		var earned: bool = row["earned"]
 		var amount := int(row["amount"])
 		var val := ("+%d ⏳" % amount) if earned else "—"
-		grid.add_child(_gold_stat(String(row["label"]), val, EARNED if earned else LOCKED))
+		grid.add_child(_gold_stat(Locale.t(String(row["label"])), val, EARNED if earned else LOCKED))
 
-	grid.add_child(_gold_stat("TOTAL EARNED", "+%d ⏳" % RunState.shop_gold_earned, UITheme.GOLD))
-	grid.add_child(_gold_stat("YOUR BALANCE", "%d ⏳" % RunState.gold, UITheme.GOLD))
+	grid.add_child(_gold_stat(Locale.t("TOTAL EARNED"), "+%d ⏳" % RunState.shop_gold_earned, UITheme.GOLD))
+	grid.add_child(_gold_stat(Locale.t("YOUR BALANCE"), "%d ⏳" % RunState.gold, UITheme.GOLD))
 
 
 func _gold_stat(label: String, value: String, value_color: Color) -> PanelContainer:
@@ -170,7 +170,7 @@ func _stat_style() -> StyleBoxFlat:
 # ── Item shop ────────────────────────────────────────────────────────────────
 
 func _build_items_window() -> void:
-	var body := _make_window("🏪  John Dee's Cabinet of Curiosities — %d Items Available" % RunState.shop_items.size())
+	var body := _make_window(Locale.t("🏪  John Dee's Cabinet of Curiosities — %d Items Available") % RunState.shop_items.size())
 
 	var grid := GridContainer.new()
 	grid.columns = 3
@@ -210,7 +210,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	col.add_child(icon)
 
 	var name_lbl := Label.new()
-	name_lbl.text = String(item["name"])
+	name_lbl.text = Locale.t(String(item["name"]))
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_lbl.add_theme_font_override("font", UITheme.font_at("display", 600))
@@ -229,7 +229,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	col.add_child(price)
 
 	var desc := Label.new()
-	desc.text = String(item["desc"])
+	desc.text = Locale.t(String(item["desc"]))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -239,7 +239,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	col.add_child(desc)
 
 	var use := Label.new()
-	use.text = "📋 %s" % String(item["use"])
+	use.text = "📋 %s" % Locale.t(String(item["use"]))
 	use.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	use.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	use.add_theme_font_override("font", UITheme.font("body"))  # item prose → Inter
@@ -248,7 +248,7 @@ func _build_item_card(item: Dictionary) -> Control:
 	col.add_child(use)
 
 	var best := Label.new()
-	best.text = "Best for: %s" % String(item.get("best_for", ""))
+	best.text = Locale.t("Best for: %s") % Locale.t(String(item.get("best_for", "")))
 	best.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	best.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	best.add_theme_font_override("font", UITheme.font("body"))  # item prose → Inter
@@ -258,13 +258,13 @@ func _build_item_card(item: Dictionary) -> Control:
 
 	var buy := Button.new()
 	if owned:
-		buy.text = "[ ALREADY OWNED ]"
+		buy.text = Locale.t("[ ALREADY OWNED ]")
 	elif full:
-		buy.text = "[ INVENTORY FULL ]"
+		buy.text = Locale.t("[ INVENTORY FULL ]")
 	elif not afford:
-		buy.text = "[ NEED %d MORE ⏳ ]" % (int(item["price"]) - RunState.gold)
+		buy.text = Locale.t("[ NEED %d MORE ⏳ ]") % (int(item["price"]) - RunState.gold)
 	else:
-		buy.text = "[ BUY ]"
+		buy.text = Locale.t("[ BUY ]")
 	buy.disabled = owned or full or not afford
 	_style_buy_button(buy)
 	buy.pressed.connect(func(): _buy(item))
@@ -303,7 +303,7 @@ func _tier_badge(tier: int) -> Control:
 	badge.add_theme_stylebox_override("panel", s)
 
 	var lbl := Label.new()
-	lbl.text = GameData.TIER_NAMES[clampi(tier, 0, GameData.TIER_NAMES.size() - 1)]
+	lbl.text = Locale.t(GameData.TIER_NAMES[clampi(tier, 0, GameData.TIER_NAMES.size() - 1)])
 	lbl.add_theme_font_override("font", UITheme.font("pixel"))
 	lbl.add_theme_font_size_override("font_size", 14)
 	lbl.add_theme_color_override("font_color", fg)
@@ -342,7 +342,7 @@ func _buy_style(bg: Color, border: Color) -> StyleBoxFlat:
 # ── Inventory ────────────────────────────────────────────────────────────────
 
 func _build_inventory_window() -> void:
-	var body := _make_window("🎒  Your Inventory (%d/%d slots)" % [RunState.inventory.size(), GameData.INVENTORY_SLOTS])
+	var body := _make_window(Locale.t("🎒  Your Inventory (%d/%d slots)") % [RunState.inventory.size(), GameData.INVENTORY_SLOTS])
 
 	var grid := HFlowContainer.new()
 	grid.add_theme_constant_override("h_separation", 8)
@@ -356,7 +356,7 @@ func _build_inventory_window() -> void:
 
 	if RunState.inventory.size() >= GameData.INVENTORY_SLOTS:
 		var warn := Label.new()
-		warn.text = "⚠ Inventory full! Use or drop items in-game."
+		warn.text = Locale.t("⚠ Inventory full! Use or drop items in-game.")
 		warn.add_theme_font_override("font", UITheme.font("pixel"))
 		warn.add_theme_font_size_override("font_size", 16)
 		warn.add_theme_color_override("font_color", UITheme.MAROON)
@@ -378,7 +378,7 @@ func _inv_card(item: Dictionary) -> PanelContainer:
 	panel.add_theme_stylebox_override("panel", s)
 
 	var lbl := Label.new()
-	lbl.text = "%s  %s" % [item["icon"], item["name"]]
+	lbl.text = "%s  %s" % [item["icon"], Locale.t(item["name"])]
 	lbl.add_theme_font_override("font", UITheme.font("pixel"))
 	lbl.add_theme_font_size_override("font_size", 16)
 	lbl.add_theme_color_override("font_color", UITheme.TEXT)
@@ -401,7 +401,7 @@ func _inv_empty() -> PanelContainer:
 	panel.add_theme_stylebox_override("panel", s)
 
 	var lbl := Label.new()
-	lbl.text = "[ empty ]"
+	lbl.text = Locale.t("[ empty ]")
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_override("font", UITheme.font("pixel"))
 	lbl.add_theme_font_size_override("font_size", 16)
@@ -428,7 +428,7 @@ func _build_continue_row() -> void:
 	margin.add_child(row)
 
 	var btn := Button.new()
-	btn.text = "⚔  Continue to the Tower"
+	btn.text = Locale.t("⚔  Continue to the Tower")
 	_style_buy_button(btn)
 	btn.custom_minimum_size = Vector2(260, 0)
 	btn.pressed.connect(func(): RunState.set_screen("map"))
@@ -446,5 +446,5 @@ func _buy(item: Dictionary) -> void:
 		return
 	RunState.gold -= int(item["price"])
 	RunState.inventory.append(item)
-	RunState.toast.emit("Acquired %s" % item["name"])
+	RunState.toast.emit(Locale.t("Acquired %s") % Locale.t(item["name"]))
 	RunState.state_changed.emit()

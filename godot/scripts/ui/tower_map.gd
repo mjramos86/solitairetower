@@ -187,7 +187,7 @@ func _build_options() -> void:
 	var buttons: Array[Button] = []
 	for type in types:
 		var button := Button.new()
-		button.text = "%s %s" % [GameData.ICONS.get(type, ""), GameData.NAMES.get(type, type)]
+		button.text = "%s %s" % [GameData.ICONS.get(type, ""), Locale.t(GameData.NAMES.get(type, type))]
 		button.focus_mode = Control.FOCUS_NONE
 		button.custom_minimum_size = OPT_SIZE
 		button.size = OPT_SIZE

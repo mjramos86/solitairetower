@@ -20,16 +20,16 @@ const CARD_H := CARD_W / UITheme.CARD_ASPECT
 
 
 func _ready() -> void:
-	_title.text = "Choose Your Cardback"
+	_title.text = Locale.t("Choose Your Cardback")
 	_title.add_theme_font_override("font", UITheme.font_at("display", 700))
 	_title.add_theme_font_size_override("font_size", 34)
 	_title.add_theme_color_override("font_color", UITheme.GOLD)
 
-	_subtitle.text = "Locked designs are revealed by uncovering a Time Patron's connection to Solitaire in the Compendium."
+	_subtitle.text = Locale.t("Locked designs are revealed by uncovering a Time Patron's connection to Solitaire in the Compendium.")
 	_subtitle.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	_back_button.text = "← Back to Tower"
+	_back_button.text = Locale.t("← Back to Tower")
 	_back_button.pressed.connect(func(): RunState.set_screen(RunState.cardback_return))
 
 	_refresh()
@@ -99,7 +99,7 @@ func _build_card(entry: Dictionary, current: String) -> Control:
 		art.add_child(lock)
 
 	var name_label := Label.new()
-	name_label.text = String(entry["name"]) + (" ✓" if is_current else "")
+	name_label.text = Locale.t(String(entry["name"])) + (" ✓" if is_current else "")
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.add_theme_font_override("font", UITheme.font_at("display", 600))
@@ -115,7 +115,7 @@ func _build_card(entry: Dictionary, current: String) -> Control:
 		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	else:
 		var hint := Label.new()
-		hint.text = "Locked"
+		hint.text = Locale.t("Locked")
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		col.add_child(hint)

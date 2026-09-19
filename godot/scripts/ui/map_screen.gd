@@ -46,6 +46,8 @@ func _ready() -> void:
 	_tagline.add_theme_font_size_override("font_size", 22)
 	_tagline.add_theme_color_override("font_color", UITheme.GOLD)
 
+	_sub.text = Locale.t(_sub.text)
+	_tagline.text = Locale.t(_tagline.text)
 	_style_scores_panel()
 	_build_music_credits()
 
@@ -187,7 +189,7 @@ func _labeled(label_text: String, content: Control) -> Control:
 	box.add_theme_constant_override("separation", 2)
 
 	var label := Label.new()
-	label.text = label_text.to_upper()
+	label.text = Locale.t(label_text).to_upper()
 	label.add_theme_font_override("font", UITheme.font_at("display", 600))
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", UITheme.GOLD)
@@ -280,10 +282,10 @@ func _inventory_slots() -> Control:
 		var label := Label.new()
 		if i < RunState.inventory.size():
 			var item: Dictionary = RunState.inventory[i]
-			label.text = "%s %s" % [item["icon"], item["name"]]
+			label.text = "%s %s" % [item["icon"], Locale.t(item["name"])]
 			label.add_theme_color_override("font_color", UITheme.TEXT)
 		else:
-			label.text = "[ empty ]"
+			label.text = Locale.t("[ empty ]")
 			label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		label.add_theme_font_override("font", UITheme.font("pixel"))
 		label.add_theme_font_size_override("font_size", 22)
@@ -294,7 +296,7 @@ func _inventory_slots() -> Control:
 ## Transparent, gold-outlined button in the pixel font, as .map-watch-intro-btn.
 func _panel_button(text: String, action: Callable) -> Button:
 	var button := Button.new()
-	button.text = text
+	button.text = Locale.t(text)
 	button.add_theme_font_override("font", UITheme.font("pixel"))
 	button.add_theme_font_size_override("font_size", 23)
 	button.add_theme_color_override("font_color", Color(UITheme.GOLD, 0.85))
@@ -374,6 +376,7 @@ func _style_scores_panel() -> void:
 	band.content_margin_right = 14
 	band.content_margin_top = 8
 	band.content_margin_bottom = 8
+	_scores_title.text = Locale.t(_scores_title.text)
 	_scores_title.add_theme_stylebox_override("normal", band)
 	_scores_title.add_theme_font_override("font", UITheme.font_at("display", 700))
 	_scores_title.add_theme_font_size_override("font_size", 22)
@@ -397,7 +400,7 @@ func _refresh_scores() -> void:
 
 	if merged.is_empty():
 		var none := Label.new()
-		none.text = "No runs recorded yet."
+		none.text = Locale.t("No runs recorded yet.")
 		_score_font(none, UITheme.TEXT_DIM)
 		none.add_theme_constant_override("margin_left", 12)
 		_scores.add_child(_pad_row(none, false))

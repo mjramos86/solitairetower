@@ -52,6 +52,7 @@ func _ready() -> void:
 		_entries.append(l)
 
 	_style_chrome()
+	_title.text = Locale.t(_title.text)
 	_build_footer()
 	_close_button.pressed.connect(func(): RunState.set_screen("map"))
 	# Opening the compendium clears the "new content" badge on the map.
@@ -130,7 +131,7 @@ func _build_footer() -> void:
 	var row := HBoxContainer.new()
 	_footer.add_child(row)
 
-	var prev := _footer_button("← Prev")
+	var prev := _footer_button(Locale.t("← Prev"))
 	prev.pressed.connect(func(): _step_page(-1))
 	row.add_child(prev)
 
@@ -138,7 +139,7 @@ func _build_footer() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 
-	var next := _footer_button("Next →")
+	var next := _footer_button(Locale.t("Next →"))
 	next.pressed.connect(func(): _step_page(1))
 	row.add_child(next)
 
@@ -147,7 +148,7 @@ func _build_footer() -> void:
 
 func _footer_button(text: String) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = Locale.t(text)
 	b.add_theme_font_override("font", UITheme.font("pixel"))
 	b.add_theme_font_size_override("font_size", 14)
 	b.add_theme_color_override("font_color", UITheme.GOLD)
@@ -199,8 +200,8 @@ func _lore_unlocked(entry: Dictionary) -> bool:
 
 func _display_name(entry: Dictionary) -> String:
 	if _entry_revealed(entry) and entry.has("true_name"):
-		return String(entry["true_name"])
-	return String(entry["name"])
+		return Locale.t(String(entry["true_name"]))
+	return Locale.t(String(entry["name"]))
 
 
 ## John Dee's link to Solitaire only becomes purchasable after his third
@@ -212,7 +213,7 @@ func _connection_available(entry: Dictionary) -> bool:
 
 
 func _refresh() -> void:
-	_credits.text = "⚡ Time Energy: %d" % int(SaveManager.profile.get("banked_credits", 0))
+	_credits.text = Locale.t("⚡ Time Energy: %d") % int(SaveManager.profile.get("banked_credits", 0))
 
 	for child in _list.get_children():
 		child.queue_free()
@@ -221,7 +222,7 @@ func _refresh() -> void:
 		var entry: Dictionary = _entries[i]
 		var visible := _entry_unlocked(entry)
 		var button := Button.new()
-		button.text = _display_name(entry) if visible else "Unknown Patron"
+		button.text = _display_name(entry) if visible else Locale.t("Unknown Patron")
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		# Wrap long names (e.g. "Mary, Queen of Scots") instead of clipping them.
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -230,7 +231,7 @@ func _refresh() -> void:
 			button.expand_icon = true
 			button.add_theme_constant_override("icon_max_width", 28)
 		elif not visible:
-			button.text = "🔒  Unknown Patron"
+			button.text = Locale.t("🔒  Unknown Patron")
 		var idx := i
 		button.pressed.connect(func():
 			_selected = idx
@@ -315,7 +316,7 @@ func _build_timeline() -> void:
 	_list.add_child(sep)
 
 	var heading := Label.new()
-	heading.text = "TIMELINE OF CIVILIZATION"
+	heading.text = Locale.t("TIMELINE OF CIVILIZATION")
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_override("font", UITheme.font_at("display", 600))
 	heading.add_theme_font_size_override("font_size", 12)
@@ -330,7 +331,7 @@ func _build_timeline() -> void:
 	var tl := _timeline_entries()
 	if tl.is_empty():
 		var empty := Label.new()
-		empty.text = "No connections to the historical record have been uncovered yet."
+		empty.text = Locale.t("No connections to the historical record have been uncovered yet.")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_theme_font_override("font", UITheme.font("body"))
@@ -480,7 +481,7 @@ func _add_entry_head(entry: Dictionary, visible: bool) -> void:
 	head.add_child(portrait)
 
 	var name_label := Label.new()
-	name_label.text = _display_name(entry) if visible else "Unknown Patron"
+	name_label.text = _display_name(entry) if visible else Locale.t("Unknown Patron")
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -494,7 +495,7 @@ func _add_entry_head(entry: Dictionary, visible: bool) -> void:
 
 func _add_heading(text: String) -> void:
 	var label := Label.new()
-	label.text = text
+	label.text = Locale.t(text)
 	label.add_theme_font_override("font", UITheme.font_at("display", 600))
 	label.add_theme_font_size_override("font_size", 20)
 	label.add_theme_color_override("font_color", UITheme.GOLD)
@@ -504,7 +505,7 @@ func _add_heading(text: String) -> void:
 ## The italic .compendium-subsection-title used inside Recorded Transmissions.
 func _add_subheading(text: String) -> void:
 	var label := Label.new()
-	label.text = text
+	label.text = Locale.t(text)
 	label.add_theme_font_override("font", UITheme.font_at("title", 400))
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", UITheme.GOLD)
@@ -513,7 +514,7 @@ func _add_subheading(text: String) -> void:
 
 func _add_paragraph(text: String) -> void:
 	var label := Label.new()
-	label.text = text
+	label.text = Locale.t(text)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_font_override("font", UITheme.font("body"))
 	label.add_theme_font_size_override("font_size", 20)
@@ -538,8 +539,8 @@ func _add_connection_section(entry: Dictionary) -> void:
 
 	var button := Button.new()
 	var banked := int(SaveManager.profile.get("banked_credits", 0))
-	button.text = "UNCOVER (%d ⚡)" % cost if banked >= cost \
-		else "NEED %d MORE ⚡" % (cost - banked)
+	button.text = Locale.t("UNCOVER (%d ⚡)") % cost if banked >= cost \
+		else Locale.t("NEED %d MORE ⚡") % (cost - banked)
 	button.disabled = banked < cost
 	button.pressed.connect(func():
 		if SaveManager.spend_banked_credits(cost):
@@ -614,13 +615,13 @@ func _add_transcript(beats: Array) -> void:
 		line.add_theme_font_override("font", UITheme.font("body"))
 		line.add_theme_font_size_override("font_size", 18)
 		if is_narration:
-			line.text = String(beat.get("text", ""))
+			line.text = Locale.t(String(beat.get("text", "")))
 			line.add_theme_color_override("font_color", Color(UITheme.TEXT, 0.85))
 		elif beat.has("choices"):
-			line.text = "You: " + ", ".join(_as_string_array(beat["choices"]))
+			line.text = Locale.t("You: ") + ", ".join(_fr_array(_as_string_array(beat["choices"])))
 			line.add_theme_color_override("font_color", PAGE_TEXT)
 		else:
-			var label := "Dee" if String(beat.get("speaker", "")) == "dee" else "You"
+			var label := "Dee" if String(beat.get("speaker", "")) == "dee" else Locale.t("You")
 			line.text = "%s: %s" % [label, _beat_text(beat)]
 			line.add_theme_color_override("font_color", PAGE_TEXT)
 		block.add_child(line)
@@ -630,11 +631,18 @@ func _add_transcript(beats: Array) -> void:
 
 ## A beat's `text` is usually a String, but a couple of "you" beats in the web
 ## data are single-element arrays; normalise both.
+func _fr_array(arr: Array) -> Array:
+	var out := []
+	for x in arr:
+		out.append(Locale.t(str(x)))
+	return out
+
+
 func _beat_text(beat: Dictionary) -> String:
 	var t = beat.get("text", "")
 	if t is Array:
-		return ", ".join(_as_string_array(t))
-	return String(t)
+		return ", ".join(_fr_array(_as_string_array(t)))
+	return Locale.t(String(t))
 
 
 func _as_string_array(a) -> PackedStringArray:
@@ -721,7 +729,7 @@ func _unlock_style(bg: Color, border: Color) -> StyleBoxFlat:
 ## so there is deliberately no unlock button here.
 func _add_dev_note() -> void:
 	var note := Label.new()
-	note.text = "⚙ This Time Patron is still in development and cannot yet be selected."
+	note.text = Locale.t("⚙ This Time Patron is still in development and cannot yet be selected.")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.add_theme_font_override("font", UITheme.font("body"))
 	note.add_theme_font_size_override("font_size", 16)

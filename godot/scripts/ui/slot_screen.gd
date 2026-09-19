@@ -20,7 +20,7 @@ func _ready() -> void:
 	_title.add_theme_font_override("font", UITheme.font_at("title", 900))
 	_title.add_theme_font_size_override("font_size", 40)
 	_title.add_theme_color_override("font_color", UITheme.GOLD)
-	_title.text = "NEW GAME" if RunState.slot_mode == "new" else "LOAD GAME"
+	_title.text = Locale.t("NEW GAME") if RunState.slot_mode == "new" else Locale.t("LOAD GAME")
 
 	_back.pressed.connect(func(): RunState.set_screen("title"))
 	_build_slots()
@@ -50,7 +50,7 @@ func _build_slot(summary: Dictionary) -> Control:
 	panel.add_child(margin)
 
 	var head := Label.new()
-	head.text = "SLOT %d" % (index + 1)
+	head.text = Locale.t("SLOT %d") % (index + 1)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.add_theme_font_override("font", UITheme.font_at("display", 600))
 	head.add_theme_font_size_override("font_size", 13)
@@ -96,9 +96,9 @@ func _fill_used_slot(box: VBoxContainer, summary: Dictionary) -> void:
 
 	var progress := Label.new()
 	if bool(summary.get("has_run", false)):
-		progress.text = "Floor %d of %d" % [int(summary.get("floor", 10)), GameData.TOTAL_FLOORS]
+		progress.text = Locale.t("Floor %d of %d") % [int(summary.get("floor", 10)), GameData.TOTAL_FLOORS]
 	else:
-		progress.text = "No run in progress"
+		progress.text = Locale.t("No run in progress")
 	progress.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	progress.add_theme_color_override("font_color", UITheme.TEXT)
 	box.add_child(progress)
@@ -114,7 +114,7 @@ func _fill_used_slot(box: VBoxContainer, summary: Dictionary) -> void:
 
 func _fill_empty_slot(box: VBoxContainer) -> void:
 	var empty := Label.new()
-	empty.text = "— Empty —"
+	empty.text = Locale.t("— Empty —")
 	empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	empty.add_theme_font_override("font", UITheme.font_at("display", 500))
 	empty.add_theme_font_size_override("font_size", 18)

@@ -65,7 +65,7 @@ func _build_controls() -> void:
 	sync_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	sync_row.add_theme_constant_override("separation", 12)
 	_sync_button = Button.new()
-	_sync_button.text = "⟳ Sync now"
+	_sync_button.text = Locale.t("⟳ Sync now")
 	_sync_button.add_theme_font_override("font", UITheme.font("pixel"))
 	_sync_button.add_theme_font_size_override("font_size", 13)
 	_sync_button.pressed.connect(_on_sync)
@@ -128,7 +128,7 @@ func _refresh_status() -> void:
 		"error":
 			text = "Sync failed — will retry"
 		_:
-			text = "Online ✓" if _mode == "combined" else ""
+			text = Locale.t("Online ✓") if _mode == "combined" else ""
 	if pending > 0:
 		text += ("  •  " if text != "" else "") + "%d not yet uploaded" % pending
 	_status.text = text
@@ -147,7 +147,7 @@ func _build_rows() -> void:
 
 	if entries.is_empty():
 		var none := Label.new()
-		none.text = "No runs recorded yet." if _mode == "local" else "No scores to show yet."
+		none.text = Locale.t("No runs recorded yet.") if _mode == "local" else Locale.t("No scores to show yet.")
 		none.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		_rows.add_child(none)
 		return

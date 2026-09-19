@@ -63,6 +63,7 @@ static func default_profile() -> Dictionary:
 		"banked_credits": 0,
 		"unlocked_connections": [],
 		"cardback": "classic",
+		"language": "en",
 		"dee_checkin_done": false,
 		"seen_dee_topics": [],
 		"dee_dialogue3_done": false,
