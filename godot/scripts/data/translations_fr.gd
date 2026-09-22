@@ -73,7 +73,7 @@ const MAP := {
 	"Resume": "Reprendre",
 	"Restart Floor": "Recommencer l’étage",
 	"Abandon Run": "Abandonner la descente",
-	"Re-deal this floor with a fresh shuffle?\n\nYou will lose a life.": "Redistribuer cet étage avec un nouveau Arrangement ?\n\nVous perdrez une vie.",
+	"Re-deal this floor with a fresh shuffle?\n\nYou will lose a life.": "Redistribuer cet étage avec un nouvel arrangement ?\n\nVous perdrez une vie.",
 	"Abandon this floor?\n\nYou will lose a life and return to the map.": "Abandonner cet étage ?\n\nVous perdrez une vie et retournerez à la carte.",
 	"Floor Cleared!": "Étage réussi !",
 	"You Win!": "Victoire !",
@@ -421,7 +421,7 @@ const MAP := {
 	"Not quite. When you leave the building, time will reset. You will have to do it again. To put it in simple terms: we cannot do it alone. You are performing a summoning ritual.": "Pas tout à fait. Quand vous quitterez l’immeuble, le temps se réinitialisera. Vous devrez recommencer. En termes simples : nous ne pouvons y arriver seuls. Vous accomplissez un rituel d’invocation.",
 	"Who I am summoning?": "Qui suis-je en train d’invoquer ?",
 	"Your other patrons through the ages. People who by fate or by chance got close to the Sacred Shuffle and whose destinies were forever intertwined with the cosmic mathematics of Solitaire.": "Vos autres mécènes à travers les âges. Des gens que le destin ou le hasard a rapprochés de l'Arrangement Sacré et dont les destinées se sont à jamais entrelacées avec les mathématiques cosmiques du Solitaire.",
-	"Kings, Queens, Emperors, Prisoners, Poets and Adventures, among others.": "Des rois, des reines, des empereurs, des prisonniers, des poètes et des aventuriers, entre autres.",
+	"Kings, Queens, Emperors, Prisoners, Poets and Adventurers, among others.": "Des rois, des reines, des empereurs, des prisonniers, des poètes et des aventuriers, entre autres.",
 
 	# ══════════════════════════════════════════════════════════════════════════
 	#  Dialogue — Dee (third transmission, after floor 6)

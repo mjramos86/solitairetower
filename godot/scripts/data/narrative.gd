@@ -513,7 +513,7 @@ const DEE_CHECKIN_TOPICS := [
 			},
 			{
 				"speaker": "dee",
-				"text": "Kings, Queens, Emperors, Prisoners, Poets and Adventures, among others."
+				"text": "Kings, Queens, Emperors, Prisoners, Poets and Adventurers, among others."
 			}
 		]
 	}
