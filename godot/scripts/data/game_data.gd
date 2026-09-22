@@ -135,9 +135,9 @@ const SHOP_ITEMS := [
 ## Selectable card backs. `requires_reveal` gates a back behind a patron reveal.
 const CARDBACKS := [
 	{"id": "classic", "name": "The Solitaire Tower", "unlocked": true},
-	{"id": "cult", "name": "The Cult", "unlocked": true},
-	{"id": "dee", "name": "John Dee's Sigil", "unlocked": true},
-	{"id": "marie", "name": "Mary's Cipher", "unlocked": false, "requires_reveal": "marie"},
+	{"id": "cult", "name": "The King of Hearts", "unlocked": true},
+	{"id": "dee", "name": "John Dee's portrait", "unlocked": true},
+	{"id": "marie", "name": "Mary Stuart's portrait", "unlocked": false, "requires_reveal": "marie"},
 ]
 
 

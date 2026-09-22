@@ -35,6 +35,7 @@ const MAP := {
 	# ══════════════════════════════════════════════════════════════════════════
 	#  Map / tower hub
 	# ══════════════════════════════════════════════════════════════════════════
+	"Royalty-free music from Pixabay.com": "Musique libre de droits de pixabay.com",
 	"A narrative horror roguelike Solitaire by Emjayhar": "Un Solitaire roguelike, narratif et d’horreur par Emjayhar",
 	"Face the Cult of Patience and uncover the occult secret history of Solitaire": "Affrontez le Culte de la Patience et découvrez l’histoire secrète et occulte du Solitaire",
 	"PLAYER": "JOUEUR",
@@ -217,9 +218,9 @@ const MAP := {
 	#  Cardbacks
 	# ══════════════════════════════════════════════════════════════════════════
 	"The Solitaire Tower": "La Tour du Solitaire",
-	"The Cult": "Le Culte",
-	"John Dee's Sigil": "Le sceau de John Dee",
-	"Mary's Cipher": "Le chiffre de Mary",
+	"The King of Hearts": "Le Roi de cœur",
+	"John Dee's portrait": "Portrait de John Dee",
+	"Mary Stuart's portrait": "Portrait de Mary Stuart",
 
 	# ══════════════════════════════════════════════════════════════════════════
 	#  Patron select

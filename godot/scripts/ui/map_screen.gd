@@ -92,7 +92,7 @@ func _build_music_credits() -> void:
 	_credits.alignment = BoxContainer.ALIGNMENT_END
 	_credits.add_theme_constant_override("separation", 1)
 
-	var head := _credit_line("Royalty-free music from Pixabay.com", UITheme.GOLD)
+	var head := _credit_line(Locale.t("Royalty-free music from Pixabay.com"), UITheme.GOLD)
 	_credits.add_child(head)
 	for line in MUSIC_CREDITS:
 		_credits.add_child(_credit_line(line, CREDITS_BODY))
