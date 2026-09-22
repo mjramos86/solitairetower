@@ -35,7 +35,7 @@ const MAP := {
 	# ══════════════════════════════════════════════════════════════════════════
 	#  Map / tower hub
 	# ══════════════════════════════════════════════════════════════════════════
-	"A narrative horror roguelike Solitaire by Emjayhar": "Un solitaire roguelike d’horreur narrative par Emjayhar",
+	"A narrative horror roguelike Solitaire by Emjayhar": "Un Solitaire roguelike, narratif et d’horreur par Emjayhar",
 	"Face the Cult of Patience and uncover the occult secret history of Solitaire": "Affrontez le Culte de la Patience et découvrez l’histoire secrète et occulte du Solitaire",
 	"PLAYER": "JOUEUR",
 	"LIVES": "VIES",
