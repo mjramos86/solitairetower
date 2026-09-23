@@ -2289,8 +2289,8 @@ func _show_win_overlay() -> void:
 	box.add_child(title)
 
 	var message := Label.new()
-	message.text = ("You burst into the streets! You are FREE!" if last
-		else "Staircase found. Descending…")
+	message.text = (Locale.t("You burst into the streets! You are FREE!") if last
+		else Locale.t("Staircase found. Descending…"))
 	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	message.add_theme_color_override("font_color", UITheme.TEXT)

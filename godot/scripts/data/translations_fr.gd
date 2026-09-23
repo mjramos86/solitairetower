@@ -286,6 +286,8 @@ const MAP := {
 	"Floor %d of 10": "Étage %d sur 10",
 	"🚪 ESCAPED!": "🚪 ÉVADÉ !",
 	"✅ FLOOR CLEARED": "✅ ÉTAGE RÉUSSI",
+	"You burst into the streets! You are FREE!": "Vous jaillissez dans les rues ! Vous êtes LIBRE !",
+	"Staircase found. Descending…": "Escalier trouvé. Vous descendez…",
 	"[ ESCAPE ]": "[ S’ÉVADER ]",
 	"[ DESCEND ]": "[ DESCENDRE ]",
 	"⏸ PAUSED": "⏸ EN PAUSE",

@@ -1638,6 +1638,21 @@ func test_item_effects() -> void:
 	res = ItemEffects.resolve_mode(r["mode"], {"kind": "tableau", "col": 6, "index": 0})
 	check(not res["consumed"], "compass refuses an already face-up card")
 
+	# Brass Compass also reveals a covered pyramid card in TriPeaks.
+	check(ItemEffects.usable_in("flip-card", "tripeaks"), "compass usable in tripeaks")
+	RunState.start_game("tripeaks", 5)
+	var covered := -1
+	for i in RunState.gs["pyramid"].size():
+		var pc = RunState.gs["pyramid"][i]
+		if pc != null and not pc["face_up"]:
+			covered = i
+			break
+	check(covered >= 0, "tripeaks has a covered card")
+	r = ItemEffects.activate(GameData.item_by_id("paperclip"), 0)
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "pyramid", "index": covered})
+	check(res["consumed"], "compass flips a covered tripeaks card")
+	check(RunState.gs["pyramid"][covered]["face_up"], "the pyramid card is now face-up")
+
 	# ── Angelic Besom: sweeps a top card to an empty column ──
 	RunState.start_game("spider", 5)
 	r = ItemEffects.activate(GameData.item_by_id("broom"), 0)
