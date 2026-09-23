@@ -137,6 +137,15 @@ func _ready() -> void:
 	_rebuild()
 
 
+## Keeps the play timer rolling in real time. The status bar otherwise only
+## refreshes on a move, so without this the clock appeared to update only when a
+## card was clicked. When the timer is stopped (pause, floor cleared) format_
+## elapsed returns the frozen value, so the display just holds steady.
+func _process(_delta: float) -> void:
+	if _status_panes.size() > 4 and not RunState.gs.is_empty():
+		_status_panes[4].text = "⏱ %s" % RunState.format_elapsed()
+
+
 ## Applies the Windows-95 desktop look the web build wrapped the table in: a
 ## beveled grey window, a dark gradient title bar, a toolbar, a sunken felt board
 ## and a status bar. Done here rather than in the .tscn so the exact CSS colours
@@ -1733,7 +1742,7 @@ func _begin_selection(meta: Dictionary) -> bool:
 	if kind == "tableau":
 		var pile: Array = gs["tableau"][meta["col"]]
 		var idx := int(meta.get("index", pile.size() - 1))
-		if idx >= pile.size() or not pile[idx]["face_up"]:
+		if idx < 0 or idx >= pile.size() or not pile[idx]["face_up"]:
 			return false
 		# A run must be legally movable as a unit before it can be picked up.
 		if gs["type"] == "klondike" and not _is_valid_run(pile, idx):
@@ -1838,13 +1847,26 @@ func _handle_target(target: Dictionary) -> void:
 		return
 
 	var moved := _try_move(_selection, target)
-	_selection = {}
 	if moved:
+		_selection = {}
 		AudioManager.card_moved()
 		_after_move()
-	else:
-		_rebuild()
-		_reject_feedback(target)  # illegal destination for the held run
+		return
+
+	# The held run can't go on the clicked card. Rather than punishing the click
+	# (which forced an annoying "click twice" — the first click consumed by a
+	# stale selection, e.g. clicking an Ace and getting a shake, then it works),
+	# drop the selection and treat the click as a fresh action on the clicked
+	# card: auto-play it, else re-select it. Only a card with no legal action at
+	# all gets the refusal shake.
+	_selection = {}
+	if _auto_play(target):
+		return
+	if _begin_selection(target):
+		return
+	_rebuild()  # clear the old selection highlight
+	if _is_faceup_card(target):
+		_reject_feedback(target)
 
 
 ## Applies a move if the rules allow it. Returns whether the board changed.
