@@ -71,6 +71,16 @@ func _style_chrome() -> void:
 	frame.set_corner_radius_all(6)
 	_frame.add_theme_stylebox_override("panel", frame)
 
+	# Let the window fill much more of the screen than the fixed 880-wide box, and
+	# widen the left nav so the bigger menu text fits without wrapping.
+	_frame.custom_minimum_size = Vector2(1200, 0)
+	_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_nav.custom_minimum_size.x = 280
+	var outer := $Margin as MarginContainer
+	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		outer.add_theme_constant_override(side, 14)
+
 	var bar := StyleBoxFlat.new()
 	bar.bg_color = UITheme.W95_TITLEBAR2  # #2e2010, the gradient's light end
 	bar.border_width_bottom = 2
@@ -247,11 +257,12 @@ func _refresh() -> void:
 ## Cinzel nav entry: transparent normally, gold-outlined when active — the
 ## .compendium-nav-item / .active rules.
 func _style_nav_item(button: Button, active: bool, visible: bool) -> void:
-	button.add_theme_font_override("font", UITheme.font_at("display", 500))
-	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_font_override("font", UITheme.font_at("display", 600))
+	button.add_theme_font_size_override("font_size", 20)
+	button.custom_minimum_size.y = 46
 	var fg := UITheme.GOLD if active else UITheme.TEXT
 	if not visible:
-		fg = Color(UITheme.TEXT, 0.6)  # .locked { opacity:.6 }
+		fg = Color(UITheme.TEXT, 0.85)  # locked, but still clearly legible
 	button.add_theme_color_override("font_color", fg)
 	button.add_theme_color_override("font_hover_color", UITheme.GOLD if visible else fg)
 	button.add_theme_color_override("font_pressed_color", UITheme.GOLD)
@@ -273,10 +284,10 @@ func _nav_item_style(bg: Color, border: Color) -> StyleBoxFlat:
 	s.set_border_width_all(1)
 	s.border_color = border
 	s.set_corner_radius_all(4)
-	s.content_margin_left = 10
-	s.content_margin_right = 10
-	s.content_margin_top = 8
-	s.content_margin_bottom = 8
+	s.content_margin_left = 14
+	s.content_margin_right = 14
+	s.content_margin_top = 11
+	s.content_margin_bottom = 11
 	return s
 
 
@@ -319,7 +330,7 @@ func _build_timeline() -> void:
 	heading.text = Locale.t("TIMELINE OF CIVILIZATION")
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.add_theme_font_override("font", UITheme.font_at("display", 600))
-	heading.add_theme_font_size_override("font_size", 12)
+	heading.add_theme_font_size_override("font_size", 15)
 	heading.add_theme_color_override("font_color", UITheme.GOLD)
 	_list.add_child(heading)
 
@@ -390,7 +401,7 @@ func _timeline_node(entry: Dictionary) -> Control:
 	label.text = _display_name(entry)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_override("font", UITheme.font("pixel"))
-	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_font_size_override("font_size", 14)
 	label.add_theme_color_override("font_color", UITheme.TEXT)
 	wrap.add_child(label)
 
@@ -398,7 +409,7 @@ func _timeline_node(entry: Dictionary) -> Control:
 	year.text = _fmt_year(int(entry["year"]))
 	year.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	year.add_theme_font_override("font", UITheme.font("pixel"))
-	year.add_theme_font_size_override("font_size", 9)
+	year.add_theme_font_size_override("font_size", 12)
 	year.add_theme_color_override("font_color", UITheme.GOLD)
 	wrap.add_child(year)
 
