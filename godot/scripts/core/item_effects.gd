@@ -42,9 +42,13 @@ static func usable_in(effect: String, type: String) -> bool:
 			return ["klondike", "tripeaks", "pyramid"].has(type)
 		"extra-cycle", "free-cycle":
 			return ["klondike", "pyramid"].has(type)
-		"reveal-all", "flip-card":
-			# Both act on face-down cards, which only Klondike and Spider deal.
+		"reveal-all":
+			# Acts on the tableau's face-down cards — Klondike and Spider only.
 			return ["klondike", "spider"].has(type)
+		"flip-card":
+			# Brass Compass reveals a hidden card: a face-down tableau card in
+			# Klondike/Spider, or a covered pyramid card in TriPeaks.
+			return ["klondike", "spider", "tripeaks"].has(type)
 		"ace-to-found":
 			return ["klondike", "freecell"].has(type)
 		"extra-freecell":
@@ -368,8 +372,21 @@ static func resolve_mode(mode: Dictionary, slot: Dictionary) -> Dictionary:
 			return _result(true, "Card removed from play.")
 
 		"flip-card":
+			# TriPeaks: reveal a covered (face-down) card in the pyramid.
+			if kind == "pyramid" and String(gs.get("type", "")) == "tripeaks":
+				var peak: Array = gs["pyramid"]
+				var pidx := int(slot.get("index", -1))
+				if pidx < 0 or pidx >= peak.size() or peak[pidx] == null:
+					return _result(false, "Nothing there to flip.")
+				if peak[pidx]["face_up"]:
+					return _result(false, "Card is already face-up!")
+				RunState.push_undo()
+				var ps := Cards.clone_state(gs)
+				ps["pyramid"][pidx]["face_up"] = true
+				RunState.gs = ps
+				return _result(true, "Card flipped.")
 			if kind != "tableau":
-				return _result(false, "Click a face-down tableau card!")
+				return _result(false, "Click a face-down card!")
 			var pile: Array = gs["tableau"][slot["col"]]
 			var idx := int(slot.get("index", -1))
 			if idx < 0 or idx >= pile.size():
