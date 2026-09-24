@@ -21,10 +21,10 @@ One upload ships all three platforms; each has its own depot and depot script.
    warning otherwise, and unreferenced depots never reach players.
 3. Make sure each build folder exists and contains that platform's release build
    with `steam_appid.txt` (exactly `5007930`) and the Steam runtime library:
-   - `build\windows\` — `SolitaireTowerOfDoom.exe` + data + `steam_api64.dll`
-   - `build\mac\` — `SolitaireTowerOfDoom.app` (with `libsteam_api.dylib` inside
-     `SolitaireTowerOfDoom.app/Contents/MacOS/`); sign/notarise it first
-   - `build\linux\` — `SolitaireTowerOfDoom.x86_64` + data + `libsteam_api.so`
+   - `build\windows\` — `SolitaireTowerofDoom.exe` + data + `steam_api64.dll`
+   - `build\mac\` — `SolitaireTowerofDoom.app` (with `libsteam_api.dylib` inside
+     `SolitaireTowerofDoom.app/Contents/MacOS/`); sign/notarise it first
+   - `build\linux\` — `SolitaireTowerofDoom.x86_64` + data + `libsteam_api.so`
 
 ## Upload
 From `<steamworks_sdk>\tools\ContentBuilder\builder\`:

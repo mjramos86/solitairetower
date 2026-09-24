@@ -6,7 +6,7 @@
 	// package never reaches players.
 	"DepotID" "5007933"
 
-	// Folder holding the exported Linux build: SolitaireTowerOfDoom.x86_64 + .pck,
+	// Folder holding the exported Linux build: SolitaireTowerofDoom.x86_64 + .pck,
 	// steam_appid.txt, libsteam_api.so, and the GodotSteam .so. Trailing
 	// backslash required.
 	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\linux\"
@@ -25,4 +25,8 @@
 	// steam_appid.txt is a local-testing marker; Steam supplies it in a real
 	// install and warns if it is shipped. Keep it out of the depot.
 	"FileExclusion" "steam_appid.txt"
+
+	// Guard against Windows/macOS libraries copied into this folder by mistake.
+	"FileExclusion" "*.dll"
+	"FileExclusion" "*.dylib"
 }

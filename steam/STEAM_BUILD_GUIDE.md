@@ -38,9 +38,9 @@ branch and submitting the app to Valve so they can approve it for release.
      "64 bit only" box on the store). For macOS pick a universal (Apple Silicon
      + Intel) template so the one `.app` runs on both.
    - **Export Path:** into that platform's build folder, outside the project:
-     `build/windows/SolitaireTowerOfDoom.exe`,
-     `build/linux/SolitaireTowerOfDoom.x86_64`,
-     `build/mac/SolitaireTowerOfDoom.app`.
+     `build/windows/SolitaireTowerofDoom.exe`,
+     `build/linux/SolitaireTowerofDoom.x86_64`,
+     `build/mac/SolitaireTowerofDoom.app`.
    - (Optional) **Application → Product/File version:** `0.6.0` to match
      `project.godot`.
    - (macOS) fill in the **code signing / notarisation** fields if you have an
@@ -59,9 +59,9 @@ branch and submitting the app to Valve so they can approve it for release.
 2. Export a clean build **for each platform** (uncheck "Export With Debug").
    From the editor: **Project → Export → Export Project…**, or headless:
    ```
-   godot --headless --path godot --export-release "Windows Desktop" ../build/windows/SolitaireTowerOfDoom.exe
-   godot --headless --path godot --export-release "Linux/X11"      ../build/linux/SolitaireTowerOfDoom.x86_64
-   godot --headless --path godot --export-release "macOS"          ../build/mac/SolitaireTowerOfDoom.app
+   godot --headless --path godot --export-release "Windows Desktop" ../build/windows/SolitaireTowerofDoom.exe
+   godot --headless --path godot --export-release "Linux/X11"      ../build/linux/SolitaireTowerofDoom.x86_64
+   godot --headless --path godot --export-release "macOS"          ../build/mac/SolitaireTowerofDoom.app
    ```
    Each platform ships from its **own folder** (`build/windows/`, `build/linux/`,
    `build/mac/`) — those are the three depot content roots.
@@ -72,9 +72,9 @@ branch and submitting the app to Valve so they can approve it for release.
 
    | Platform | Binary | Steam libraries | Notes |
    |---|---|---|---|
-   | Windows (depot 5007931) | `SolitaireTowerOfDoom.exe` + `.pck` | `steam_api64.dll` + GodotSteam `.dll` | next to the exe |
-   | Linux + SteamOS (depot 5007933) | `SolitaireTowerOfDoom.x86_64` + `.pck` | `libsteam_api.so` + GodotSteam `.so` | next to the binary; must be executable |
-   | macOS (depot 5007932) | `SolitaireTowerOfDoom.app` bundle | `libsteam_api.dylib` + GodotSteam `.dylib` | **inside** `SolitaireTowerOfDoom.app/Contents/MacOS/` |
+   | Windows (depot 5007931) | `SolitaireTowerofDoom.exe` + `.pck` | `steam_api64.dll` + GodotSteam `.dll` | next to the exe |
+   | Linux + SteamOS (depot 5007933) | `SolitaireTowerofDoom.x86_64` + `.pck` | `libsteam_api.so` + GodotSteam `.so` | next to the binary; must be executable |
+   | macOS (depot 5007932) | `SolitaireTowerofDoom.app` bundle | `libsteam_api.dylib` + GodotSteam `.dylib` | **inside** `SolitaireTowerofDoom.app/Contents/MacOS/` |
 
 4. Sanity-check each build locally with the **Steam client running and signed
    in** — launch it and confirm the log prints

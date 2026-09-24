@@ -6,9 +6,9 @@
 	// reaches players.
 	"DepotID" "5007932"
 
-	// Folder holding the exported macOS build: the SolitaireTowerOfDoom.app
+	// Folder holding the exported macOS build: the SolitaireTowerofDoom.app
 	// bundle, with libsteam_api.dylib and the GodotSteam .dylib inside
-	// SolitaireTowerOfDoom.app/Contents/MacOS/. Trailing backslash required.
+	// SolitaireTowerofDoom.app/Contents/MacOS/. Trailing backslash required.
 	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\mac\"
 
 	// Ship everything in ContentRoot, recursively, to the depot root.
