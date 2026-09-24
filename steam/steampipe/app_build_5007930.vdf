@@ -18,7 +18,10 @@
 
 	"Depots"
 	{
-		// DepotID -> its depot script. Must match depot_build_5007931.vdf.
-		"5007931" "depot_build_5007931.vdf"
+		// DepotID -> its depot script. Each depot script sets its own absolute
+		// ContentRoot, so the three platform builds can live in separate folders.
+		"5007931" "depot_build_5007931.vdf"   // Windows
+		"5007932" "depot_build_5007932.vdf"   // macOS
+		"5007933" "depot_build_5007933.vdf"   // Linux + SteamOS
 	}
 }
