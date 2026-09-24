@@ -21,7 +21,8 @@
 		// DepotID -> its depot script. Each depot script sets its own absolute
 		// ContentRoot, so the three platform builds can live in separate folders.
 		"5007931" "depot_build_5007931.vdf"   // Windows
-		"5007932" "depot_build_5007932.vdf"   // macOS
+		// macOS held back until the .app is signed/notarised — uncomment to ship it.
+		// "5007932" "depot_build_5007932.vdf"   // macOS
 		"5007933" "depot_build_5007933.vdf"   // Linux + SteamOS
 	}
 }
