@@ -31,16 +31,22 @@ branch and submitting the app to Valve so they can approve it for release.
 ## Phase 1 — Create the Godot export preset (first time only)
 
 1. Open the project (`godot/`) in the editor → **Project → Export**.
-2. **Add… → Windows Desktop.**
-3. Set:
+2. **Add…** one preset per platform: **Windows Desktop**, **Linux/X11**, and
+   **macOS**.
+3. On each preset set:
    - **Binary format / Architecture:** `x86_64` (64-bit only — matches the
-     "64 bit only" box on the store).
-   - **Export Path:** something outside the project, e.g.
-     `build/windows/SolitaireTowerOfDoom.exe`.
+     "64 bit only" box on the store). For macOS pick a universal (Apple Silicon
+     + Intel) template so the one `.app` runs on both.
+   - **Export Path:** into that platform's build folder, outside the project:
+     `build/windows/SolitaireTowerOfDoom.exe`,
+     `build/linux/SolitaireTowerOfDoom.x86_64`,
+     `build/mac/SolitaireTowerOfDoom.app`.
    - (Optional) **Application → Product/File version:** `0.6.0` to match
      `project.godot`.
+   - (macOS) fill in the **code signing / notarisation** fields if you have an
+     Apple Developer ID — see the signing warning in Phase 2.
 4. Leave "Export With Debug" **off** for the review build.
-5. This writes `godot/export_presets.cfg` — commit it so the preset is
+5. This writes `godot/export_presets.cfg` — commit it so the presets are
    reproducible. **Never commit** the export templates, the built binaries, or
    `steam_appid.txt`.
 
@@ -50,71 +56,82 @@ branch and submitting the app to Valve so they can approve it for release.
 
 1. Make sure the branch you want to ship is checked out, tests pass, and the
    version in `project.godot` is what you intend.
-2. Export a clean build. From the editor: **Project → Export → Export
-   Project…** (uncheck debug), or headless:
+2. Export a clean build **for each platform** (uncheck "Export With Debug").
+   From the editor: **Project → Export → Export Project…**, or headless:
    ```
-   godot --headless --path godot --export-release "Windows Desktop" \
-     ../build/windows/SolitaireTowerOfDoom.exe
+   godot --headless --path godot --export-release "Windows Desktop" ../build/windows/SolitaireTowerOfDoom.exe
+   godot --headless --path godot --export-release "Linux/X11"      ../build/linux/SolitaireTowerOfDoom.x86_64
+   godot --headless --path godot --export-release "macOS"          ../build/mac/SolitaireTowerOfDoom.app
    ```
-3. In the **same output folder** as the `.exe`, place:
-   - `steam_appid.txt` — a plain text file containing exactly `5007930` (no
-     newline fuss, just the number). Required for GodotSteam to init.
-   - The **GodotSteam runtime libraries** (`steam_api64.dll` and the GodotSteam
-     `.dll`), if not already emitted by the export. The game must find the
-     Steam API dll next to the exe.
-4. Sanity-check locally: with the **Steam client running and signed in**,
-   double-click the exe. The log should print
-   `[Steam] initialised for App ID 5007930 — signed in as <you>`. If it prints
-   "extension not installed" or an init failure, fix that before uploading —
-   Valve tests that the build launches.
+   Each platform ships from its **own folder** (`build/windows/`, `build/linux/`,
+   `build/mac/`) — those are the three depot content roots.
 
-Result: a folder (the "content root") holding the exe + data + `steam_appid.txt`
-+ Steam dlls, e.g. `build/windows/`.
+3. In each folder, place the Steam runtime bits next to the game binary. Add
+   `steam_appid.txt` — a plain text file containing exactly `5007930` — for
+   local testing (Steam supplies it in a real install):
+
+   | Platform | Binary | Steam libraries | Notes |
+   |---|---|---|---|
+   | Windows (depot 5007931) | `SolitaireTowerOfDoom.exe` + `.pck` | `steam_api64.dll` + GodotSteam `.dll` | next to the exe |
+   | Linux + SteamOS (depot 5007933) | `SolitaireTowerOfDoom.x86_64` + `.pck` | `libsteam_api.so` + GodotSteam `.so` | next to the binary; must be executable |
+   | macOS (depot 5007932) | `SolitaireTowerOfDoom.app` bundle | `libsteam_api.dylib` + GodotSteam `.dylib` | **inside** `SolitaireTowerOfDoom.app/Contents/MacOS/` |
+
+4. Sanity-check each build locally with the **Steam client running and signed
+   in** — launch it and confirm the log prints
+   `[Steam] initialised for App ID 5007930 — signed in as <you>`. Test Mac on a
+   Mac and Linux on Linux (or the Deck) where you can; Valve tests that each
+   build launches. If it prints "extension not installed" or an init failure,
+   fix that before uploading.
+
+   ⚠️ **macOS signing.** Exporting the `.app` from Windows works, but it cannot
+   be **code-signed or notarised** without a Mac (or `rcodesign`-style tooling).
+   An unsigned `.app` triggers a Gatekeeper "damaged / unidentified developer"
+   block and Valve may flag it. Either sign/notarise on a Mac before uploading,
+   or hold the macOS depot back and ship Windows + Linux first.
+
+Result: three content-root folders — `build/windows/`, `build/linux/`,
+`build/mac/` — each holding that platform's binary + data + `steam_appid.txt`
++ Steam libraries.
 
 ---
 
 ## Phase 3 — Write the SteamPipe build scripts
 
-Put these two files anywhere convenient (e.g. `steam/steampipe/`). Fill in the
-absolute path to your content root.
+These scripts are already in `steam/steampipe/`, one per platform depot plus
+the app build that ties them together:
 
-**`depot_build_5007931.vdf`**
+| File | Depot | Content root |
+|---|---|---|
+| `depot_build_5007931.vdf` | 5007931 Windows | `build/windows/` |
+| `depot_build_5007932.vdf` | 5007932 macOS | `build/mac/` |
+| `depot_build_5007933.vdf` | 5007933 Linux + SteamOS | `build/linux/` |
+| `app_build_5007930.vdf` | — | lists all three depots |
+
+Each depot script sets its own absolute `ContentRoot`, so the three builds live
+in separate folders. Confirm the `ContentRoot` paths match where you exported,
+and that each `DepotID` matches Steamworks (app 5007930 → SteamPipe → Depots),
+with the right **Operating System** set on each depot.
+
+`app_build_5007930.vdf` references them together:
 ```
-"DepotBuildConfig"
+"Depots"
 {
-  "DepotID" "5007931"
-  "ContentRoot" "C:\path\to\solitairetower\build\windows\"
-  "FileMapping"
-  {
-    "LocalPath" "*"
-    "DepotPath" "."
-    "recursive" "1"
-  }
-  "FileExclusion" "*.pdb"
-}
-```
-
-**`app_build_5007930.vdf`**
-```
-"AppBuild"
-{
-  "AppID" "5007930"
-  "Desc" "v0.6.0 review build"          // shows in the Builds list
-
-  "ContentRoot" "C:\path\to\solitairetower\build\windows\"
-  "BuildOutput" "C:\path\to\solitairetower\steam\steampipe\output\"
-
-  "Depots"
-  {
-    "5007931" "depot_build_5007931.vdf"
-  }
+  "5007931" "depot_build_5007931.vdf"   // Windows
+  "5007932" "depot_build_5007932.vdf"   // macOS
+  "5007933" "depot_build_5007933.vdf"   // Linux + SteamOS
 }
 ```
 
 Notes:
+- **Each depot must be referenced by the app's package(s)** (Steamworks →
+  SteamPipe → Depots, or the Packages page). A depot not in a package uploads
+  fine but never reaches players — Steamworks shows a red "not referenced by any
+  packages" warning until you add it.
 - Do **not** set a `"SetLive"` here for a review build — leave it empty so the
   build uploads without going live, then set the branch in the web UI (Phase 5).
 - `BuildOutput` is a scratch/log folder; it can be gitignored.
+- To ship only some platforms in a given upload, remove the others from the
+  `Depots` block for that run (e.g. hold macOS back until it is signed).
 
 ---
 
