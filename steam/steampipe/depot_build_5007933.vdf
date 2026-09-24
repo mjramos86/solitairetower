@@ -21,4 +21,8 @@
 
 	// Never ship debug symbol files.
 	"FileExclusion" "*.pdb"
+
+	// steam_appid.txt is a local-testing marker; Steam supplies it in a real
+	// install and warns if it is shipped. Keep it out of the depot.
+	"FileExclusion" "steam_appid.txt"
 }
