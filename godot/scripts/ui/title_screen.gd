@@ -16,6 +16,7 @@ extends Control
 @onready var _buttons: HBoxContainer = $Center/Buttons
 
 var _options_button: Button
+var _credits_button: Button
 
 
 func _ready() -> void:
@@ -37,26 +38,53 @@ func _ready() -> void:
 	_scores_button.pressed.connect(_on_scores)
 	_exit_button.pressed.connect(_on_exit)
 
-	# Options button, inserted before Exit — text language + audio volume.
+	# Options and Credits buttons, inserted before Exit.
 	_options_button = Button.new()
-	_options_button.custom_minimum_size = Vector2(170, 0)
 	_options_button.pressed.connect(func(): RunState.set_screen("options"))
 	_buttons.add_child(_options_button)
 	_buttons.move_child(_options_button, _exit_button.get_index())
+
+	_credits_button = Button.new()
+	_credits_button.pressed.connect(func(): RunState.set_screen("credits"))
+	_buttons.add_child(_credits_button)
+	_buttons.move_child(_credits_button, _exit_button.get_index())
 
 	# Localized labels (the scene text is the English fallback).
 	_load_button.text = Locale.t("LOAD GAME")
 	_new_button.text = Locale.t("NEW GAME")
 	_scores_button.text = Locale.t("HIGH SCORES")
 	_options_button.text = Locale.t("OPTIONS")
+	_credits_button.text = Locale.t("CREDITS")
 	_exit_button.text = Locale.t("EXIT GAME")
 
 	# Bigger, clearly readable menu buttons — the key art leaves plenty of room.
-	for button in [_load_button, _new_button, _scores_button, _options_button, _exit_button]:
+	for button in [_load_button, _new_button, _scores_button, _options_button,
+			_credits_button, _exit_button]:
 		button.custom_minimum_size = Vector2(200, 56)
 		button.add_theme_font_override("font", UITheme.font("pixel"))
 		button.add_theme_font_size_override("font_size", 26)
 	_exit_button.add_theme_color_override("font_color", UITheme.MAROON)
+
+	_add_copyright_footer()
+
+
+## A small copyright line pinned to the bottom of the screen. Keeps the notice
+## visible on the very first screen a player sees; the full detail lives in the
+## Credits screen. The year is stamped from the system clock.
+func _add_copyright_footer() -> void:
+	var footer := Label.new()
+	var year: int = Time.get_datetime_dict_from_system()["year"]
+	footer.text = "© %d Mario Jorge Ramos · Solitaire Tower of Doom™" % year
+	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	footer.add_theme_font_override("font", UITheme.font("body"))
+	footer.add_theme_font_size_override("font_size", 13)
+	footer.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	footer.modulate.a = 0.7
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	footer.offset_top = -30
+	footer.offset_bottom = -8
+	add_child(footer)
 
 
 ## Scales the key art to cover the screen width and anchors it to the top, so

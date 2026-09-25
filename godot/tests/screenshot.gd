@@ -9,6 +9,9 @@ func _ready() -> void:
 	get_window().size = Vector2i(1280, 720)
 	await get_tree().process_frame
 
+	# Boot splash cards first, before any persistent overlay is opened.
+	await _shoot_boot()
+
 	# A mid-run state: a few floors cleared, gold, inventory, some unlocks.
 	RunState.new_run()
 	SaveManager.add_banked_credits(1500)
@@ -106,12 +109,35 @@ func _ready() -> void:
 
 	# Title and end screens.
 	await _shoot_screen("title", "title")
+	await _shoot_screen("credits", "credits")
 	RunState.done = [0,1,2,3,4,5,6,7,8,9]
 	RunState.score = 4200
 	await _shoot_screen("gameover", "gameover")
 
 	print("SCREENSHOTS DONE")
 	get_tree().quit()
+
+
+func _shoot_boot() -> void:
+	for step in [0, 1]:
+		if _host and is_instance_valid(_host):
+			_host.queue_free()
+			await get_tree().process_frame
+		_host = load("res://scenes/screens/boot_splash.tscn").instantiate()
+		_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(_host)
+		await get_tree().process_frame
+		# Freeze the fade and force the requested card fully visible.
+		if _host._tween and _host._tween.is_valid():
+			_host._tween.kill()
+		_host._show_step(step)
+		if _host._tween and _host._tween.is_valid():
+			_host._tween.kill()
+		_host._card.modulate.a = 1.0
+		for i in 4:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png("user://ss_boot_%d.png" % step)
+		print("shot ss_boot_%d.png" % step)
 
 
 func _shoot_overlay_method(scene: String, method: String, name: String) -> void:
@@ -199,6 +225,7 @@ func App_scene_for(screen: String) -> String:
 		"shop": "res://scenes/screens/shop_screen.tscn",
 		"gameover": "res://scenes/screens/end_screen.tscn",
 		"compendium": "res://scenes/screens/compendium_screen.tscn",
+		"credits": "res://scenes/screens/credits_screen.tscn",
 	}[screen]
 
 
