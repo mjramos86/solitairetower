@@ -8,6 +8,7 @@ extends Control
 const SCREENS := {
 	"title": "res://scenes/screens/title_screen.tscn",
 	"options": "res://scenes/screens/options_screen.tscn",
+	"credits": "res://scenes/screens/credits_screen.tscn",
 	"slots": "res://scenes/screens/slot_screen.tscn",
 	"highscores": "res://scenes/screens/highscores_screen.tscn",
 	"map": "res://scenes/screens/map_screen.tscn",
@@ -71,7 +72,7 @@ func _show(screen: String) -> void:
 
 func _apply_music(screen: String) -> void:
 	match screen:
-		"title", "options", "slots", "highscores":
+		"title", "options", "credits", "slots", "highscores":
 			AudioManager.play_intro_music()
 		"map", "shop", "compendium", "cardback-select", "patron-select":
 			AudioManager.play_map_music()

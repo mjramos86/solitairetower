@@ -106,6 +106,7 @@ func _ready() -> void:
 
 	# Title and end screens.
 	await _shoot_screen("title", "title")
+	await _shoot_screen("credits", "credits")
 	RunState.done = [0,1,2,3,4,5,6,7,8,9]
 	RunState.score = 4200
 	await _shoot_screen("gameover", "gameover")
@@ -199,6 +200,7 @@ func App_scene_for(screen: String) -> String:
 		"shop": "res://scenes/screens/shop_screen.tscn",
 		"gameover": "res://scenes/screens/end_screen.tscn",
 		"compendium": "res://scenes/screens/compendium_screen.tscn",
+		"credits": "res://scenes/screens/credits_screen.tscn",
 	}[screen]
 
 

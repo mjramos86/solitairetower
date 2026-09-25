@@ -1937,6 +1937,8 @@ func test_every_scene_loads() -> void:
 		["res://scenes/card_view.tscn", ""],
 		["res://scenes/tower_menu.tscn", ""],
 		["res://scenes/screens/title_screen.tscn", "title"],
+		["res://scenes/screens/options_screen.tscn", "options"],
+		["res://scenes/screens/credits_screen.tscn", "credits"],
 		["res://scenes/screens/slot_screen.tscn", "slots"],
 		["res://scenes/screens/highscores_screen.tscn", "highscores"],
 		["res://scenes/screens/map_screen.tscn", "map"],
