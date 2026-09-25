@@ -68,8 +68,8 @@ func _game_by_card() -> Control:
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 22)
 
-	box.add_child(_dos_label("a game by", 34))
-	box.add_child(_dos_label("emjayhar", 64))
+	box.add_child(_dos_label("a game by", 68))
+	box.add_child(_dos_label("emjayhar", 128))
 
 	centre.add_child(box)
 	return centre
