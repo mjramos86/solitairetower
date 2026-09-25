@@ -6,6 +6,7 @@ extends Control
 ## signals for updates rather than being redrawn wholesale.
 
 const SCREENS := {
+	"boot": "res://scenes/screens/boot_splash.tscn",
 	"title": "res://scenes/screens/title_screen.tscn",
 	"options": "res://scenes/screens/options_screen.tscn",
 	"credits": "res://scenes/screens/credits_screen.tscn",
@@ -40,7 +41,8 @@ func _ready() -> void:
 	RunState.toast.connect(show_toast)
 	SaveManager.save_corrupted.connect(func(reason): show_toast("Save reset: %s" % reason))
 	_toast.modulate.a = 0.0
-	_show("title")
+	# The boot cards play once at launch, then hand off to the title screen.
+	_show("boot")
 
 
 func _on_screen_changed(screen: String) -> void:

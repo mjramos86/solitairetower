@@ -64,6 +64,7 @@ const UI := {
 	"logo_sigil": "res://assets/ui/logo_sigil.png",
 	"title_keyart": "res://assets/ui/title_keyart.jpg",
 	"tower_static": "res://assets/ui/tower_static.jpg",
+	"godot_logo": "res://assets/ui/godot_logo_dark.png",
 }
 
 # ── Animated tower (map screen) ───────────────────────────────────────────────
@@ -117,6 +118,7 @@ const FONTS := {
 	"body": _INTER,          # prose: dialogue, bios, descriptions
 	"body_italic": _INTER,   # Inter ships no italic file; falls back to upright
 	"mono": _INTER,          # score/number columns
+	"dos": "res://fonts/ModernDOS8x8.ttf",  # boot "a game by" card — MS-DOS look
 }
 
 ## Every asset expected to exist after a clean import, for the verification
