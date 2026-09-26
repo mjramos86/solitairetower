@@ -866,6 +866,8 @@ func _advance() -> void:
 func _finish() -> void:
 	match RunState.screen:
 		"patron-dialogue":
+			# Completing John Dee's first-contact dialogue counts as meeting him.
+			Achievements.on_meet_john_dee()
 			# Replaying from the map returns there; the first viewing starts the run
 			# and stops at the Time Patron picker before the map, as the web build does.
 			if RunState.intro_replay:

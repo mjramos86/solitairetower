@@ -76,6 +76,7 @@ static func default_profile() -> Dictionary:
 		"runs_played": 0,
 		"runs_won": 0,
 		"game_stats": {},
+		"met_johndee": false,
 	}
 
 

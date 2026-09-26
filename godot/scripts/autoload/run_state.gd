@@ -145,6 +145,7 @@ func next_floor() -> void:
 		done.append(floor_index)
 	tp_streak = 0
 	SaveManager.record_game_result(gtype, true)
+	Achievements.on_game_won()
 	add_score(100 * (GameData.TOTAL_FLOORS - floor_index), "floor cleared")
 	floor_cleared.emit(floor_index)
 

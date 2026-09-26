@@ -558,6 +558,9 @@ func _add_connection_section(entry: Dictionary) -> void:
 			SaveManager.mark_seen("unlocked_connections", String(entry["id"]))
 			SaveManager.mark_compendium_seen()
 			SaveManager.save_game()
+			# "Why Solitaire?" (any connection) and, since John Dee's thread reveals
+			# her, "The other Queen" (Mary) are evaluated here.
+			Achievements.on_connection_unlocked()
 			RunState.toast.emit("A thread comes loose.")
 			_refresh())
 	_style_unlock_button(button)
