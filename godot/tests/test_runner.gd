@@ -49,6 +49,7 @@ func _ready() -> void:
 	test_compendium_features()
 	test_every_scene_loads()
 	test_unlockables()
+	test_achievements()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -2073,3 +2074,77 @@ func test_unlockables() -> void:
 	check(not cardback_unlocked.call("marie"), "Mary's Cipher stays locked without the connection")
 
 	SaveManager.erase_all()
+
+
+## Steam achievements: each condition grants the right achievement, thresholds
+## fire only when reached, refresh() is retroactive, and the Sacred Shuffle (whose
+## in-game feature does not exist yet) is never auto-granted. Steam is absent in
+## the test run, so grants only touch the in-memory session set.
+func test_achievements() -> void:
+	suite("achievements")
+	SaveManager.erase_all()
+	Achievements._granted.clear()
+
+	# A fresh, empty profile grants nothing.
+	Achievements.refresh()
+	check(not Achievements.is_granted(Achievements.MEET_JOHN_DEE),
+		"007 not granted on an empty profile")
+	check(not Achievements.is_granted(Achievements.KLONDIKE_MASTER),
+		"Klondike Master not granted at 0 wins")
+
+	# The original 007 — meet John Dee.
+	Achievements.on_meet_john_dee()
+	check(Achievements.is_granted(Achievements.MEET_JOHN_DEE), "meeting John Dee grants 007")
+
+	# Make yourself at home — change the card back away from the default.
+	check(not Achievements.is_granted(Achievements.CHANGE_CARDBACK),
+		"card back not granted while on the default")
+	SaveManager.set_cardback("dee")
+	Achievements.on_cardback_changed()
+	check(Achievements.is_granted(Achievements.CHANGE_CARDBACK), "changing the card back grants it")
+
+	# FreeCell thresholds: 10 then 25.
+	for i in 10:
+		SaveManager.record_game_result("freecell", true)
+	Achievements.on_game_won()
+	check(Achievements.is_granted(Achievements.FREECELL_MASTER),
+		"10 FreeCell wins grants Freecell Master")
+	check(not Achievements.is_granted(Achievements.PATIENCE), "Patience not reached at 10 wins")
+	for i in 15:
+		SaveManager.record_game_result("freecell", true)
+	Achievements.on_game_won()
+	check(Achievements.is_granted(Achievements.PATIENCE), "25 FreeCell wins grants Patience")
+
+	# A 100-win master, and confirm it does not bleed into another variant.
+	for i in 100:
+		SaveManager.record_game_result("klondike", true)
+	Achievements.on_game_won()
+	check(Achievements.is_granted(Achievements.KLONDIKE_MASTER),
+		"100 Klondike wins grants Klondike Master")
+	check(not Achievements.is_granted(Achievements.SPIDER_MASTER),
+		"Spider Master needs its own 100 wins")
+
+	# Why Solitaire? and, since John Dee's thread reveals her, The other Queen.
+	check(not Achievements.is_granted(Achievements.FIRST_CONNECTION), "no connection uncovered yet")
+	SaveManager.profile["dee_dialogue3_done"] = true
+	SaveManager.mark_seen("unlocked_connections", "johndee")
+	Achievements.on_connection_unlocked()
+	check(Achievements.is_granted(Achievements.FIRST_CONNECTION),
+		"uncovering a connection grants Why Solitaire?")
+	check(Achievements.is_granted(Achievements.REVEAL_MARY),
+		"John Dee's connection reveals Mary → The other Queen")
+
+	# The Sacred Shuffle feature is not in the game, so it never auto-unlocks.
+	check(not Achievements.is_granted(Achievements.SACRED_SHUFFLE),
+		"Sacred Shuffle is registered but never auto-granted")
+
+	# Retroactive: clearing the session set and re-deriving from the stored profile
+	# grants everything the saved progress earns (a returning player is covered).
+	Achievements._granted.clear()
+	Achievements.refresh()
+	check(Achievements.is_granted(Achievements.KLONDIKE_MASTER), "master re-derived from stored wins")
+	check(Achievements.is_granted(Achievements.CHANGE_CARDBACK), "card back re-derived from profile")
+	check(Achievements.is_granted(Achievements.MEET_JOHN_DEE), "meeting re-derived from prior play")
+
+	SaveManager.erase_all()
+	Achievements._granted.clear()

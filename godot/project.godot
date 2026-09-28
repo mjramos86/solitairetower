@@ -35,6 +35,8 @@ AudioManager="*res://scripts/autoload/audio_manager.gd"
 Leaderboard="*res://scripts/autoload/leaderboard.gd"
 ; Steam integration (GodotSteam). No-ops cleanly when the extension is absent.
 SteamManager="*res://scripts/autoload/steam_manager.gd"
+; Achievements last: it reads SaveManager's profile and grants through SteamManager.
+Achievements="*res://scripts/autoload/achievements.gd"
 
 [display]
 

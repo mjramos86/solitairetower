@@ -166,6 +166,9 @@ func _ask_name(index: int) -> void:
 
 func _load(index: int) -> void:
 	var resumable := SaveManager.load_slot(index)
+	# Re-evaluate achievements against this slot's profile (loading a slot does not
+	# save, so nothing else would trigger the retroactive check).
+	Achievements.refresh()
 	if resumable:
 		RunState.from_snapshot(SaveManager.run)
 		# Resume on the map, not mid-hand: the board is restored but the undo

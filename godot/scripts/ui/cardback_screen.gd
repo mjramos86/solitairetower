@@ -133,5 +133,6 @@ func _on_card_input(event: InputEvent, id: String) -> void:
 func _choose(id: String) -> void:
 	SaveManager.set_cardback(id)
 	SaveManager.save_game()
+	Achievements.on_cardback_changed()
 	AudioManager.card_taken()
 	_refresh()
