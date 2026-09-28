@@ -50,6 +50,7 @@ func _ready() -> void:
 	_tagline.text = Locale.t(_tagline.text)
 	_style_scores_panel()
 	_build_music_credits()
+	_build_version_label()
 
 	_tower.game_chosen.connect(func(type, floor_index): RunState.start_game(type, floor_index))
 
@@ -124,6 +125,34 @@ func _place_credits() -> void:
 	# Bottom-right, so it never overlaps the menu on the left.
 	_credits.position = Vector2(
 		size.x - _credits.size.x - 16, size.y - _credits.size.y - 12)
+
+
+## The game version, floated in the bottom-right under the music credits.
+var _version: Label
+
+
+func _build_version_label() -> void:
+	_version = Label.new()
+	_version.top_level = true
+	_version.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_version.text = "v" + str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
+	_version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_version.add_theme_font_override("font", UITheme.font("body"))
+	_version.add_theme_font_size_override("font_size", 14)
+	_version.add_theme_color_override("font_color", UITheme.GOLD)
+	_version.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	_version.add_theme_constant_override("shadow_offset_y", 1)
+	_version.modulate.a = 0.8
+	add_child(_version)
+	resized.connect(_place_version)
+	_place_version.call_deferred()
+
+
+func _place_version() -> void:
+	if not is_instance_valid(_version):
+		return
+	_version.reset_size()
+	_version.position = Vector2(size.x - _version.size.x - 16, 12)
 
 
 func _refresh() -> void:
