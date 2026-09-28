@@ -158,6 +158,7 @@ func _build_side() -> void:
 	_add_section("🎒 Inventory", _inventory_slots())
 
 	_add_section("Lore", _compendium_button())
+	_side.add_child(_panel_button("📊 Statistics", func(): RunState.set_screen("stats")))
 	_add_section("Customize", _panel_button("🂠 Cardback", func():
 		RunState.cardback_return = "map"
 		RunState.set_screen("cardback-select")))
