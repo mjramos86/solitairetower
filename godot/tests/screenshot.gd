@@ -12,6 +12,22 @@ func _ready() -> void:
 	# Boot splash cards first, before any persistent overlay is opened.
 	await _shoot_boot()
 
+	# Statistics screen, with a staged lifetime profile.
+	SaveManager.player_name = "Ada"
+	SaveManager.profile["runs_played"] = 14
+	SaveManager.profile["runs_won"] = 5
+	SaveManager.profile["total_score"] = 92450
+	SaveManager.profile["best_score"] = 18200
+	SaveManager.profile["best_time"] = 372.0
+	SaveManager.profile["game_stats"] = {
+		"klondike": {"played": 60, "won": 41},
+		"spider": {"played": 22, "won": 9},
+		"tripeaks": {"played": 30, "won": 18},
+		"pyramid": {"played": 12, "won": 5},
+		"freecell": {"played": 16, "won": 11},
+	}
+	await _shoot_screen("stats", "stats")
+
 	# A mid-run state: a few floors cleared, gold, inventory, some unlocks.
 	RunState.new_run()
 	SaveManager.add_banked_credits(1500)
@@ -226,6 +242,7 @@ func App_scene_for(screen: String) -> String:
 		"gameover": "res://scenes/screens/end_screen.tscn",
 		"compendium": "res://scenes/screens/compendium_screen.tscn",
 		"credits": "res://scenes/screens/credits_screen.tscn",
+		"stats": "res://scenes/screens/stats_screen.tscn",
 	}[screen]
 
 

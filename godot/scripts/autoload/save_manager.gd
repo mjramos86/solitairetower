@@ -75,6 +75,9 @@ static func default_profile() -> Dictionary:
 		"sfx_volume": 0.7,
 		"runs_played": 0,
 		"runs_won": 0,
+		"total_score": 0,
+		"best_score": 0,
+		"best_time": 0.0,
 		"game_stats": {},
 		"met_johndee": false,
 	}
@@ -523,10 +526,18 @@ func mark_score_synced(entry: Dictionary) -> void:
 	save_game()
 
 
-func record_run_end(won: bool, _score: int, _elapsed: float, leftover_credits: int) -> void:
+func record_run_end(won: bool, score: int, elapsed: float, leftover_credits: int) -> void:
 	profile["runs_played"] = int(profile.get("runs_played", 0)) + 1
 	if won:
 		profile["runs_won"] = int(profile.get("runs_won", 0)) + 1
+	# Lifetime score/time, mirroring the web build's run-stats document.
+	profile["total_score"] = int(profile.get("total_score", 0)) + score
+	profile["best_score"] = maxi(int(profile.get("best_score", 0)), score)
+	# Best time is the fastest WON run, as in the web build.
+	if won:
+		var best := float(profile.get("best_time", 0.0))
+		if best <= 0.0 or elapsed < best:
+			profile["best_time"] = elapsed
 	if leftover_credits > 0:
 		add_banked_credits(leftover_credits)
 	clear_run()

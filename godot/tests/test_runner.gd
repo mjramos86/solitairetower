@@ -50,6 +50,7 @@ func _ready() -> void:
 	test_every_scene_loads()
 	test_unlockables()
 	test_achievements()
+	test_lifetime_stats()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -1948,6 +1949,7 @@ func test_every_scene_loads() -> void:
 		["res://scenes/screens/shop_screen.tscn", "shop"],
 		["res://scenes/screens/end_screen.tscn", "gameover"],
 		["res://scenes/screens/compendium_screen.tscn", "compendium"],
+		["res://scenes/screens/stats_screen.tscn", "stats"],
 		["res://scenes/screens/cardback_screen.tscn", "cardback-select"],
 		["res://scenes/screens/patron_select_screen.tscn", "patron-select"],
 		["res://scenes/screens/dialogue_screen.tscn", "patron-dialogue"],
@@ -2148,3 +2150,55 @@ func test_achievements() -> void:
 
 	SaveManager.erase_all()
 	Achievements._granted.clear()
+
+
+## Lifetime run stats feed the Statistics screen: total/best score accrue on every
+## run, best time only on won runs, and the per-variant tallies aggregate.
+func test_lifetime_stats() -> void:
+	suite("lifetime stats")
+	SaveManager.erase_all()
+
+	# A lost run: totals move, but best time stays unset (best time is won-only).
+	SaveManager.record_run_end(false, 1200, 300.0, 0)
+	check_eq(int(SaveManager.profile["runs_played"]), 1, "run counted")
+	check_eq(int(SaveManager.profile["runs_won"]), 0, "loss is not a win")
+	check_eq(int(SaveManager.profile["total_score"]), 1200, "total score accrues on a loss")
+	check_eq(int(SaveManager.profile["best_score"]), 1200, "best score set from the loss")
+	check_eq(float(SaveManager.profile["best_time"]), 0.0, "best time stays unset after a loss")
+
+	# A won run: best time is set, best score climbs, total sums.
+	SaveManager.record_run_end(true, 5000, 240.0, 0)
+	check_eq(int(SaveManager.profile["runs_won"]), 1, "win counted")
+	check_eq(int(SaveManager.profile["total_score"]), 6200, "total score sums across runs")
+	check_eq(int(SaveManager.profile["best_score"]), 5000, "best score takes the higher run")
+	check_eq(float(SaveManager.profile["best_time"]), 240.0, "best time set from the won run")
+
+	# A faster won run lowers best time; a slower one does not.
+	SaveManager.record_run_end(true, 3000, 180.0, 0)
+	check_eq(float(SaveManager.profile["best_time"]), 180.0, "a faster won run lowers best time")
+	SaveManager.record_run_end(true, 9999, 600.0, 0)
+	check_eq(float(SaveManager.profile["best_time"]), 180.0, "a slower won run leaves best time")
+	check_eq(int(SaveManager.profile["best_score"]), 9999, "best score still takes the highest")
+
+	# Per-variant tallies aggregate into the Game Stats totals the screen sums.
+	SaveManager.record_game_result("klondike", true)
+	SaveManager.record_game_result("klondike", false)
+	SaveManager.record_game_result("spider", true)
+	var stats: Dictionary = SaveManager.profile["game_stats"]
+	check_eq(int(stats["klondike"]["played"]), 2, "klondike played tally")
+	check_eq(int(stats["klondike"]["won"]), 1, "klondike won tally")
+	var games_played := 0
+	var games_won := 0
+	for t in stats:
+		games_played += int(stats[t]["played"])
+		games_won += int(stats[t]["won"])
+	check_eq(games_played, 3, "aggregate games played sums variants")
+	check_eq(games_won, 2, "aggregate games won sums variants")
+
+	# Stats survive a save/reload.
+	SaveManager.save_game()
+	SaveManager.load_game()
+	check_eq(int(SaveManager.profile["total_score"]), 19199, "totals persist across reload")
+	check_eq(float(SaveManager.profile["best_time"]), 180.0, "best time persists across reload")
+
+	SaveManager.erase_all()

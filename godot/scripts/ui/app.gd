@@ -18,6 +18,7 @@ const SCREENS := {
 	"gameover": "res://scenes/screens/end_screen.tscn",
 	"victory": "res://scenes/screens/end_screen.tscn",
 	"compendium": "res://scenes/screens/compendium_screen.tscn",
+	"stats": "res://scenes/screens/stats_screen.tscn",
 	"cardback-select": "res://scenes/screens/cardback_screen.tscn",
 	"patron-select": "res://scenes/screens/patron_select_screen.tscn",
 	# One scene plays every conversation; it picks its script from the screen name.
@@ -76,7 +77,7 @@ func _apply_music(screen: String) -> void:
 	match screen:
 		"title", "options", "credits", "slots", "highscores":
 			AudioManager.play_intro_music()
-		"map", "shop", "compendium", "cardback-select", "patron-select":
+		"map", "shop", "compendium", "stats", "cardback-select", "patron-select":
 			AudioManager.play_map_music()
 		"game":
 			AudioManager.play_game_music()
