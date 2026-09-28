@@ -66,6 +66,28 @@ func _ready() -> void:
 	_exit_button.add_theme_color_override("font_color", UITheme.MAROON)
 
 	_add_copyright_footer()
+	_add_version_label()
+
+
+## The game version, pinned to the bottom-right corner.
+func _add_version_label() -> void:
+	var label := Label.new()
+	label.text = "v" + str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
+	label.add_theme_font_override("font", UITheme.font("body"))
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", UITheme.GOLD)
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	label.modulate.a = 0.8
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	label.offset_left = -140
+	label.offset_right = -12
+	label.offset_top = -30
+	label.offset_bottom = -8
+	add_child(label)
 
 
 ## A small copyright line pinned to the bottom of the screen. Keeps the notice
