@@ -21,7 +21,13 @@ const APP_ID := 5007930
 ## True once Steamworks initialised successfully this session.
 var enabled := false
 
+## True once the user's stats/achievements have been loaded from Steam. Steam
+## will not persist setAchievement/storeStats until this has happened, so any
+## unlock requested before it is queued and flushed on the callback.
+var stats_ready := false
+
 var _steam: Object = null
+var _pending_achievements: Array[String] = []
 
 
 func _ready() -> void:
@@ -47,6 +53,32 @@ func _ready() -> void:
 		user_name = str(_steam.getPersonaName())
 	print("[Steam] initialised for App ID %d — signed in as %s" % [APP_ID, user_name])
 
+	# Achievements/stats must be loaded from Steam before setAchievement works.
+	# Connect the callback, then request them; queued unlocks flush when ready.
+	if _steam.has_signal("current_stats_received"):
+		_steam.connect("current_stats_received", _on_current_stats_received)
+	if _steam.has_method("requestCurrentStats"):
+		_steam.requestCurrentStats()
+	elif _steam.has_method("requestUserStats") and _steam.has_method("getSteamID"):
+		_steam.requestUserStats(_steam.getSteamID())
+	else:
+		# Some GodotSteam builds auto-load current-user stats at init; assume ready.
+		stats_ready = true
+
+
+## Fired by GodotSteam once the current user's stats/achievements are loaded.
+## Signature: (game_id, result, user_id) — accepted loosely across versions.
+func _on_current_stats_received(_game_id = 0, result = 0, _user_id = 0) -> void:
+	stats_ready = true
+	print("[Steam] stats received (result %s) — flushing %d queued achievement(s)"
+		% [str(result), _pending_achievements.size()])
+	if _pending_achievements.is_empty():
+		return
+	for api_name in _pending_achievements:
+		_steam.setAchievement(api_name)
+	_pending_achievements.clear()
+	_steam.storeStats()
+
 
 func _process(_delta: float) -> void:
 	# Steamworks fires nothing until its callbacks are pumped. Forgetting this is
@@ -66,9 +98,17 @@ func _exit_tree() -> void:
 # ══════════════════════════════════════════════════════════════════════════════
 
 ## Unlocks a Steam achievement by its API name and flushes it to the backend.
+## If the user's stats have not loaded yet, the unlock is queued and applied the
+## moment they arrive (Steam rejects setAchievement before then).
 func unlock_achievement(api_name: String) -> void:
 	if not enabled or _steam == null:
 		return
+	if not stats_ready:
+		if not _pending_achievements.has(api_name):
+			_pending_achievements.append(api_name)
+		print("[Steam] '%s' queued until stats load" % api_name)
+		return
+	print("[Steam] unlocking achievement '%s'" % api_name)
 	_steam.setAchievement(api_name)
 	_steam.storeStats()
 
