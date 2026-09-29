@@ -1,0 +1,32 @@
+"DepotBuildConfig"
+{
+	// Linux + SteamOS depot. Confirm this DepotID on Steamworks -> app 5007930 ->
+	// SteamPipe -> Depots (its Operating System must be set to Linux + SteamOS),
+	// and that it is referenced by the app's package(s) — a depot not in a
+	// package never reaches players.
+	"DepotID" "5007933"
+
+	// Folder holding the exported Linux build: SolitaireTowerofDoom.x86_64 + .pck,
+	// steam_appid.txt, libsteam_api.so, and the GodotSteam .so. Trailing
+	// backslash required.
+	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\linux\"
+
+	// Ship everything in ContentRoot, recursively, to the depot root.
+	"FileMapping"
+	{
+		"LocalPath" "*"
+		"DepotPath" "."
+		"recursive" "1"
+	}
+
+	// Never ship debug symbol files.
+	"FileExclusion" "*.pdb"
+
+	// steam_appid.txt is a local-testing marker; Steam supplies it in a real
+	// install and warns if it is shipped. Keep it out of the depot.
+	"FileExclusion" "steam_appid.txt"
+
+	// Guard against Windows/macOS libraries copied into this folder by mistake.
+	"FileExclusion" "*.dll"
+	"FileExclusion" "*.dylib"
+}

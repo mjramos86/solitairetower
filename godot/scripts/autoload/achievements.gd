@@ -64,12 +64,24 @@ var _granted := {}
 
 
 func _ready() -> void:
-	_seed_from_steam()
 	if not SaveManager.saved.is_connected(_on_saved):
 		SaveManager.saved.connect(_on_saved)
-	# The active slot is already loaded by now; evaluate it once so existing
-	# progress unlocks immediately.
-	call_deferred("refresh")
+	# On Steam, achievement reads/writes only work once the user's stats have
+	# loaded, so wait for that before seeding and the first evaluation. Without
+	# Steam (or if stats are already in), do it now. The active slot is already
+	# loaded by this point, so existing progress unlocks as soon as we evaluate.
+	if SteamManager.enabled and not SteamManager.stats_received:
+		if not SteamManager.stats_ready.is_connected(_on_stats_ready):
+			SteamManager.stats_ready.connect(_on_stats_ready)
+	else:
+		_seed_from_steam()
+		call_deferred("refresh")
+
+
+## Steam stats finished loading — safe now to read existing state and grant.
+func _on_stats_ready() -> void:
+	_seed_from_steam()
+	refresh()
 
 
 func _on_saved() -> void:
@@ -79,6 +91,11 @@ func _on_saved() -> void:
 ## Unlocks an achievement by its Steamworks API name. Idempotent.
 func grant(api_name: String) -> void:
 	if _granted.has(api_name):
+		return
+	# On Steam, don't record the grant until the user's stats are loaded — the
+	# unlock would silently no-op and, once recorded, never retry. A later
+	# refresh() (on stats_ready, or the next save) grants it when the write sticks.
+	if SteamManager.enabled and not SteamManager.stats_received:
 		return
 	_granted[api_name] = true
 	SteamManager.unlock_achievement(api_name)
