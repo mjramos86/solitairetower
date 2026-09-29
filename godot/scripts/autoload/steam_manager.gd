@@ -30,6 +30,7 @@ var stats_received := false
 signal stats_ready
 
 var _steam: Object = null
+var _pending_achievements: Array[String] = []
 
 
 func _ready() -> void:
@@ -93,9 +94,17 @@ func _exit_tree() -> void:
 # ══════════════════════════════════════════════════════════════════════════════
 
 ## Unlocks a Steam achievement by its API name and flushes it to the backend.
+## If the user's stats have not loaded yet, the unlock is queued and applied the
+## moment they arrive (Steam rejects setAchievement before then).
 func unlock_achievement(api_name: String) -> void:
 	if not enabled or _steam == null:
 		return
+	if not stats_ready:
+		if not _pending_achievements.has(api_name):
+			_pending_achievements.append(api_name)
+		print("[Steam] '%s' queued until stats load" % api_name)
+		return
+	print("[Steam] unlocking achievement '%s'" % api_name)
 	_steam.setAchievement(api_name)
 	_steam.storeStats()
 
