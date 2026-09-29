@@ -21,6 +21,14 @@ const APP_ID := 5007930
 ## True once Steamworks initialised successfully this session.
 var enabled := false
 
+## True once the current user's stats/achievements have loaded. Until this is
+## set, setAchievement/storeStats do not persist. Also announced via stats_ready.
+var stats_received := false
+
+## Emitted once the current user's stats have been received (or immediately, if
+## this GodotSteam build loads them on init and offers no request call).
+signal stats_ready
+
 var _steam: Object = null
 
 
@@ -47,12 +55,31 @@ func _ready() -> void:
 		user_name = str(_steam.getPersonaName())
 	print("[Steam] initialised for App ID %d — signed in as %s" % [APP_ID, user_name])
 
+	# Achievements only persist once the current user's stats are loaded. Request
+	# them and mark ready when the callback fires. If this GodotSteam build has no
+	# such call/signal, assume it loads stats on init so grants are never blocked.
+	if _steam.has_method("requestCurrentStats") and _steam.has_signal("current_stats_received"):
+		if not _steam.is_connected("current_stats_received", _on_current_stats_received):
+			_steam.connect("current_stats_received", _on_current_stats_received)
+		_steam.requestCurrentStats()
+	else:
+		stats_received = true
+		stats_ready.emit()
+
 
 func _process(_delta: float) -> void:
 	# Steamworks fires nothing until its callbacks are pumped. Forgetting this is
 	# the single most common GodotSteam mistake.
 	if enabled and _steam != null:
 		_steam.run_callbacks()
+
+
+## GodotSteam callback: the current user's stats finished loading.
+func _on_current_stats_received(_game_id: int = 0, _result: int = 0, _user_id: int = 0) -> void:
+	if stats_received:
+		return
+	stats_received = true
+	stats_ready.emit()
 
 
 func _exit_tree() -> void:
