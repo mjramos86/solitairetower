@@ -75,12 +75,20 @@ func _process(_delta: float) -> void:
 		_steam.run_callbacks()
 
 
-## GodotSteam callback: the current user's stats finished loading.
+## GodotSteam callback: the current user's stats finished loading. Flushes any
+## achievements requested before stats were ready.
 func _on_current_stats_received(_game_id: int = 0, _result: int = 0, _user_id: int = 0) -> void:
 	if stats_received:
 		return
 	stats_received = true
 	stats_ready.emit()
+	if _pending_achievements.is_empty():
+		return
+	for api_name in _pending_achievements:
+		print("[Steam] unlocking queued achievement '%s'" % api_name)
+		_steam.setAchievement(api_name)
+	_pending_achievements.clear()
+	_steam.storeStats()
 
 
 func _exit_tree() -> void:
@@ -99,7 +107,7 @@ func _exit_tree() -> void:
 func unlock_achievement(api_name: String) -> void:
 	if not enabled or _steam == null:
 		return
-	if not stats_ready:
+	if not stats_received:
 		if not _pending_achievements.has(api_name):
 			_pending_achievements.append(api_name)
 		print("[Steam] '%s' queued until stats load" % api_name)
