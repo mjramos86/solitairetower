@@ -6,11 +6,11 @@
 	"Desc" "v0.7.0.0"
 
 	// Same folder as ContentRoot in the depot script (trailing backslash).
-	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\windows\"
+	"ContentRoot" "C:\Users\mjram\solitaire_tower_build\build\windows\"
 
 	// Scratch/log folder steamcmd writes to. Any empty folder is fine; create it
 	// first. Kept out of git.
-	"BuildOutput" "C:\Users\mjram\OneDrive\Documents\GitHub\build\steampipe_output\"
+	"BuildOutput" "C:\Users\mjram\solitaire_tower_build\build\steampipe_output\"
 
 	// Leave SetLive empty for a review build — set the branch to `default` on the
 	// Steamworks website (SteamPipe -> Builds) after the upload succeeds.
