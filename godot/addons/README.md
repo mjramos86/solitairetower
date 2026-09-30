@@ -30,15 +30,22 @@ App ID: **5007930**. Tested against Godot **4.5** with GodotSteam **4.22.1**
   GDExtension is the one that drops into a normal Godot.
 
 ## 3. Unzip into the project
-- The zip contains an `addons/godotsteam/` folder. Copy it so the final path is:
+- The zip **already contains an `addons/godotsteam/` folder**. Merge its `addons`
+  into the project's `godot/addons/` — do NOT drop the whole zip inside
+  `godot/addons/`, or you get a doubled `godot/addons/addons/godotsteam/` and
+  Godot logs `GDExtension dynamic library not found:
+  res://addons/addons/godotsteam/...`. The final path must be exactly:
   ```
   godot/addons/godotsteam/godotsteam.gdextension
   godot/addons/godotsteam/win64/…      (libgodotsteam.windows.*.dll + steam_api64.dll)
   godot/addons/godotsteam/linuxbsd/…   (libgodotsteam.linux.*.so  + libsteam_api.so)
   godot/addons/godotsteam/macos/…      (libgodotsteam.macos.*      + libsteam_api.dylib)
   ```
-  (Exact subfolder names vary by release — keep whatever the zip ships; do not
-  rename them, the `.gdextension` file points at them.)
+  One `addons`, not two. Exact subfolder names vary by release — keep whatever the
+  zip ships; do not rename them, the `.gdextension` file points at them.
+  - If you already unzipped one level too deep, move it up:
+    `move addons\addons\godotsteam addons\godotsteam` then `rmdir addons\addons`
+    (Windows), then fully restart Godot.
 
 ## 4. steam_appid.txt (dev only)
 - Create a file `steam_appid.txt` containing just `5007930` in the Godot project
