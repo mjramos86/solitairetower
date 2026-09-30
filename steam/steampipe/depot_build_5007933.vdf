@@ -9,7 +9,7 @@
 	// Folder holding the exported Linux build: SolitaireTowerofDoom.x86_64 + .pck,
 	// steam_appid.txt, libsteam_api.so, and the GodotSteam .so. Trailing
 	// backslash required.
-	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\linux\"
+	"ContentRoot" "C:\Users\mjram\solitaire_tower_build\build\linux\"
 
 	// Ship everything in ContentRoot, recursively, to the depot root.
 	"FileMapping"

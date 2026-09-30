@@ -9,7 +9,7 @@
 	// Folder holding the exported macOS build: the SolitaireTowerofDoom.app
 	// bundle, with libsteam_api.dylib and the GodotSteam .dylib inside
 	// SolitaireTowerofDoom.app/Contents/MacOS/. Trailing backslash required.
-	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\mac\"
+	"ContentRoot" "C:\Users\mjram\solitaire_tower_build\build\mac\"
 
 	// Ship everything in ContentRoot, recursively, to the depot root.
 	"FileMapping"

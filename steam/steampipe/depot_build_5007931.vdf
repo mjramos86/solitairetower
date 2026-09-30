@@ -7,7 +7,7 @@
 
 	// Folder that holds the exported Windows build (the .exe, game data,
 	// steam_appid.txt, and steam_api64.dll). Trailing backslash required.
-	"ContentRoot" "C:\Users\mjram\OneDrive\Documents\GitHub\build\windows\"
+	"ContentRoot" "C:\Users\mjram\solitaire_tower_build\build\windows\"
 
 	// Ship everything in ContentRoot, recursively, to the depot root.
 	"FileMapping"
