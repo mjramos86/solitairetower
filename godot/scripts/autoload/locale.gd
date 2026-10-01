@@ -2,12 +2,15 @@ extends Node
 
 ## Runtime localization.
 ##
-## Text is authored in English at the call site and wrapped with Locale.t();
-## when the language is French and a translation exists in the FR map, the French
-## is returned, otherwise the English source passes through unchanged. This keeps
-## every string written once (in English, at the point it is used) and lets the
-## French layer on without restructuring any data — an untranslated string simply
-## shows in English rather than breaking.
+## Text is authored in English at the call site and wrapped with Locale.t(); when
+## a non-English language is active and a translation exists in that language's
+## map, the translation is returned, otherwise the English source passes through
+## unchanged. This keeps every string written once (in English, at the point it is
+## used) and lets each language layer on without restructuring any data — an
+## untranslated string simply shows in English rather than breaking.
+##
+## Adding a language: write scripts/data/translations_<code>.gd with the same
+## English keys, preload it below, and add it to LANGUAGES and _map().
 ##
 ## Format strings keep their %-placeholders: translate first, then apply args,
 ## e.g. Locale.t("★ %d pts") % score, or Locale.tf("%d/%d floors", [a, b]).
@@ -15,9 +18,16 @@ extends Node
 signal changed
 
 const _FR := preload("res://scripts/data/translations_fr.gd")
+const _PT := preload("res://scripts/data/translations_pt.gd")
+const _ES := preload("res://scripts/data/translations_es.gd")
 
 ## Supported languages: code → its own-language display name.
-const LANGUAGES := {"en": "English", "fr": "Français"}
+const LANGUAGES := {
+	"en": "English",
+	"fr": "Français",
+	"pt": "Português (Brasil)",
+	"es": "Español (Latinoamérica)",
+}
 
 var lang := "en"
 
@@ -30,12 +40,21 @@ func _valid(l: String) -> String:
 	return l if LANGUAGES.has(l) else "en"
 
 
+## The active language's translation map ({} for English, which needs none).
+func _map() -> Dictionary:
+	match lang:
+		"fr": return _FR.MAP
+		"pt": return _PT.MAP
+		"es": return _ES.MAP
+	return {}
+
+
 ## Translate an English source string for the current language.
 func t(source) -> String:
 	var text := str(source)
 	if lang == "en" or text == "":
 		return text
-	return String(_FR.MAP.get(text, text))
+	return String(_map().get(text, text))
 
 
 ## Translate a format string, then apply args (so placeholders survive).

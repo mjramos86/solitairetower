@@ -12,6 +12,14 @@ func _ready() -> void:
 	# Boot splash cards first, before any persistent overlay is opened.
 	await _shoot_boot()
 
+	# Options screen (language picker) in English, then the map in Portuguese.
+	await _shoot_screen("options", "options")
+	Locale.set_language("pt")
+	await _shoot_screen("options", "options_pt")
+	Locale.set_language("es")
+	await _shoot_screen("options", "options_es")
+	Locale.set_language("en")  # the remaining captures stay in English
+
 	# Statistics screen, with a staged lifetime profile.
 	SaveManager.player_name = "Ada"
 	SaveManager.profile["runs_played"] = 14
@@ -242,6 +250,7 @@ func App_scene_for(screen: String) -> String:
 		"gameover": "res://scenes/screens/end_screen.tscn",
 		"compendium": "res://scenes/screens/compendium_screen.tscn",
 		"credits": "res://scenes/screens/credits_screen.tscn",
+		"options": "res://scenes/screens/options_screen.tscn",
 		"stats": "res://scenes/screens/stats_screen.tscn",
 	}[screen]
 

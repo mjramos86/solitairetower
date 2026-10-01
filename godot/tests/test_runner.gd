@@ -51,6 +51,7 @@ func _ready() -> void:
 	test_unlockables()
 	test_achievements()
 	test_lifetime_stats()
+	test_localization()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -2202,3 +2203,88 @@ func test_lifetime_stats() -> void:
 	check_eq(float(SaveManager.profile["best_time"]), 180.0, "best time persists across reload")
 
 	SaveManager.erase_all()
+
+
+## Localization: every non-English language has a translation map, the maps all
+## carry exactly the same English keys (so one language cannot silently drift
+## from another), lookups return the translation, and an unknown string falls
+## back to the English source rather than breaking.
+func test_localization() -> void:
+	suite("localization")
+
+	var original := Locale.lang
+
+	# English needs no map and must pass source text straight through.
+	Locale.set_language("en")
+	check_eq(Locale.t("NEW GAME"), "NEW GAME", "English returns the source unchanged")
+
+	var maps := {"fr": Locale._FR.MAP, "pt": Locale._PT.MAP, "es": Locale._ES.MAP}
+
+	# Every language offered in the picker (other than English) must have a map.
+	for code in Locale.LANGUAGES:
+		if code == "en":
+			continue
+		check(maps.has(code), "language '%s' has a translation map" % code)
+
+	# Every map must agree key-for-key with the French reference. A key present in
+	# one language but not another means a string was translated somewhere and
+	# forgotten elsewhere — or, as happened once, a key was corrupted and silently
+	# stopped matching its English source.
+	var reference: Dictionary = maps["fr"]
+	for code in maps:
+		var other: Dictionary = maps[code]
+		check_eq(other.size(), reference.size(),
+			"%s holds the same number of keys as FR" % code.to_upper())
+		var missing := 0
+		for k in reference:
+			if not other.has(k):
+				missing += 1
+				print("    missing in %s: %s" % [code.to_upper(), str(k).substr(0, 60)])
+		check_eq(missing, 0, "every FR key exists in %s" % code.to_upper())
+		var unknown := 0
+		for k in other:
+			if not reference.has(k):
+				unknown += 1
+				print("    unknown key in %s: %s" % [code.to_upper(), str(k).substr(0, 60)])
+		check_eq(unknown, 0, "%s introduces no key that FR lacks" % code.to_upper())
+
+	# Each language actually translates, and leaves unknown strings alone.
+	Locale.set_language("fr")
+	check_eq(Locale.t("NEW GAME"), "NOUVELLE PARTIE", "French translates a known key")
+	check_eq(Locale.t("__not a real string__"), "__not a real string__",
+		"French falls back to the source for an unknown key")
+
+	Locale.set_language("pt")
+	check_eq(Locale.t("NEW GAME"), "NOVO JOGO", "Portuguese translates a known key")
+	check_eq(Locale.t("Time Patron"), "Patrono do Tempo", "Portuguese translates narrative terms")
+	check_eq(Locale.t("__not a real string__"), "__not a real string__",
+		"Portuguese falls back to the source for an unknown key")
+
+	Locale.set_language("es")
+	check_eq(Locale.t("NEW GAME"), "NUEVA PARTIDA", "Spanish translates a known key")
+	check_eq(Locale.t("Time Patron"), "Mecenas del Tiempo", "Spanish translates narrative terms")
+	check_eq(Locale.t("__not a real string__"), "__not a real string__",
+		"Spanish falls back to the source for an unknown key")
+
+	# Format strings keep their placeholders through translation. Set the language
+	# explicitly here so the assertion does not depend on what ran above it.
+	for code in ["fr", "pt", "es"]:
+		Locale.set_language(code)
+		check(Locale.t("Floor %d of %d").contains("%d"),
+			"placeholders survive translation in %s" % code.to_upper())
+	Locale.set_language("pt")
+	check_eq(Locale.tf("Floor %d of %d", [3, 10]), "Andar 3 de 10", "tf() formats after translating")
+	Locale.set_language("es")
+	check_eq(Locale.tf("Floor %d of %d", [3, 10]), "Piso 3 de 10", "tf() formats in Spanish too")
+
+	# An unsupported code falls back to English rather than erroring.
+	Locale.set_language("xx")
+	check_eq(Locale.lang, "en", "an unknown language code falls back to English")
+
+	# Restore without going through set_language(): it early-returns when the code
+	# already matches, which would leave the *saved* language on a test value and
+	# make the next run of the whole suite start in another language.
+	Locale.lang = original
+	SaveManager.profile["language"] = original
+	SaveManager.mark_dirty()
+	SaveManager.save_game()
