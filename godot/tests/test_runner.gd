@@ -51,6 +51,7 @@ func _ready() -> void:
 	test_unlockables()
 	test_achievements()
 	test_lifetime_stats()
+	test_localization()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -2202,3 +2203,72 @@ func test_lifetime_stats() -> void:
 	check_eq(float(SaveManager.profile["best_time"]), 180.0, "best time persists across reload")
 
 	SaveManager.erase_all()
+
+
+## Localization: every non-English language has a translation map, the maps all
+## carry exactly the same English keys (so one language cannot silently drift
+## from another), lookups return the translation, and an unknown string falls
+## back to the English source rather than breaking.
+func test_localization() -> void:
+	suite("localization")
+
+	var original := Locale.lang
+
+	# English needs no map and must pass source text straight through.
+	Locale.set_language("en")
+	check_eq(Locale.t("NEW GAME"), "NEW GAME", "English returns the source unchanged")
+
+	var maps := {"fr": Locale._FR.MAP, "pt": Locale._PT.MAP}
+
+	# Every language offered in the picker (other than English) must have a map.
+	for code in Locale.LANGUAGES:
+		if code == "en":
+			continue
+		check(maps.has(code), "language '%s' has a translation map" % code)
+
+	# The maps must agree key-for-key. A key that exists in one but not the other
+	# means a string was translated in one language and forgotten in the other —
+	# or, as happened once, a key was corrupted and silently stopped matching.
+	var fr_keys: Array = maps["fr"].keys()
+	var pt_keys: Array = maps["pt"].keys()
+	check_eq(fr_keys.size(), pt_keys.size(), "FR and PT hold the same number of keys")
+	var missing_in_pt := 0
+	for k in fr_keys:
+		if not maps["pt"].has(k):
+			missing_in_pt += 1
+			print("    missing in PT: %s" % str(k).substr(0, 60))
+	check_eq(missing_in_pt, 0, "every FR key exists in PT")
+	var missing_in_fr := 0
+	for k in pt_keys:
+		if not maps["fr"].has(k):
+			missing_in_fr += 1
+			print("    missing in FR: %s" % str(k).substr(0, 60))
+	check_eq(missing_in_fr, 0, "every PT key exists in FR")
+
+	# Each language actually translates, and leaves unknown strings alone.
+	Locale.set_language("fr")
+	check_eq(Locale.t("NEW GAME"), "NOUVELLE PARTIE", "French translates a known key")
+	check_eq(Locale.t("__not a real string__"), "__not a real string__",
+		"French falls back to the source for an unknown key")
+
+	Locale.set_language("pt")
+	check_eq(Locale.t("NEW GAME"), "NOVO JOGO", "Portuguese translates a known key")
+	check_eq(Locale.t("Time Patron"), "Patrono do Tempo", "Portuguese translates narrative terms")
+	check_eq(Locale.t("__not a real string__"), "__not a real string__",
+		"Portuguese falls back to the source for an unknown key")
+
+	# Format strings keep their placeholders through translation.
+	check(Locale.t("Floor %d of %d").contains("%d"), "placeholders survive translation")
+	check_eq(Locale.tf("Floor %d of %d", [3, 10]), "Andar 3 de 10", "tf() formats after translating")
+
+	# An unsupported code falls back to English rather than erroring.
+	Locale.set_language("xx")
+	check_eq(Locale.lang, "en", "an unknown language code falls back to English")
+
+	# Restore without going through set_language(): it early-returns when the code
+	# already matches, which would leave the *saved* language on a test value and
+	# make the next run of the whole suite start in another language.
+	Locale.lang = original
+	SaveManager.profile["language"] = original
+	SaveManager.mark_dirty()
+	SaveManager.save_game()
