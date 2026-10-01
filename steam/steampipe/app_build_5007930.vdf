@@ -3,7 +3,7 @@
 	"AppID" "5007930"
 
 	// Shows in the Steamworks Builds list — bump this each upload.
-	"Desc" "v0.7.0.0"
+	"Desc" "v0.7.1.0"
 
 	// Same folder as ContentRoot in the depot script (trailing backslash).
 	"ContentRoot" "C:\Users\mjram\solitaire_tower_build\build\windows\"

@@ -41,7 +41,7 @@ branch and submitting the app to Valve so they can approve it for release.
      `build/windows/SolitaireTowerofDoom.exe`,
      `build/linux/SolitaireTowerofDoom.x86_64`,
      `build/mac/SolitaireTowerofDoom.app`.
-   - (Optional) **Application → Product/File version:** `0.7.0.0` to match
+   - (Optional) **Application → Product/File version:** `0.7.1.0` to match
      `project.godot`.
    - (macOS) fill in the **code signing / notarisation** fields if you have an
      Apple Developer ID — see the signing warning in Phase 2.
