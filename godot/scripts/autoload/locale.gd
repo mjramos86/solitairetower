@@ -19,9 +19,15 @@ signal changed
 
 const _FR := preload("res://scripts/data/translations_fr.gd")
 const _PT := preload("res://scripts/data/translations_pt.gd")
+const _ES := preload("res://scripts/data/translations_es.gd")
 
 ## Supported languages: code → its own-language display name.
-const LANGUAGES := {"en": "English", "fr": "Français", "pt": "Português (Brasil)"}
+const LANGUAGES := {
+	"en": "English",
+	"fr": "Français",
+	"pt": "Português (Brasil)",
+	"es": "Español (Latinoamérica)",
+}
 
 var lang := "en"
 
@@ -39,6 +45,7 @@ func _map() -> Dictionary:
 	match lang:
 		"fr": return _FR.MAP
 		"pt": return _PT.MAP
+		"es": return _ES.MAP
 	return {}
 
 

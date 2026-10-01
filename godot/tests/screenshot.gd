@@ -16,6 +16,8 @@ func _ready() -> void:
 	await _shoot_screen("options", "options")
 	Locale.set_language("pt")
 	await _shoot_screen("options", "options_pt")
+	Locale.set_language("es")
+	await _shoot_screen("options", "options_es")
 	Locale.set_language("en")  # the remaining captures stay in English
 
 	# Statistics screen, with a staged lifetime profile.

@@ -2218,7 +2218,7 @@ func test_localization() -> void:
 	Locale.set_language("en")
 	check_eq(Locale.t("NEW GAME"), "NEW GAME", "English returns the source unchanged")
 
-	var maps := {"fr": Locale._FR.MAP, "pt": Locale._PT.MAP}
+	var maps := {"fr": Locale._FR.MAP, "pt": Locale._PT.MAP, "es": Locale._ES.MAP}
 
 	# Every language offered in the picker (other than English) must have a map.
 	for code in Locale.LANGUAGES:
@@ -2226,24 +2226,27 @@ func test_localization() -> void:
 			continue
 		check(maps.has(code), "language '%s' has a translation map" % code)
 
-	# The maps must agree key-for-key. A key that exists in one but not the other
-	# means a string was translated in one language and forgotten in the other —
-	# or, as happened once, a key was corrupted and silently stopped matching.
-	var fr_keys: Array = maps["fr"].keys()
-	var pt_keys: Array = maps["pt"].keys()
-	check_eq(fr_keys.size(), pt_keys.size(), "FR and PT hold the same number of keys")
-	var missing_in_pt := 0
-	for k in fr_keys:
-		if not maps["pt"].has(k):
-			missing_in_pt += 1
-			print("    missing in PT: %s" % str(k).substr(0, 60))
-	check_eq(missing_in_pt, 0, "every FR key exists in PT")
-	var missing_in_fr := 0
-	for k in pt_keys:
-		if not maps["fr"].has(k):
-			missing_in_fr += 1
-			print("    missing in FR: %s" % str(k).substr(0, 60))
-	check_eq(missing_in_fr, 0, "every PT key exists in FR")
+	# Every map must agree key-for-key with the French reference. A key present in
+	# one language but not another means a string was translated somewhere and
+	# forgotten elsewhere — or, as happened once, a key was corrupted and silently
+	# stopped matching its English source.
+	var reference: Dictionary = maps["fr"]
+	for code in maps:
+		var other: Dictionary = maps[code]
+		check_eq(other.size(), reference.size(),
+			"%s holds the same number of keys as FR" % code.to_upper())
+		var missing := 0
+		for k in reference:
+			if not other.has(k):
+				missing += 1
+				print("    missing in %s: %s" % [code.to_upper(), str(k).substr(0, 60)])
+		check_eq(missing, 0, "every FR key exists in %s" % code.to_upper())
+		var unknown := 0
+		for k in other:
+			if not reference.has(k):
+				unknown += 1
+				print("    unknown key in %s: %s" % [code.to_upper(), str(k).substr(0, 60)])
+		check_eq(unknown, 0, "%s introduces no key that FR lacks" % code.to_upper())
 
 	# Each language actually translates, and leaves unknown strings alone.
 	Locale.set_language("fr")
@@ -2257,9 +2260,22 @@ func test_localization() -> void:
 	check_eq(Locale.t("__not a real string__"), "__not a real string__",
 		"Portuguese falls back to the source for an unknown key")
 
-	# Format strings keep their placeholders through translation.
-	check(Locale.t("Floor %d of %d").contains("%d"), "placeholders survive translation")
+	Locale.set_language("es")
+	check_eq(Locale.t("NEW GAME"), "NUEVA PARTIDA", "Spanish translates a known key")
+	check_eq(Locale.t("Time Patron"), "Mecenas del Tiempo", "Spanish translates narrative terms")
+	check_eq(Locale.t("__not a real string__"), "__not a real string__",
+		"Spanish falls back to the source for an unknown key")
+
+	# Format strings keep their placeholders through translation. Set the language
+	# explicitly here so the assertion does not depend on what ran above it.
+	for code in ["fr", "pt", "es"]:
+		Locale.set_language(code)
+		check(Locale.t("Floor %d of %d").contains("%d"),
+			"placeholders survive translation in %s" % code.to_upper())
+	Locale.set_language("pt")
 	check_eq(Locale.tf("Floor %d of %d", [3, 10]), "Andar 3 de 10", "tf() formats after translating")
+	Locale.set_language("es")
+	check_eq(Locale.tf("Floor %d of %d", [3, 10]), "Piso 3 de 10", "tf() formats in Spanish too")
 
 	# An unsupported code falls back to English rather than erroring.
 	Locale.set_language("xx")
