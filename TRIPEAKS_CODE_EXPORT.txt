@@ -1,0 +1,2680 @@
+================================================================================
+ THE SOLITAIRE TOWER OF DOOM
+ TRIPEAKS VARIANT — COMPLETE CODE EXPORT
+ plus the general card-movement / game-feel layer
+================================================================================
+
+ Repository : mjramos86/solitairetower
+ Commit     : ea63505
+ Exported   : 2026-10-02 01:06 UTC
+ Purpose    : drop-in reference for reusing TriPeaks (and the card handling
+              around it) in another project.
+
+--------------------------------------------------------------------------------
+ WHAT IS IN HERE
+--------------------------------------------------------------------------------
+
+ There are TWO complete implementations of the same game in this repo, and both
+ are exported below. Pick whichever matches the target project:
+
+   PART 1 — GODOT 4 / GDScript     the current shipping implementation
+                                   (Steam build). Engine-agnostic rules layer
+                                   + a UI layer with tweened card movement.
+
+   PART 2 — WEB / JavaScript+CSS   the original browser build (index.html).
+                                   Self-contained, no framework, no build step.
+                                   Useful for a web/Canvas/DOM target or as a
+                                   second reading of the same algorithms.
+
+   PART 3 — RULES + TUNING CHEAT SHEET
+                                   every magic number in one place, so you can
+                                   re-tune feel without reading the code.
+
+--------------------------------------------------------------------------------
+ ARCHITECTURE IN ONE PAGE
+--------------------------------------------------------------------------------
+
+ The design that makes this portable is the split between RULES and VIEW:
+
+   RULES (pure, headless, testable)
+     * A card is a plain dictionary / object: {suit, rank, face_up, uid}.
+       Not a class. That makes the whole game state serialisable to JSON and
+       deep-copyable in one call — which is what gives you undo and save/resume
+       for free.
+     * The game state is one dictionary: {type, pyramid[28], stock[], waste[],
+       recycle, max_recycle, floor, card_points}.
+     * Every rules function is static and pure: it takes a state and returns
+       either a fact about it (tripeaks_free, tripeaks_can_play, tripeaks_won)
+       or a NEW state (init_tripeaks, tripeaks_draw). Nothing touches the UI,
+       audio, or score.
+     * Scoring is deliberately NOT applied in the rules. A move reports what it
+       triggered and the run-state object awards points. Keeps the ledger in
+       one place.
+
+   VIEW (layout + feel)
+     * The board is absolutely positioned from a (0,0) origin, then shifted once
+       to centre it. Layout functions never need to know the window size.
+     * Card size is a pure function of the window and the variant's fixed
+       footprint — NOT of the cards currently on the table. This is the single
+       most important feel decision in the file: TriPeaks removes cards without
+       leaving placeholders, so a measured bounding box would shrink and the
+       whole board would visibly jump on every click.
+     * Movement is automatic and decoupled: after every rebuild, each card is
+       matched to its previous position BY UID and the difference is tweened.
+       No move code knows the animation exists. Cards that vanished from both
+       the board and the state fly off and fade.
+
+   INPUT MODEL
+     * Press records, release decides. Movement past a threshold becomes a drag;
+       a release in place is a click. Both paths funnel into the same rules
+       calls, so click-to-place and drag-and-drop can never disagree.
+     * TriPeaks and Pyramid are single-click games — there is nothing to select,
+       a card is either playable right now or it is not.
+     * An illegal click gets a short red shake, so a refused move reads as
+       "not legal" instead of "the board is broken".
+
+--------------------------------------------------------------------------------
+ THE TRIPEAKS RULES, IN WORDS
+--------------------------------------------------------------------------------
+
+   * 28 cards are dealt into three peaks, four rows: 3 / 6 / 9 / 10.
+   * The remaining 24 cards are the stock; one is turned to start the waste.
+   * A pyramid card is FREE when both slots that rest on top of it are gone.
+   * A free card can be played onto the waste when its rank is one away from
+     the waste top, wrapping Ace <-> King.
+   * Clicking the stock turns one card to the waste. (Easy floors allow one
+     recycle; medium and hard allow none.)
+   * You win when all 28 pyramid cards are gone.
+   * Scoring: an ascending streak. Each card taken scores the running streak
+     length and lengthens it; a peak (index < 3) adds a flat +15. A click on a
+     card that cannot be taken resets the streak to zero. A stock draw does NOT
+     reset the streak.
+
+
+══════════════════════════════════════════════════════════════════════════════
+  PART 1 — GODOT 4 / GDSCRIPT IMPLEMENTATION
+══════════════════════════════════════════════════════════════════════════════
+
+Files involved, in dependency order:
+
+  scripts/core/cards.gd        card model, deck, shuffle, deep copy, uids
+  scripts/core/rules.gd        pure rules for TriPeaks (and the other variants)
+  scripts/core/hints.gd        legal-move finder, used by the hint items
+  scenes/card_view.tscn        the card node
+  scripts/ui/card_view.gd      card rendering, hint glow, selection ring
+  scripts/ui/game_screen.gd    board layout, input, movement animation
+  scripts/autoload/run_state.gd  undo stack + score ledger (excerpts)
+  scripts/ui/ui_theme.gd       card colours and aspect ratio (excerpt)
+  scripts/asset_paths.gd       card art + SFX paths (excerpt)
+  scripts/autoload/audio_manager.gd  the two card sounds (excerpt)
+
+Only cards.gd, rules.gd and hints.gd are needed for a headless port — they have
+no engine dependencies beyond RandomNumberGenerator and Dictionary.
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.1  CARD MODEL — cards.gd
+══════════════════════════════════════════════════════════════════════════════
+
+The whole card layer. Note three things worth copying verbatim:
+
+  * Cards are Dictionaries, not a class, so duplicate(true) gives you both the
+    undo stack and JSON save/load for free.
+  * clone_state() is the single deep copy the undo stack depends on.
+  * assign_uids() stamps every card with a monotonic id. The UI follows a card
+    across a move by uid, which matters because Spider deals duplicate
+    suit/rank pairs — suit+rank is not a unique identity, a uid is.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ cards.gd
+│ source: godot/scripts/core/cards.gd  (complete file)
+└──────────────────────────────────────────────────────────────────────────────
+
+class_name Cards
+extends RefCounted
+
+## Card model, deck building and shuffling.
+##
+## Cards are plain Dictionaries rather than a class: the game state is cloned on
+## every move for the undo stack and serialised whole into the save file, and
+## Dictionary gives both for free via duplicate(true) and JSON. Ported from
+## mkCard/makeDeck/shuffle in index.html.
+
+enum Suit { SPADES, HEARTS, DIAMONDS, CLUBS }
+
+const SUIT_SYMBOLS := ["♠", "♥", "♦", "♣"]
+const RANK_NAMES := ["", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
+
+const RANK_ACE := 1
+const RANK_KING := 13
+
+
+static func make_card(suit: int, rank: int, face_up: bool = false) -> Dictionary:
+	return {"suit": suit, "rank": rank, "face_up": face_up}
+
+
+static func is_red(suit: int) -> bool:
+	return suit == Suit.HEARTS or suit == Suit.DIAMONDS
+
+
+static func symbol(card: Dictionary) -> String:
+	return SUIT_SYMBOLS[card["suit"]]
+
+
+static func rank_name(card: Dictionary) -> String:
+	return RANK_NAMES[card["rank"]]
+
+
+## Unique key per card identity, for the per-card scoring ledger.
+static func key(card: Dictionary) -> String:
+	return "%d-%d" % [card["suit"], card["rank"]]
+
+
+static func make_deck() -> Array:
+	var deck := []
+	for s in 4:
+		for r in range(1, 14):
+			deck.append(make_card(s, r))
+	return deck
+
+
+## Fisher-Yates over a deep copy, so the source deck is never disturbed.
+static func shuffle(deck: Array, rng: RandomNumberGenerator) -> Array:
+	var d := deck.duplicate(true)
+	for i in range(d.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = d[i]
+		d[i] = d[j]
+		d[j] = tmp
+	return d
+
+
+static func new_rng(seed_value: int = 0) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	if seed_value == 0:
+		rng.randomize()
+	else:
+		rng.seed = seed_value
+	return rng
+
+
+## Deep copy of a game state Dictionary — the undo stack depends on this being
+## a true copy, since moves mutate piles in place.
+static func clone_state(state: Dictionary) -> Dictionary:
+	return state.duplicate(true)
+
+
+## A monotonic id used only by the UI to follow a card across a move for the
+## slide animation. Spider deals duplicate suit/rank cards, so suit-rank is not a
+## unique identity; a uid is. clone_state preserves it (duplicate copies the key).
+static var _uid_counter := 0
+
+
+## Stamps every card in a freshly dealt state with a unique uid if it lacks one.
+## Idempotent, so it is safe to call after a resume or a mid-game deal.
+static func assign_uids(state: Dictionary) -> void:
+	for pile_key in ["stock", "waste"]:
+		for c in state.get(pile_key, []):
+			_tag_uid(c)
+	for pile in state.get("tableau", []):
+		for c in pile:
+			_tag_uid(c)
+	for f in state.get("foundations", []):
+		if typeof(f) == TYPE_ARRAY:
+			for c in f:
+				_tag_uid(c)
+	for c in state.get("freecells", []):
+		_tag_uid(c)
+	for c in state.get("pyramid", []):
+		_tag_uid(c)
+	for grp in state.get("stock_groups", []):
+		for c in grp:
+			_tag_uid(c)
+
+
+static func _tag_uid(c) -> void:
+	if typeof(c) == TYPE_DICTIONARY and not c.has("uid"):
+		_uid_counter += 1
+		c["uid"] = _uid_counter
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.2  RULES — header, scoring constants, difficulty bands
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ rules.gd — header + scoring table
+│ source: godot/scripts/core/rules.gd  (lines 1-40)
+└──────────────────────────────────────────────────────────────────────────────
+
+class_name Rules
+extends RefCounted
+
+## Rules for all five solitaire variants, ported from index.html.
+##
+## Every function here is pure: it takes a state Dictionary and returns either a
+## fact about it or a new state. Nothing touches UI, audio or global run state,
+## which is what makes the whole ruleset testable headlessly.
+##
+## Scoring is deliberately *not* applied here. Moves report which scoring events
+## they triggered and RunState awards the points, so the rules stay pure and the
+## score ledger stays in one place.
+
+const MAX_CARD_POINTS := 20
+
+## Points awarded per event, from klondike.md (Klondike) and the per-variant
+## handlers in index.html.
+##
+## Klondike is the only variant scored through the 20-point-per-card ledger
+## (award_card_points); the others award flat amounts via add_score:
+##   FreeCell   +5 for any card sent to a foundation
+##   TriPeaks   the running streak length per peak card, +15 for a top card
+##   Pyramid    +10 for any pair summing to 13, +5 for a King cleared alone
+const PTS_WASTE_TO_TABLEAU := 5
+const PTS_REVEAL := 5
+const PTS_FOUNDATION := 20
+const PTS_SUIT_COMPLETED := 100
+const PTS_FREECELL_FOUNDATION := 5
+const PTS_TRIPEAKS_PEAK := 15
+const PTS_PYRAMID_PAIR := 10
+const PTS_PYRAMID_KING := 5
+
+
+## Difficulty band for a floor index (0 = floor 10, 9 = floor 1).
+static func difficulty(floor_index: int) -> String:
+	if floor_index <= 3:
+		return "easy"
+	if floor_index <= 6:
+		return "medium"
+	return "hard"
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.3  RULES — THE TRIPEAKS VARIANT (the core of this export)
+══════════════════════════════════════════════════════════════════════════════
+
+TP_BLOCKERS is the entire shape of the game: for each of the 28 slots, the
+slots that rest on top of it. Everything else — what is free, what is playable,
+what is face up, whether you have won — falls out of that one table.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ rules.gd — TriPeaks
+│ source: godot/scripts/core/rules.gd  (lines 366-462)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  TRIPEAKS
+# ══════════════════════════════════════════════════════════════════════════════
+
+## Which pyramid slots block each slot. Ported verbatim from TP_BLK.
+const TP_BLOCKERS := {
+	0: [3, 4], 1: [5, 6], 2: [7, 8],
+	3: [9, 10], 4: [10, 11], 5: [12, 13], 6: [13, 14],
+	7: [15, 16], 8: [16, 17],
+	9: [18, 19], 10: [19, 20], 11: [20, 21], 12: [21, 22], 13: [22, 23],
+	14: [23, 24], 15: [24, 25], 16: [25, 26], 17: [26, 27],
+}
+
+const TP_ROWS := [
+	[0, 1, 2],
+	[3, 4, 5, 6, 7, 8],
+	[9, 10, 11, 12, 13, 14, 15, 16, 17],
+	[18, 19, 20, 21, 22, 23, 24, 25, 26, 27],
+]
+
+
+static func init_tripeaks(floor_index: int, rng: RandomNumberGenerator = null) -> Dictionary:
+	if rng == null:
+		rng = Cards.new_rng()
+	var deck := Cards.shuffle(Cards.make_deck(), rng)
+	var pyramid := []
+	for i in 28:
+		var card: Dictionary = deck[i].duplicate()
+		card["face_up"] = false
+		pyramid.append(card)
+	tripeaks_update_face_up(pyramid)
+	var stock := []
+	for i in range(28, deck.size()):
+		var card: Dictionary = deck[i].duplicate()
+		card["face_up"] = false
+		stock.append(card)
+	var waste := []
+	if not stock.is_empty():
+		var first: Dictionary = stock.pop_front()
+		first["face_up"] = true
+		waste.append(first)
+	return {
+		"type": "tripeaks",
+		"pyramid": pyramid,
+		"stock": stock,
+		"waste": waste,
+		"recycle": 0,
+		"max_recycle": 1 if difficulty(floor_index) == "easy" else 0,
+		"floor": floor_index,
+		"card_points": {},
+	}
+
+
+## A slot is free when nothing rests on top of it. Removed cards are null.
+static func tripeaks_free(pyramid: Array, idx: int) -> bool:
+	if pyramid[idx] == null:
+		return false
+	if not TP_BLOCKERS.has(idx):
+		return true
+	for b in TP_BLOCKERS[idx]:
+		if pyramid[b] != null:
+			return false
+	return true
+
+
+static func tripeaks_update_face_up(pyramid: Array) -> void:
+	for i in 28:
+		if pyramid[i] != null and tripeaks_free(pyramid, i):
+			pyramid[i]["face_up"] = true
+
+
+## Rank must be adjacent to the waste top, wrapping A-K.
+static func tripeaks_can_play(card: Dictionary, waste_top) -> bool:
+	if waste_top == null:
+		return true
+	var d: int = abs(card["rank"] - waste_top["rank"])
+	if d == 1:
+		return true
+	return (card["rank"] == 1 and waste_top["rank"] == 13) \
+		or (card["rank"] == 13 and waste_top["rank"] == 1)
+
+
+static func tripeaks_won(state: Dictionary) -> bool:
+	for c in state["pyramid"]:
+		if c != null:
+			return false
+	return true
+
+
+static func tripeaks_draw(state: Dictionary) -> Dictionary:
+	var s := Cards.clone_state(state)
+	if s["stock"].is_empty():
+		return s
+	var card: Dictionary = s["stock"].pop_front()
+	card["face_up"] = true
+	s["waste"].append(card)
+	return s
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.4  RULES — variant dispatch
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ rules.gd — init_game / is_won
+│ source: godot/scripts/core/rules.gd  (lines 610-634)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  DISPATCH
+# ══════════════════════════════════════════════════════════════════════════════
+
+static func init_game(type: String, floor_index: int, extra_cell: bool = false, rng: RandomNumberGenerator = null) -> Dictionary:
+	match type:
+		"klondike": return init_klondike(floor_index, rng)
+		"spider": return init_spider(floor_index, rng)
+		"tripeaks": return init_tripeaks(floor_index, rng)
+		"pyramid": return init_pyramid(floor_index, rng)
+		"freecell": return init_freecell(floor_index, extra_cell, rng)
+	push_error("Unknown game type: %s" % type)
+	return {}
+
+
+static func is_won(state: Dictionary) -> bool:
+	if state.is_empty():
+		return false
+	match state.get("type", ""):
+		"klondike": return klondike_won(state)
+		"spider": return spider_won(state)
+		"tripeaks": return tripeaks_won(state)
+		"pyramid": return pyramid_won(state)
+		"freecell": return freecell_won(state)
+	return false
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.5  HINTS — legal-move finder
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ hints.gd — header + dispatch
+│ source: godot/scripts/core/hints.gd  (lines 1-25)
+└──────────────────────────────────────────────────────────────────────────────
+
+class_name Hints
+extends RefCounted
+
+## Legal-move finders for all five variants, ported from findHints* in
+## index.html. Used by the Scrying Glass (one hint) and the Astrolabe (all
+## hints), and by any future "no moves left" detection.
+##
+## A hint is a Dictionary describing a source and, where one exists, a target:
+##   {"src": "tab"/"waste"/"fc"/"pycard", "col": int, "index": int,
+##    "tsrc": "tab"/"found"/"fc"/"waste"/"pycard", "tcol": int, "tindex": int}
+##
+## `all = false` stops at the first hint found, matching the original.
+
+
+static func find(state: Dictionary, all: bool = false) -> Array:
+	if state.is_empty():
+		return []
+	match state.get("type", ""):
+		"klondike": return klondike(state, all)
+		"spider": return spider(state, all)
+		"tripeaks": return tripeaks(state, all)
+		"pyramid": return pyramid(state, all)
+		"freecell": return freecell(state, all)
+	return []
+
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ hints.gd — TriPeaks finder
+│ source: godot/scripts/core/hints.gd  (lines 87-101)
+└──────────────────────────────────────────────────────────────────────────────
+
+static func tripeaks(gs: Dictionary, all: bool) -> Array:
+	var hints := []
+	var wtop = null
+	if not gs["waste"].is_empty():
+		wtop = gs["waste"][gs["waste"].size() - 1]
+	for i in 28:
+		var card = gs["pyramid"][i]
+		if card == null:
+			continue
+		if Rules.tripeaks_free(gs["pyramid"], i) and Rules.tripeaks_can_play(card, wtop):
+			hints.append({"src": "pycard", "col": 0, "index": i})
+			if not all:
+				return hints
+	return hints
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.6  THE CARD NODE — card_view.tscn + card_view.gd
+══════════════════════════════════════════════════════════════════════════════
+
+Faces are painted PNGs with a procedural fallback drawn in _draw(), so the
+card stays sharp at any resolution and the whole 52-card set costs one texture
+when art is missing. The hint glow and the selection ring are drawn here too;
+the node only processes while it is actually hinted.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ card_view.tscn
+│ source: godot/scenes/card_view.tscn  (complete file)
+└──────────────────────────────────────────────────────────────────────────────
+
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/ui/card_view.gd" id="1"]
+[node name="CardView" type="Control"]
+custom_minimum_size = Vector2(70, 98)
+mouse_filter = 0
+script = ExtResource("1")
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ card_view.gd
+│ source: godot/scripts/ui/card_view.gd  (complete file)
+└──────────────────────────────────────────────────────────────────────────────
+
+extends Control
+
+## A single playing card, drawn rather than blitted.
+##
+## The web build has no card face art at all — every face is a white rounded
+## rectangle with a Unicode suit glyph and a rank, built from CSS. This node is
+## the direct equivalent: faces are drawn with _draw(), backs use the selected
+## card back texture. That keeps faces sharp at any resolution and means the
+## whole 52-card set costs one texture (the back) instead of a sprite sheet.
+
+signal card_pressed(view: Control)
+
+const CORNER_RADIUS := 4.0
+## 2px so an overlapping (fanned) card always shows a crisp separating edge —
+## a 1px line was lost to anti-aliasing when the canvas is scaled, so the first
+## of three fanned waste cards had no visible divider from the second.
+const BORDER_WIDTH := 2.0
+
+## Card face metrics as fractions of card width, from the CSS --cfs/--cfss/--cfc
+## on a 116px card: rank 32, corner suit 18, centre pip 84.
+const PAD_RATIO := 0.045
+const RANK_RATIO := 0.276
+const CORNER_SUIT_RATIO := 0.155
+const CENTRE_PIP_RATIO := 0.72
+
+var card: Dictionary = {}
+var face_up := false
+var selected := false:
+	set(value):
+		selected = value
+		queue_redraw()
+var hinted := false:
+	set(value):
+		if hinted == value:
+			return
+		hinted = value
+		set_process(hinted)  # only a hinted card needs to animate its glow
+		_hint_phase = 0.0
+		queue_redraw()
+var playable := true
+
+## Advances while the card is hinted so the Scrying Glass glow pulses.
+var _hint_phase := 0.0
+
+var _back_texture: Texture2D
+var _face_texture: Texture2D
+var _rank_font: Font
+var _pip_font: Font
+
+
+func _ready() -> void:
+	set_process(false)  # idle unless the card is hinted (see the `hinted` setter)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	# The web card face is Georgia serif for both the index and the pip; EB
+	# Garamond is the bundled serif and carries the suit glyphs.
+	_rank_font = UITheme.font_at("body", 700)
+	_pip_font = UITheme.font("body")
+	_refresh_back()
+
+
+func setup(card_data: Dictionary) -> void:
+	card = card_data
+	face_up = bool(card_data.get("face_up", false))
+	_face_texture = null
+	if not card.is_empty():
+		var path := AssetPaths.card_face(int(card.get("suit", 0)), int(card.get("rank", 1)))
+		if ResourceLoader.exists(path):
+			_face_texture = load(path) as Texture2D
+	queue_redraw()
+
+
+func _refresh_back() -> void:
+	var id := String(SaveManager.profile.get("cardback", "classic"))
+	var path: String = AssetPaths.CARDBACKS.get(id, AssetPaths.CARDBACKS[AssetPaths.DEFAULT_CARDBACK])
+	_back_texture = load(path) as Texture2D
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			card_pressed.emit(self)
+			accept_event()
+
+
+func _process(delta: float) -> void:
+	_hint_phase += delta
+	queue_redraw()
+
+
+func _draw() -> void:
+	var r := Rect2(Vector2.ZERO, size)
+
+	if not face_up:
+		_draw_back(r)
+	else:
+		_draw_face(r)
+
+	if hinted:
+		_draw_hint_glow(r)
+	if selected:
+		draw_rect(r, UITheme.GOLD, false, 3.0)
+
+	if not playable:
+		draw_rect(r, Color(0, 0, 0, 0.35), true)
+
+
+## The Scrying Glass highlight: a bright yellow→orange outline that pulses in
+## width and brightness, plus a soft outer halo, so it reads at a glance the way
+## the web build's animated `.hint-glow` does. Drawn under the selection ring so
+## picking the card still shows the gold select border on top.
+func _draw_hint_glow(r: Rect2) -> void:
+	var pulse := 0.5 + 0.5 * sin(_hint_phase * 6.0)  # 0..1, ~1Hz-ish throb
+	var colour := Color("ffff00").lerp(Color("ff8800"), pulse)
+	# Outer halo: a few translucent expanding outlines fake a glow/bloom.
+	for i in 3:
+		var spread := 2.0 + i * 3.0
+		draw_rect(r.grow(spread), Color(colour.r, colour.g, colour.b, 0.16 - i * 0.045),
+			false, 3.0)
+	# Bright core outline, thickest at the peak of the pulse.
+	draw_rect(r.grow(-1.0), colour, false, 3.0 + pulse * 2.0)
+
+
+## A rounded border matching the painted face's corners, so overlapping cards in
+## a fan or tableau still show a clear separating edge.
+func _draw_face_border(r: Rect2) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.draw_center = false
+	sb.set_border_width_all(int(BORDER_WIDTH))
+	sb.border_color = UITheme.CARD_BORDER
+	var radius := int(maxf(2.0, r.size.x * 0.05))
+	sb.set_corner_radius_all(radius)
+	draw_style_box(sb, r)
+
+
+func _draw_back(r: Rect2) -> void:
+	if _back_texture != null:
+		draw_texture_rect(_back_texture, r, false)
+	else:
+		draw_rect(r, UITheme.BG_PANEL, true)
+	draw_rect(r, UITheme.CARD_BORDER, false, BORDER_WIDTH)
+
+
+func _draw_face(r: Rect2) -> void:
+	# Painted face art (parchment body with transparent rounded corners) when it
+	# exists; a thin rounded border over it keeps overlapping fanned cards apart.
+	if _face_texture != null:
+		draw_texture_rect(_face_texture, r, false)
+		_draw_face_border(r)
+		return
+
+	# Fallback: the procedural face, drawn only if the PNG is missing.
+	draw_rect(r, UITheme.CARD_FACE, true)
+	draw_rect(r, UITheme.CARD_BORDER, false, BORDER_WIDTH)
+
+	if card.is_empty():
+		return
+
+	var suit := int(card.get("suit", 0))
+	var rank := int(card.get("rank", 1))
+	var colour := UITheme.CARD_RED if Cards.is_red(suit) else UITheme.CARD_BLACK
+	var pad := size.x * PAD_RATIO
+	var rank_size := maxi(10, int(size.x * RANK_RATIO))
+	var pip_size := maxi(8, int(size.x * CORNER_SUIT_RATIO))
+	var centre_size := maxi(16, int(size.x * CENTRE_PIP_RATIO))
+
+	var rank_text: String = Cards.RANK_NAMES[rank]
+	var pip_text: String = Cards.SUIT_SYMBOLS[suit]
+
+	# Top-left index only — the web card has no bottom-right mirror (.cb is hidden).
+	draw_string(_rank_font, Vector2(pad, pad + rank_size * 0.82), rank_text,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, rank_size, colour)
+	draw_string(_pip_font, Vector2(pad, pad + rank_size * 0.82 + pip_size * 0.95),
+		pip_text, HORIZONTAL_ALIGNMENT_LEFT, -1, pip_size, Color(colour, 0.85))
+
+	# The large centre pip sits at 58% of the height, as in the CSS.
+	var centre := _pip_font.get_string_size(pip_text, HORIZONTAL_ALIGNMENT_CENTER, -1, centre_size)
+	draw_string(_pip_font,
+		Vector2((size.x - centre.x) * 0.5, size.y * 0.58 + centre.y * 0.35),
+		pip_text, HORIZONTAL_ALIGNMENT_LEFT, -1, centre_size, colour)
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.7  BOARD GEOMETRY — the layout budget (game feel, part 1)
+══════════════════════════════════════════════════════════════════════════════
+
+This is where the board stops jumping. LAYOUT holds, per variant, the
+widest row in card widths and the full board height in card heights. Because the
+height is a CONSTANT and not measured from the live board, the card size is a
+pure function of the window and never changes as cards are played.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — LAYOUT + fan constants
+│ source: godot/scripts/ui/game_screen.gd  (lines 15-48)
+└──────────────────────────────────────────────────────────────────────────────
+
+const CARD_VIEW := preload("res://scenes/card_view.tscn")
+
+## Card-sizing budget per variant. `w` is the widest row measured in card widths
+## (including inter-pile gaps); `h` is the full board height in card heights,
+## budgeted for the DEEPEST realistic column at the fixed fan spacing — the header
+## row plus a face-down stack plus a long face-up run. Because `h` is a constant,
+## the card size is a pure function of the window and NEVER changes as cards are
+## played: the board neither shifts nor resizes on a move. A column that grows
+## past the budgeted depth simply extends a little lower rather than shrinking
+## anything. `header` documents the non-tableau rows already folded into `h`.
+## Pyramid/TriPeaks carry the real height of their fixed shapes.
+const LAYOUT := {
+	"klondike": {"w": 8.08, "h": 4.9, "header": 1.25},
+	"freecell": {"w": 9.26, "h": 4.8, "header": 1.25},
+	"spider": {"w": 11.62, "h": 5.5, "header": 1.18},
+	"tripeaks": {"w": 11.0, "h": 3.6, "header": 0.0},
+	"pyramid": {"w": 8.3, "h": 5.35, "header": 0.0},
+}
+
+## Fan spacing as a fraction of card height. Both are fixed constants: a covered
+## face-up card shows its rank+suit corner (the index runs to ~0.24 of the card
+## height), and a face-down card shows a sliver of its back. They never change
+## during play — the card SIZE is chosen once from the board so the deepest
+## realistic column already fits at this spacing (see LAYOUT / _fit_card_size).
+const FAN_FACE_UP := 0.24
+const FAN_FACE_DOWN := 0.14
+const PILE_GAP := 0.18
+
+## Face-up fan, constant for column games. Never recomputed from the live board,
+## so the layout never shifts or resizes on a move.
+var _fan_up := FAN_FACE_UP
+
+## Margins kept clear of the board edges when centring, as a fraction.
+const BOARD_MARGIN := 0.03
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.8  BOARD GEOMETRY — sizing, centring, footprint
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _fit_card_size / _centre_board / _content_width
+│ source: godot/scripts/ui/game_screen.gd  (lines 986-1053)
+└──────────────────────────────────────────────────────────────────────────────
+
+## height inside it. Column games come out near the width limit (big cards); the
+## fan, computed separately, keeps tall columns from spilling off the bottom.
+func _fit_card_size(type: String, board_w: float, board_h: float) -> Vector2:
+	var spec: Dictionary = LAYOUT.get(type, LAYOUT["klondike"])
+	var usable_w := board_w * (1.0 - BOARD_MARGIN * 2.0)
+	var usable_h := board_h * (1.0 - BOARD_MARGIN * 2.0)
+
+	var by_width := usable_w / float(spec["w"])
+	var by_height := (usable_h / float(spec["h"])) * UITheme.CARD_ASPECT
+
+	var width := clampf(minf(by_width, by_height), 44.0, 260.0)
+	return Vector2(width, width / UITheme.CARD_ASPECT)
+
+
+## Shifts everything the layout built so the whole board is centred horizontally
+## and sits just below the top margin. Layouts can therefore place cards from a
+## simple (0,0) origin and stay agnostic about the board's real size.
+##
+## Centring is measured against the variant's fixed full-board footprint, NOT the
+## bounding box of the cards currently on the table. TriPeaks and Pyramid drop a
+## cleared card without leaving a placeholder, so a measured box would shrink and
+## shift as cards are removed — re-centring the remaining cards and making the
+## board visibly jump on every click. A fixed footprint keeps it anchored.
+func _centre_board(board_w: float, board_h: float) -> void:
+	var content_w := _content_width(RunState.gs)
+	if content_w <= 0.0:
+		return
+	# Every layout builds from a (0,0) origin, so the offset alone places it: the
+	# top-left stays pinned to the top margin regardless of which cards remain.
+	var offset := Vector2((board_w - content_w) * 0.5, board_h * BOARD_MARGIN)
+	for child in _board.get_children():
+		if child is Control:
+			(child as Control).position += offset
+
+
+## The board's full horizontal footprint for this variant — the right edge of the
+## widest structural row, independent of which cards are still on the table. Pile
+## and slot counts are fixed for a floor, so cleared cards never change this and
+## the board never re-centres out from under the player.
+func _content_width(gs: Dictionary) -> float:
+	var card_w := _card_size.x
+	match String(gs.get("type", "klondike")):
+		"klondike":
+			# Seven tableau columns; the four foundations end at the same edge.
+			var step := card_w * (1.0 + PILE_GAP)
+			return step * 6.0 + card_w
+		"spider":
+			# Ten tableau columns.
+			var step := card_w * (1.0 + PILE_GAP)
+			return step * 9.0 + card_w
+		"freecell":
+			# Whichever is wider: eight tableau columns, or the free-cell row plus
+			# the half-gap and the four foundations (cell count varies by floor).
+			var step := card_w * (1.0 + PILE_GAP)
+			var cells: int = (gs.get("freecells", []) as Array).size()
+			var tableau_right := step * 7.0 + card_w
+			var foundation_right := step * (cells + 3.5) + card_w
+			return maxf(tableau_right, foundation_right)
+		"tripeaks":
+			# Ten cards across the base row (tw = card width + a 0.10 gap).
+			var tw := card_w * 1.10
+			return tw * 9.0 + card_w
+		"pyramid":
+			# Seven cards across the base row, matching the layout's `total`.
+			var tw := card_w * 1.10
+			return tw * 7.0 - card_w * 0.10
+	return card_w
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.9  CARD SPAWNING — cards and empty slots
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _spawn / _spawn_slot / _is_selected
+│ source: godot/scripts/ui/game_screen.gd  (lines 1055-1133)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Card spawning
+# ══════════════════════════════════════════════════════════════════════════════
+
+func _spawn(card, pos: Vector2, meta: Dictionary, face_up_override = null) -> Control:
+	var view := CARD_VIEW.instantiate()
+	_board.add_child(view)
+	view.position = pos
+	view.custom_minimum_size = _card_size
+	view.size = _card_size
+	if card != null:
+		view.setup(card)
+		if face_up_override != null:
+			view.face_up = face_up_override
+		# Keep a handle to the card dict so the animation layer can follow it
+		# across a move by its uid.
+		view.set_meta("card_ref", card)
+	view.set_meta("slot", meta)
+	view.card_pressed.connect(_on_card_pressed)
+	view.selected = _is_selected(meta)
+	view.hinted = _is_hinted(meta)
+	return view
+
+
+## Empty pile marker — a dashed outline the player can click as a drop target.
+func _spawn_slot(pos: Vector2, meta: Dictionary, label: String = "") -> Control:
+	var slot := Panel.new()
+	_board.add_child(slot)
+	slot.position = pos
+	slot.size = _card_size
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(1, 1, 1, 0.04)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = UITheme.GOLD_DIM
+	style.set_corner_radius_all(5)
+	slot.add_theme_stylebox_override("panel", style)
+	slot.mouse_filter = Control.MOUSE_FILTER_STOP
+	slot.set_meta("slot", meta)
+	slot.gui_input.connect(func(e): _on_slot_input(e, slot))
+	if label != "":
+		var l := Label.new()
+		l.text = label
+		l.add_theme_color_override("font_color", UITheme.GOLD_DIM)
+		l.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(l)
+	return slot
+
+
+func _on_slot_input(event: InputEvent, slot: Panel) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			var meta: Dictionary = slot.get_meta("slot")
+			# An emptied stock is still the "recycle" affordance (the ↻ slot):
+			# clicking it must draw — which recycles the waste back into the stock —
+			# exactly as clicking a face-down stock card does. Routing it through
+			# _handle_target instead treated it as a move target, so once the deck
+			# ran out the player could never recycle. Every other slot (empty
+			# tableau/foundation/free cell) really is a move target.
+			if meta.get("kind") == "stock":
+				_click_slot(meta)
+			else:
+				_handle_target(meta)
+
+
+func _is_selected(meta: Dictionary) -> bool:
+	if _selection.is_empty():
+		return false
+	# Pyramid's two draw spots are distinguished by their waste index.
+	if meta.get("kind") == "waste" and _selection.get("kind") == "waste":
+		return int(meta.get("windex", -1)) == int(_selection.get("windex", -2))
+	return _selection.get("kind") == meta.get("kind") \
+		and _selection.get("col", -1) == meta.get("col", -1) \
+		and int(meta.get("index", -1)) >= int(_selection.get("index", -1))
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.10  THE TRIPEAKS LAYOUT
+══════════════════════════════════════════════════════════════════════════════
+
+Three peaks, four rows, from a (0,0) origin. Row spacing is 0.42 of the
+card height (so a covered card still shows its index), the horizontal step is
+card width + a 10% gap, and the peaks sit at 1.5, 4.5 and 7.5 steps. The stock
+and waste go below the base row. A card that is not free is dimmed via the
+view's 'playable' flag rather than removed, so the shape stays readable.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _layout_tripeaks
+│ source: godot/scripts/ui/game_screen.gd  (lines 1258-1291)
+└──────────────────────────────────────────────────────────────────────────────
+
+
+
+func _layout_tripeaks(gs: Dictionary) -> void:
+	var gap := _card_size.x * 0.10
+	var tw := _card_size.x + gap
+	var half := tw * 0.5
+	var row_y := [0.0, _card_size.y * 0.42, _card_size.y * 0.84, _card_size.y * 1.26]
+	var peaks := [tw + half, tw * 4 + half, tw * 7 + half]
+	var shoulders := [tw, tw * 2, tw * 4, tw * 5, tw * 7, tw * 8]
+
+	for i in 28:
+		var c = gs["pyramid"][i]
+		if c == null:
+			continue
+		var pos: Vector2
+		if i <= 2:
+			pos = Vector2(peaks[i], row_y[0])
+		elif i <= 8:
+			pos = Vector2(shoulders[i - 3], row_y[1])
+		elif i <= 17:
+			pos = Vector2(half + (i - 9) * tw, row_y[2])
+		else:
+			pos = Vector2((i - 18) * tw, row_y[3])
+		var view := _spawn(c, pos, {"kind": "pyramid", "index": i})
+		view.playable = Rules.tripeaks_free(gs["pyramid"], i)
+
+	var base_y: float = row_y[3] + _card_size.y * 1.25
+	if gs["stock"].is_empty():
+		_spawn_slot(Vector2(0, base_y), {"kind": "stock"}, "—")
+	else:
+		_spawn(gs["stock"][0], Vector2(0, base_y), {"kind": "stock"}, false)
+	var waste: Array = gs["waste"]
+	if not waste.is_empty():
+		_spawn(waste[waste.size() - 1], Vector2(_card_size.x * 1.3, base_y), {"kind": "waste"})
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.11  MOVE ANIMATION — the slide and the fly-off (game feel, part 2)
+══════════════════════════════════════════════════════════════════════════════
+
+The piece most worth stealing. It is entirely automatic: capture every
+card's position before the rebuild, rebuild, then for every uid that still
+exists, tween a ghost from the old position to the new one and reveal the real
+card when it lands. A uid that is gone from BOTH the board and the state was
+truly removed from play, so it lifts away and fades. Cards that merely got
+buried under another card stay put.
+
+Key values: 0.18s cubic ease-out for a move, 0.42s for a fly-off, and a cap of
+26 animated cards so a mass clear cannot stall the frame.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — move animation
+│ source: godot/scripts/ui/game_screen.gd  (lines 818-984)
+└──────────────────────────────────────────────────────────────────────────────
+
+
+
+func _rebuild() -> void:
+	if not is_inside_tree():
+		return
+	_refresh_header()
+	_refresh_inventory()
+
+	var gs := RunState.gs
+	var board_w := _board.size.x
+	var board_h := _board.size.y
+
+	# Animate only between two layouts of the same game at the same board size;
+	# a new floor or a resize just snaps. Positions are captured from the current
+	# (pre-clear) cards, so this must run before they are freed.
+	var type := String(gs.get("type", ""))
+	var can_anim := _animate and _last_gtype == type and not type.is_empty() \
+		and _last_board_size == Vector2(board_w, board_h) and _board.get_child_count() > 0
+	var prev: Dictionary = _capture_positions() if can_anim else {}
+
+	# Detach the previous cards immediately (not just queue_free, which is
+	# deferred) so a stale card is never captured or measured twice.
+	for child in _board.get_children():
+		_board.remove_child(child)
+		child.queue_free()
+
+	if gs.is_empty():
+		return
+	if board_w < 1.0 or board_h < 1.0:
+		# Laid out before the board has a size; the board.resized signal calls
+		# back once it does.
+		return
+
+	_card_size = _fit_card_size(type, board_w, board_h)
+
+	match gs["type"]:
+		"klondike": _layout_klondike(gs)
+		"spider": _layout_spider(gs)
+		"freecell": _layout_freecell(gs)
+		"tripeaks": _layout_tripeaks(gs)
+		"pyramid": _layout_pyramid(gs)
+
+	_centre_board(board_w, board_h)
+	_last_gtype = type
+	_last_board_size = Vector2(board_w, board_h)
+
+	if not prev.is_empty():
+		_animate_transition(prev)
+
+	# Re-show the floor-clear overlay if a run was resumed on an already-won
+	# board. Guarded on an empty overlay layer so normal rebuilds don't stack it.
+	if RunState.win_overlay and not _has_modal_overlay() and Rules.is_won(gs):
+		_show_win_overlay()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Move animation — cards slide to their new home instead of snapping there.
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# This is automatic: every rebuild compares each card's new position to where it
+# was (matched by uid) and slides the difference. Cards that vanished (pyramid
+# pairs, spider suit completions, removed cards) fly off and fade. No move code
+# has to know about the animation.
+
+const ANIM_DUR := 0.18
+const MAX_ANIM_CARDS := 26
+var _animate := true
+var _last_gtype := ""
+var _last_board_size := Vector2.ZERO
+
+
+func _capture_positions() -> Dictionary:
+	var m := {}
+	for child in _board.get_children():
+		if not (child is Control) or not child.has_meta("card_ref"):
+			continue
+		var card = child.get_meta("card_ref")
+		if typeof(card) == TYPE_DICTIONARY and card.has("uid"):
+			m[card["uid"]] = {"pos": (child as Control).global_position, "card": card, "node": child}
+	return m
+
+
+func _animate_transition(prev: Dictionary) -> void:
+	var cur := _capture_positions()
+	var live := _state_uids(RunState.gs)
+	var count := 0
+	for uid in prev:
+		if count >= MAX_ANIM_CARDS:
+			break
+		var p: Dictionary = prev[uid]
+		if cur.has(uid):
+			var c: Dictionary = cur[uid]
+			if (p["pos"] as Vector2).distance_to(c["pos"]) > 2.0:
+				_fly(c["card"], p["pos"], c["pos"], c["node"])
+				count += 1
+		elif not live.has(uid):
+			# Gone from the board AND from the game state — a card truly removed
+			# from play (a completed sequence). A card that merely stopped being
+			# rendered because another landed on top of it (a foundation card
+			# covered by the next rank) stays put, so it must not launch off.
+			_fly_off(p["card"], p["pos"])
+			count += 1
+
+
+## Every card uid anywhere in the game state, however the variant nests its
+## piles (tableau columns, foundation stacks, waste, stock, free cells, pyramid
+## rows…). Used to tell a card that was removed from play apart from one merely
+## buried under a card that landed on it.
+func _state_uids(gs: Dictionary) -> Dictionary:
+	var out := {}
+	_collect_uids(gs.values(), out)
+	return out
+
+
+func _collect_uids(value: Variant, out: Dictionary) -> void:
+	if value is Array:
+		for item in value:
+			_collect_uids(item, out)
+	elif value is Dictionary:
+		if value.has("uid"):
+			out[value["uid"]] = true
+		else:
+			_collect_uids(value.values(), out)
+
+
+## A ghost card slides from `from` to `to`; the real card is hidden until it lands.
+func _fly(card: Dictionary, from: Vector2, to: Vector2, real_node: Node) -> void:
+	if is_instance_valid(real_node):
+		(real_node as Control).modulate.a = 0.0
+	var ghost := _ghost_card(card)
+	ghost.global_position = from
+	var tw := create_tween()
+	tw.tween_property(ghost, "global_position", to, ANIM_DUR) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(real_node):
+			(real_node as Control).modulate.a = 1.0
+		ghost.queue_free())
+
+
+## A removed card lifts away and fades, like the web build's launchOff.
+func _fly_off(card: Dictionary, from: Vector2) -> void:
+	var ghost := _ghost_card(card)
+	ghost.global_position = from
+	var dir := 1.0 if randf() > 0.5 else -1.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ghost, "global_position", from + Vector2(dir * 80.0, -180.0), 0.42) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ghost, "modulate:a", 0.0, 0.42)
+	tw.chain().tween_callback(ghost.queue_free)
+
+
+func _ghost_card(card: Dictionary) -> Control:
+	var ghost := CARD_VIEW.instantiate()
+	add_child(ghost)
+	ghost.top_level = true
+	ghost.z_index = 300
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ghost.custom_minimum_size = _card_size
+	ghost.size = _card_size
+	var face := card.duplicate()
+	face["face_up"] = true
+	ghost.setup(face)
+	return ghost
+
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.12  INPUT MODEL — press records, release decides
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — drag state
+│ source: godot/scripts/ui/game_screen.gd  (lines 95-116)
+└──────────────────────────────────────────────────────────────────────────────
+
+## Drag-and-drop. A press records here without acting; release decides whether it
+## was a click (no movement) or a drag (moved past the threshold). Click-to-place
+## still works untouched — drag is an alternative, not a replacement.
+##
+## The threshold is in *screen* pixels. Input positions arrive in the 1920x1080
+## design canvas, which is scaled down to the window (≈0.67x at 1280 wide), so a
+## raw 8px would trip after only ~5 real pixels of jitter and turn ordinary
+## clicks into drags. _drag_threshold() converts this to canvas units live.
+const DRAG_THRESHOLD := 14.0
+var _press: Dictionary = {}
+var _dragging := false
+var _drag_source: Dictionary = {}
+var _drag_cards: Array = []
+var _ghost: Control
+## Cursor position within the grabbed card, so the ghost tracks from that point.
+var _grab_offset := Vector2.ZERO
+## Pointer position at the last button-down, in canvas coords. Captured in _input
+## before the card's press signal fires, since the signal carries no event. Using
+## event positions rather than get_mouse_position keeps this working with both
+## real input and pushed test events.
+var _pending_start := Vector2.ZERO
+
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _on_card_pressed
+│ source: godot/scripts/ui/game_screen.gd  (lines 1336-1352)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Interaction
+# ══════════════════════════════════════════════════════════════════════════════
+
+## A card was pressed. Record it and wait: motion past the threshold starts a
+## drag, a release in place is a click. Acting on release keeps click-to-place
+## working exactly as before.
+func _on_card_pressed(view: Control) -> void:
+	if RunState.gs.is_empty():
+		return
+	_press = {
+		"view": view,
+		"meta": view.get_meta("slot"),
+		"start": _pending_start,
+	}
+
+
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _input / _drag_threshold / _click_slot
+│ source: godot/scripts/ui/game_screen.gd  (lines 1406-1486)
+└──────────────────────────────────────────────────────────────────────────────
+
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			# Remember where the press landed; the card's press signal fires
+			# immediately after this and reads _pending_start.
+			_pending_start = mb.position
+		else:
+			if _dragging:
+				_end_drag(mb.position)
+			elif not _press.is_empty():
+				# No movement: treat exactly as a click.
+				_click_slot(_press["meta"])
+			_press = {}
+		return
+
+	if event is InputEventMouseMotion and (not _press.is_empty() or _dragging):
+		var pointer := (event as InputEventMouseMotion).position
+		if _dragging:
+			_ghost.global_position = pointer - _grab_offset
+		elif pointer.distance_to(_press["start"]) > _drag_threshold() and _is_draggable(_press["meta"]):
+			_begin_drag()
+
+
+## DRAG_THRESHOLD is in screen pixels; convert to the design-canvas units the
+## input positions actually use, so the feel is the same at any window size.
+func _drag_threshold() -> float:
+	var win := get_window()
+	if win == null or win.size.x <= 0:
+		return DRAG_THRESHOLD
+	var ratio := get_viewport().get_visible_rect().size.x / float(win.size.x)
+	return DRAG_THRESHOLD * ratio
+
+
+## The click behaviour, unchanged — runs on a release that did not become a drag.
+func _click_slot(meta: Dictionary) -> void:
+	var gs := RunState.gs
+	if gs.is_empty():
+		return
+
+	# An armed item takes priority over normal play.
+	if not _item_mode.is_empty():
+		_resolve_item_click(meta)
+		return
+
+	# With an empty toolbox stash armed, the next card click stores it.
+	if RunState.toolbox_uses > 0 and RunState.toolbox_card == null and _selection.is_empty():
+		if _try_stash(meta):
+			return
+
+	if meta.get("kind") == "stock":
+		_draw_stock()
+		return
+
+	# Pyramid and TriPeaks are single-click games: a card is either playable now
+	# or it is not, so there is nothing to select.
+	match gs["type"]:
+		"tripeaks":
+			_tripeaks_play(meta)
+			return
+		"pyramid":
+			_pyramid_click(meta)
+			return
+
+	if _selection.is_empty():
+		# One-click play: a card with an obvious legal move goes there directly.
+		# Only when there is no obvious move does the click fall through to a
+		# manual select (drag still lets the player place a card anywhere).
+		if _auto_play(meta):
+			return
+		# A face-up card that neither auto-plays nor forms a movable run has no
+		# legal move — flag it so the click reads as "not allowed" rather than an
+		# unresponsive board (e.g. a mixed-suit Spider run cannot travel as a
+		# unit, only its top card can).
+		if not _begin_selection(meta) and _is_faceup_card(meta):
+			_reject_feedback(meta)
+	else:
+		_handle_target(meta)
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.13  ONE-CLICK AUTO-PLAY (column games)
+══════════════════════════════════════════════════════════════════════════════
+
+Not used by TriPeaks — included because it is half of what makes the game
+feel responsive in the variants that do have targets. A click on a card with an
+obvious legal move sends it there; only when there is no obvious move does the
+click fall through to a manual selection.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _auto_play / _auto_targets
+│ source: godot/scripts/ui/game_screen.gd  (lines 1488-1580)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  One-click auto-play
+# ══════════════════════════════════════════════════════════════════════════════
+
+## Sends the clicked card (and its movable run) to the most obvious legal spot:
+## a foundation first, then a tableau column, then a free cell. Returns whether
+## it moved. Klondike / Spider / FreeCell only — Pyramid and TriPeaks handle
+## their own single clicks.
+func _auto_play(meta: Dictionary) -> bool:
+	var gs := RunState.gs
+	var type: String = gs.get("type", "")
+	if not ["klondike", "spider", "freecell"].has(type):
+		return false
+
+	var from := {}
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			var idx := int(meta.get("index", pile.size() - 1))
+			if idx < 0 or idx >= pile.size() or not pile[idx]["face_up"]:
+				return false
+			if type == "klondike" and not _is_valid_run(pile, idx):
+				return false
+			if type == "spider" and pile.size() - idx > Rules.spider_sequence_length(pile):
+				return false
+			if type == "freecell" and pile.size() - idx > Rules.freecell_max_movable(gs):
+				return false
+			from = {"kind": "tableau", "col": meta["col"], "index": idx}
+		"waste":
+			if gs["waste"].is_empty():
+				return false
+			from = {"kind": "waste"}
+		"freecell":
+			if gs["freecells"][meta["col"]] == null:
+				return false
+			from = {"kind": "freecell", "col": meta["col"]}
+		_:
+			return false
+
+	for target in _auto_targets(gs, from):
+		if _try_move(from, target):
+			AudioManager.card_moved()
+			_after_move()
+			return true
+	return false
+
+
+## Candidate destinations for an auto-play, in priority order.
+func _auto_targets(gs: Dictionary, from: Dictionary) -> Array:
+	var type: String = gs["type"]
+	var cards := _take_cards(gs, from, true)
+	if cards.is_empty():
+		return []
+
+	var out := []
+	# 1. A foundation, if a single card fits (the classic one-click destination).
+	if cards.size() == 1 and type in ["klondike", "freecell"]:
+		var can := Rules.klondike_can_foundation(cards[0], gs["foundations"]) if type == "klondike" \
+			else Rules.freecell_can_foundation(cards[0], gs["foundations"])
+		if can:
+			out.append({"kind": "foundation", "col": int(cards[0]["suit"])})
+
+	# 2. Tableau columns — non-empty first; an empty column only if it uncovers
+	#    something (moving a whole column onto an empty one gains nothing).
+	var src_col := int(from.get("col", -1))
+	var whole_column: bool = from.get("kind") == "tableau" and int(from.get("index", 0)) == 0
+	var empties := []
+	for c in gs["tableau"].size():
+		if from.get("kind") == "tableau" and c == src_col:
+			continue
+		var pile: Array = gs["tableau"][c]
+		var ok := false
+		match type:
+			"klondike": ok = Rules.klondike_can_tableau(cards, pile)
+			"spider": ok = Rules.spider_can_drop(cards, pile)
+			"freecell": ok = Rules.freecell_can_tableau(cards[0], pile)
+		if not ok:
+			continue
+		if pile.is_empty():
+			if not whole_column:
+				empties.append({"kind": "tableau", "col": c})
+		else:
+			out.append({"kind": "tableau", "col": c})
+	out.append_array(empties)
+
+	# 3. A free cell as a last resort (FreeCell only, single card).
+	if type == "freecell" and cards.size() == 1:
+		for i in gs["freecells"].size():
+			if gs["freecells"][i] == null:
+				out.append({"kind": "freecell", "col": i})
+				break
+	return out
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.14  DRAG AND DROP
+══════════════════════════════════════════════════════════════════════════════
+
+Drag is an alternative to click-to-place, never a replacement: _is_draggable
+mirrors _begin_selection exactly so both paths accept the same moves. The ghost
+is a floating fanned copy of the carried run; the source cards dim to 0.3 alpha.
+On release, the drop target is the topmost non-dragged slot under the pointer.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — drag and drop
+│ source: godot/scripts/ui/game_screen.gd  (lines 1582-1736)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Drag and drop
+# ══════════════════════════════════════════════════════════════════════════════
+
+## A source is draggable only when a plain move makes sense: one of the three
+## tableau games, no armed item or stash, and a legal movable run under the grab.
+## The checks mirror _begin_selection so drag and click accept the same moves.
+func _is_draggable(meta: Dictionary) -> bool:
+	if not _item_mode.is_empty():
+		return false
+	if RunState.toolbox_uses > 0 and RunState.toolbox_card == null:
+		return false
+	var gs := RunState.gs
+	var type: String = gs.get("type", "")
+	if not ["klondike", "spider", "freecell"].has(type):
+		return false
+
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			var idx := int(meta.get("index", pile.size() - 1))
+			if idx < 0 or idx >= pile.size() or not pile[idx]["face_up"]:
+				return false
+			if type == "klondike" and not _is_valid_run(pile, idx):
+				return false
+			if type == "spider" and pile.size() - idx > Rules.spider_sequence_length(pile):
+				return false
+			if type == "freecell" and pile.size() - idx > Rules.freecell_max_movable(gs):
+				return false
+			return true
+		"waste":
+			return not gs["waste"].is_empty()
+		"freecell":
+			return gs["freecells"][meta["col"]] != null
+		"foundation":
+			# Only Klondike/FreeCell foundations are playable back onto the board.
+			if not (type in ["klondike", "freecell"]):
+				return false
+			var col := int(meta.get("col", -1))
+			return col >= 0 and col < gs["foundations"].size() \
+				and not (gs["foundations"][col] as Array).is_empty()
+	return false
+
+
+func _begin_drag() -> void:
+	var meta: Dictionary = _press["meta"]
+	var gs := RunState.gs
+	_drag_source = meta
+	_drag_cards = _cards_for_drag(gs, meta)
+	if _drag_cards.is_empty():
+		_press = {}
+		return
+
+	_selection = {}
+	_dragging = true
+	var source_view: Control = _press["view"]
+	_grab_offset = _press["start"] - source_view.global_position
+
+	# Dim the cards being carried so the board shows where they came from.
+	for child in _board.get_children():
+		if child is Control and _belongs_to_drag(child.get_meta("slot", {})):
+			(child as Control).modulate.a = 0.3
+
+	# A floating stack of the dragged cards that follows the cursor.
+	_ghost = Control.new()
+	_ghost.top_level = true
+	_ghost.z_index = 100
+	_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_ghost)
+	for i in _drag_cards.size():
+		var card_view := CARD_VIEW.instantiate()
+		_ghost.add_child(card_view)
+		card_view.position = Vector2(0, i * _card_size.y * _fan_up)
+		card_view.custom_minimum_size = _card_size
+		card_view.size = _card_size
+		card_view.setup(_drag_cards[i])
+		card_view.face_up = true
+		card_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ghost.global_position = source_view.global_position
+	AudioManager.card_taken()
+
+
+## The run that would be picked up from a slot, without removing it yet.
+func _cards_for_drag(gs: Dictionary, meta: Dictionary) -> Array:
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			return pile.slice(int(meta.get("index", pile.size() - 1)))
+		"waste":
+			return [gs["waste"][gs["waste"].size() - 1]] if not gs["waste"].is_empty() else []
+		"freecell":
+			var c = gs["freecells"][meta["col"]]
+			return [c] if c != null else []
+		"foundation":
+			var f: Array = gs["foundations"][meta["col"]]
+			return [f[f.size() - 1]] if not f.is_empty() else []
+	return []
+
+
+## Whether a board slot is part of the run currently being dragged.
+func _belongs_to_drag(meta: Dictionary) -> bool:
+	if meta.get("kind") != _drag_source.get("kind"):
+		return false
+	if meta.get("col", -1) != _drag_source.get("col", -1):
+		return false
+	if _drag_source.get("kind") == "tableau":
+		return int(meta.get("index", -1)) >= int(_drag_source.get("index", 0))
+	return true
+
+
+## `drop_point` is in canvas coords; convert to board-local for the hit test.
+func _end_drag(drop_point: Vector2) -> void:
+	var target := _target_at(drop_point - _board.global_position)
+	if is_instance_valid(_ghost):
+		_ghost.queue_free()
+	_ghost = null
+	_dragging = false
+
+	if target.is_empty() or _same_slot(target, _drag_source):
+		_rebuild()  # snap back
+		return
+
+	if _try_move(_drag_source, target):
+		AudioManager.card_moved()
+		_after_move()
+	else:
+		_rebuild()  # rejected: snap back
+		_reject_feedback(target)  # dropped on an illegal destination
+	_drag_source = {}
+	_drag_cards = []
+
+
+func _same_slot(a: Dictionary, b: Dictionary) -> bool:
+	return a.get("kind") == b.get("kind") and a.get("col", -1) == b.get("col", -1)
+
+
+## The drop target under a board-local point: the topmost card or empty slot
+## there, reduced to the pile it belongs to. Dragged source cards are skipped so
+## dropping onto a column always finds the resting cards beneath the ghost.
+func _target_at(local_pos: Vector2) -> Dictionary:
+	var children := _board.get_children()
+	for i in range(children.size() - 1, -1, -1):
+		var child = children[i]
+		if not (child is Control):
+			continue
+		var meta: Dictionary = child.get_meta("slot", {})
+		if meta.is_empty() or _belongs_to_drag(meta):
+			continue
+		if (child as Control).get_rect().has_point(local_pos):
+			return {"kind": meta.get("kind", ""), "col": meta.get("col", -1),
+				"index": meta.get("index", -1)}
+	return {}
+
+
+## Picks up the run at `meta` when it is legally movable. Returns whether a
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.15  SELECTION + REFUSAL FEEDBACK
+══════════════════════════════════════════════════════════════════════════════
+
+The red shake on a refused move: 7px / -6px / 4px / 0 over 0.18s total,
+with a parallel tint back to white over 0.20s.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _begin_selection .. _is_valid_run
+│ source: godot/scripts/ui/game_screen.gd  (lines 1738-1838)
+└──────────────────────────────────────────────────────────────────────────────
+
+func _begin_selection(meta: Dictionary) -> bool:
+	var gs := RunState.gs
+	var kind: String = meta.get("kind", "")
+
+	if kind == "tableau":
+		var pile: Array = gs["tableau"][meta["col"]]
+		var idx := int(meta.get("index", pile.size() - 1))
+		if idx < 0 or idx >= pile.size() or not pile[idx]["face_up"]:
+			return false
+		# A run must be legally movable as a unit before it can be picked up.
+		if gs["type"] == "klondike" and not _is_valid_run(pile, idx):
+			return false
+		if gs["type"] == "spider" and pile.size() - idx > Rules.spider_sequence_length(pile):
+			return false
+		if gs["type"] == "freecell" and pile.size() - idx > Rules.freecell_max_movable(gs):
+			return false
+	elif kind == "waste":
+		if gs["waste"].is_empty():
+			return false
+	elif kind == "freecell":
+		if gs["freecells"][meta["col"]] == null:
+			return false
+	elif kind == "foundation":
+		# A foundation card can be pulled back onto the tableau (or a free cell),
+		# exactly as the web build allows — only the single top card, and only in
+		# the games that actually have playable foundations.
+		if not (String(gs["type"]) in ["klondike", "freecell"]):
+			return false
+		var col := int(meta.get("col", -1))
+		if col < 0 or col >= gs["foundations"].size() \
+				or (gs["foundations"][col] as Array).is_empty():
+			return false
+	else:
+		return false
+
+	_selection = meta
+	AudioManager.card_taken()
+	_rebuild()
+	return true
+
+
+## Whether `meta` points at a face-up, real card (not an empty slot or a
+## face-down tableau card) — the cards for which a refused move is worth
+## flagging.
+func _is_faceup_card(meta: Dictionary) -> bool:
+	var gs := RunState.gs
+	match String(meta.get("kind", "")):
+		"tableau":
+			var pile: Array = gs["tableau"][meta["col"]]
+			var idx := int(meta.get("index", pile.size() - 1))
+			return idx >= 0 and idx < pile.size() and bool(pile[idx]["face_up"])
+		"waste":
+			return not (gs.get("waste", []) as Array).is_empty()
+		"freecell":
+			return gs["freecells"][meta["col"]] != null
+	return false
+
+
+## The on-board card view for a slot meta, or null. Used to target move-refused
+## feedback at the exact card the player interacted with.
+func _view_for_meta(meta: Dictionary) -> Control:
+	var kind = meta.get("kind", "")
+	var col := int(meta.get("col", -1))
+	var idx := int(meta.get("index", -1))
+	for child in _board.get_children():
+		if not (child is Control) or not (child as Control).has_meta("slot"):
+			continue
+		var m: Dictionary = (child as Control).get_meta("slot")
+		if m.get("kind") != kind or int(m.get("col", -1)) != col:
+			continue
+		if kind == "tableau" and idx >= 0 and int(m.get("index", -1)) != idx:
+			continue
+		return child
+	return null
+
+
+## A short red shake on a card whose move was refused, so an illegal click reads
+## as "not a legal move" rather than an unresponsive board.
+func _reject_feedback(meta: Dictionary) -> void:
+	var view := _view_for_meta(meta)
+	if view == null:
+		return
+	var base := view.position
+	view.modulate = Color(1.0, 0.55, 0.55)
+	var tw := create_tween()
+	tw.tween_property(view, "position", base + Vector2(7, 0), 0.05)
+	tw.tween_property(view, "position", base - Vector2(6, 0), 0.05)
+	tw.tween_property(view, "position", base + Vector2(4, 0), 0.04)
+	tw.tween_property(view, "position", base, 0.04)
+	tw.parallel().tween_property(view, "modulate", Color.WHITE, 0.20)
+
+
+## Klondike runs must descend in alternating colours to move together.
+func _is_valid_run(pile: Array, from_index: int) -> bool:
+	for i in range(from_index, pile.size() - 1):
+		var a: Dictionary = pile[i]
+		var b: Dictionary = pile[i + 1]
+		if a["rank"] != b["rank"] + 1 or Cards.is_red(a["suit"]) == Cards.is_red(b["suit"]):
+			return false
+	return true
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.16  GENERIC MOVE ENGINE (column games)
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _handle_target / _try_move / _take_cards / _score_move
+│ source: godot/scripts/ui/game_screen.gd  (lines 1840-1986)
+└──────────────────────────────────────────────────────────────────────────────
+
+func _handle_target(target: Dictionary) -> void:
+	if _selection.is_empty():
+		_begin_selection(target)
+		return
+	if _selection.get("kind") == target.get("kind") and _selection.get("col", -1) == target.get("col", -1):
+		_selection = {}
+		_rebuild()
+		return
+
+	var moved := _try_move(_selection, target)
+	if moved:
+		_selection = {}
+		AudioManager.card_moved()
+		_after_move()
+		return
+
+	# The held run can't go on the clicked card. Rather than punishing the click
+	# (which forced an annoying "click twice" — the first click consumed by a
+	# stale selection, e.g. clicking an Ace and getting a shake, then it works),
+	# drop the selection and treat the click as a fresh action on the clicked
+	# card: auto-play it, else re-select it. Only a card with no legal action at
+	# all gets the refusal shake.
+	_selection = {}
+	if _auto_play(target):
+		return
+	if _begin_selection(target):
+		return
+	_rebuild()  # clear the old selection highlight
+	if _is_faceup_card(target):
+		_reject_feedback(target)
+
+
+## Applies a move if the rules allow it. Returns whether the board changed.
+func _try_move(from: Dictionary, to: Dictionary) -> bool:
+	var gs := Cards.clone_state(RunState.gs)
+	var cards := _take_cards(gs, from, true)
+	if cards.is_empty():
+		return false
+
+	var accepted := false
+	match to.get("kind"):
+		"foundation":
+			if cards.size() == 1 and Rules.klondike_can_foundation(cards[0], gs["foundations"]) \
+					and int(to["col"]) == int(cards[0]["suit"]):
+				gs["foundations"][cards[0]["suit"]].append(cards[0])
+				accepted = true
+		"tableau":
+			var target: Array = gs["tableau"][to["col"]]
+			var ok := false
+			match gs["type"]:
+				"klondike": ok = Rules.klondike_can_tableau(cards, target)
+				"spider": ok = Rules.spider_can_drop(cards, target)
+				"freecell": ok = Rules.freecell_can_tableau(cards[0], target)
+			if ok:
+				for c in cards:
+					target.append(c)
+				accepted = true
+		"freecell":
+			if cards.size() == 1 and gs["freecells"][to["col"]] == null:
+				gs["freecells"][to["col"]] = cards[0]
+				accepted = true
+
+	if not accepted:
+		return false
+
+	RunState.push_undo()
+	_score_move(gs, from, to, cards)
+	_take_cards(gs, from, false)
+	# Klondike scores +5 for each card it flips face-up (klAutoReveal). Spider
+	# flips its newly-exposed cards too but awards nothing for it, matching the
+	# web build's silent reveal.
+	match gs["type"]:
+		"klondike":
+			for revealed in Rules.klondike_auto_reveal(gs):
+				RunState.gs = gs
+				RunState.award_card_points(revealed, Rules.PTS_REVEAL)
+		"spider":
+			Rules.klondike_auto_reveal(gs)
+	if gs["type"] == "spider":
+		for c in 10:
+			var suit := Rules.spider_check_complete(gs["tableau"][c])
+			if suit >= 0:
+				var pile: Array = gs["tableau"][c]
+				pile.resize(pile.size() - 13)
+				if not pile.is_empty():
+					pile[pile.size() - 1]["face_up"] = true
+				gs["foundations"].append(suit)
+				RunState.add_score(Rules.PTS_SUIT_COMPLETED, "suit completed")
+	RunState.gs = gs
+	RunState.moves += 1
+	return true
+
+
+## peek=true returns a copy without mutating; peek=false removes the cards.
+func _take_cards(gs: Dictionary, from: Dictionary, peek: bool) -> Array:
+	match from.get("kind"):
+		"tableau":
+			var pile: Array = gs["tableau"][from["col"]]
+			var idx := int(from.get("index", pile.size() - 1))
+			if idx < 0 or idx >= pile.size():
+				return []
+			var slice := pile.slice(idx)
+			if not peek:
+				pile.resize(idx)
+			return slice
+		"waste":
+			if gs["waste"].is_empty():
+				return []
+			if peek:
+				return [gs["waste"][gs["waste"].size() - 1]]
+			return [gs["waste"].pop_back()]
+		"freecell":
+			var c = gs["freecells"][from["col"]]
+			if c == null:
+				return []
+			if not peek:
+				gs["freecells"][from["col"]] = null
+			return [c]
+		"foundation":
+			var f: Array = gs["foundations"][from["col"]]
+			if f.is_empty():
+				return []
+			if peek:
+				return [f[f.size() - 1]]
+			return [f.pop_back()]
+	return []
+
+
+## Each variant scores a move differently, exactly as the web build did:
+##   Klondike  waste→tableau earns 5 card-points per card; →foundation earns up
+##             to the 20-point cap. Tableau→tableau earns nothing.
+##   FreeCell  →foundation is a flat +5 ('card to foundation'); nothing else.
+##   Spider    no per-move points at all — only the +100 suit-complete bonus,
+##             which _try_move awards separately.
+func _score_move(gs: Dictionary, from: Dictionary, to: Dictionary, cards: Array) -> void:
+	RunState.gs = gs
+	match gs.get("type", ""):
+		"klondike":
+			if to.get("kind") == "foundation":
+				RunState.award_card_points(cards[0], Rules.PTS_FOUNDATION)
+			elif from.get("kind") == "waste" and to.get("kind") == "tableau":
+				for c in cards:
+					RunState.award_card_points(c, Rules.PTS_WASTE_TO_TABLEAU)
+		"freecell":
+			if to.get("kind") == "foundation":
+				RunState.add_score(Rules.PTS_FREECELL_FOUNDATION, "card to foundation")
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.17  TRIPEAKS INTERACTION — stock draw and the single-click play
+══════════════════════════════════════════════════════════════════════════════
+
+_tripeaks_play is the whole variant's interaction in 28 lines: resolve the
+waste top, check free + adjacency, move the card, re-evaluate face-up flags,
+award the streak, bonus the peaks, reset the streak on a refusal.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _draw_stock / _same_pile_counts / _tripeaks_play
+│ source: godot/scripts/ui/game_screen.gd  (lines 1988-2066)
+└──────────────────────────────────────────────────────────────────────────────
+
+func _draw_stock() -> void:
+	var gs := RunState.gs
+
+	# Spider deals a whole row rather than drawing to a waste, and can complete
+	# suits, so it keeps its own path.
+	if String(gs["type"]) == "spider":
+		var result := Rules.spider_deal(gs)
+		if _same_pile_counts(gs, result["state"]) and result["completed"].is_empty():
+			return  # no groups left, or a blocked deal — nothing happened
+		RunState.push_undo()
+		RunState.gs = result["state"]
+		for _s in result["completed"]:
+			RunState.add_score(Rules.PTS_SUIT_COMPLETED, "suit completed")
+		_selection = {}
+		AudioManager.card_moved()
+		_after_move()
+		return
+
+	# Klondike / Pyramid draw a card, or recycle the waste back into the stock
+	# when the stock is empty and a recycle remains. TriPeaks only draws (it has
+	# no recycle). A spent stock — empty with no recycles left — returns the board
+	# unchanged, so skip it rather than burn an undo and play a sound on a dead
+	# click.
+	var next: Dictionary
+	match String(gs["type"]):
+		"klondike": next = Rules.klondike_draw(gs)
+		"pyramid": next = Rules.pyramid_draw(gs)
+		"tripeaks": next = Rules.tripeaks_draw(gs)
+		_: return
+	if _same_pile_counts(gs, next):
+		return
+	RunState.push_undo()
+	RunState.gs = next
+	_selection = {}
+	AudioManager.card_moved()
+	_after_move()
+
+
+## True when two states have identical stock/waste/stock_groups sizes — i.e. a
+## draw or deal that moved nothing.
+func _same_pile_counts(a: Dictionary, b: Dictionary) -> bool:
+	return (a.get("stock", []) as Array).size() == (b.get("stock", []) as Array).size() \
+		and (a.get("waste", []) as Array).size() == (b.get("waste", []) as Array).size() \
+		and (a.get("stock_groups", []) as Array).size() == (b.get("stock_groups", []) as Array).size()
+
+
+## TriPeaks scores an ascending streak: each card taken from the peaks scores the
+## running streak length and lengthens it, with a +15 bonus for a peak (a top
+## card, index < 3). A click on a card that cannot be taken breaks the streak.
+## Ported from the src==='pycard' branch of handleClick. Note a stock draw does
+## NOT reset the streak in the web build, so _draw_stock leaves it untouched.
+func _tripeaks_play(meta: Dictionary) -> void:
+	var gs := Cards.clone_state(RunState.gs)
+	if meta.get("kind") != "pyramid":
+		return
+	var idx := int(meta["index"])
+	var waste_top = null
+	if not gs["waste"].is_empty():
+		waste_top = gs["waste"][gs["waste"].size() - 1]
+	var card = gs["pyramid"][idx] if Rules.tripeaks_free(gs["pyramid"], idx) else null
+	if card == null or not Rules.tripeaks_can_play(card, waste_top):
+		# A failed play resets the streak.
+		RunState.tp_streak = 0
+		_rebuild()
+		return
+	RunState.push_undo()
+	gs["pyramid"][idx] = null
+	card["face_up"] = true
+	gs["waste"].append(card)
+	Rules.tripeaks_update_face_up(gs["pyramid"])
+	RunState.gs = gs
+	RunState.tp_streak += 1
+	RunState.add_score(RunState.tp_streak, "streak x%d" % RunState.tp_streak)
+	if idx < 3:
+		RunState.add_score(Rules.PTS_TRIPEAKS_PEAK, "top card bonus")
+	AudioManager.card_moved()
+	_after_move()
+
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.18  AFTER A MOVE
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ game_screen.gd — _after_move / _check_win
+│ source: godot/scripts/ui/game_screen.gd  (lines 2252-2262)
+└──────────────────────────────────────────────────────────────────────────────
+
+func _after_move() -> void:
+	_rebuild()
+	_check_win()
+
+
+func _check_win() -> void:
+	if Rules.is_won(RunState.gs):
+		RunState.win_overlay = true
+		_show_win_overlay()
+
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.19  UNDO + SCORE HOOKS — run_state.gd (excerpts)
+══════════════════════════════════════════════════════════════════════════════
+
+The two calls the TriPeaks code makes into run state are push_undo() before
+mutating and add_score() after. Note tp_streak is snapshotted into the undo
+entry alongside the state, so an undo restores the streak too.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ run_state.gd — signals, state, streak
+│ source: godot/scripts/autoload/run_state.gd  (excerpts)
+└──────────────────────────────────────────────────────────────────────────────
+
+signal screen_changed(screen: String)
+signal state_changed
+signal score_changed(total: int, delta: int, reason: String)
+signal lives_changed(lives: int)
+signal floor_cleared(floor_index: int)
+signal game_won
+signal run_ended(won: bool)
+signal toast(message: String)
+
+var gs: Dictionary = {}
+var undo_stack: Array = []
+
+## TriPeaks ascending-streak counter. Reset on a refused play, on a new
+## floor, and on a new run; restored by an undo.
+var tp_streak := 0
+
+func add_score(amount: int, reason: String = "") -> void:
+	if amount == 0:
+		return
+	score = maxi(0, score + amount)
+	start_timer()
+	score_log.append({
+		"amount": amount,
+		"reason": reason if reason != "" else "score",
+		"floor": floor_index,
+		"gtype": gtype,
+		"total": score,
+	})
+	score_changed.emit(score, amount, reason)
+
+func push_undo() -> void:
+	undo_stack.append({
+		"gs": Cards.clone_state(gs),
+		"moves": moves,
+		"score": score,
+		"tp_streak": tp_streak,
+	})
+	if undo_stack.size() > MAX_UNDO_STACK:
+		undo_stack.pop_front()
+
+func undos_remaining() -> int:
+	return maxi(0, GameData.UNDOS_PER_FLOOR - floor_undos_used) + bonus_undos
+
+
+func undo_move() -> bool:
+	if undo_stack.is_empty():
+		return false
+	if undos_remaining() <= 0:
+		toast.emit("No undos left this floor_index!")
+		return false
+	var prev: Dictionary = undo_stack.pop_back()
+	gs = prev["gs"]
+	moves = int(prev["moves"])
+	score = int(prev["score"])
+	tp_streak = int(prev.get("tp_streak", 0))
+	win_overlay = false
+	if bonus_undos > 0:
+		bonus_undos -= 1
+	else:
+		floor_undos_used += 1
+	state_changed.emit()
+	return true
+
+
+══════════════════════════════════════════════════════════════════════════════
+  1.20  THEME, ART AND AUDIO CONSTANTS
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ ui_theme.gd — card colours + aspect
+│ source: godot/scripts/ui/ui_theme.gd  (lines 42-51)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ── Card face, matching the web card exactly ──
+const CARD_FACE := Color("e8ddb8")    # .card background
+const CARD_BORDER := Color("7a6a44")  # .card border
+const CARD_RED := Color("8b1a0a")     # .card.red text
+const CARD_BLACK := Color("1a1408")   # .card.blk text
+const CARD_BACK_BG := Color("1a0000")
+
+## Card aspect matches the CSS --cw/--ch (116x160) and the card-back art.
+const CARD_ASPECT := 116.0 / 160.0
+
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ asset_paths.gd — card backs and faces
+│ source: godot/scripts/asset_paths.gd  (lines 12-34)
+└──────────────────────────────────────────────────────────────────────────────
+
+# ── Card backs ────────────────────────────────────────────────────────────────
+# 750x1050 each. Keys match the `id` values used by the web build's CARDBACKS
+# array so save data stays compatible.
+const CARDBACKS := {
+	"classic": "res://assets/cards/backs/cardback_tower.png",
+	"cult": "res://assets/cards/backs/cardback_cult.jpg",
+	"dee": "res://assets/cards/backs/cardback_dee.png",
+	"marie": "res://assets/cards/backs/cardback_mary.png",
+}
+
+const DEFAULT_CARDBACK := "classic"
+
+# ── Card faces ────────────────────────────────────────────────────────────────
+# 52 painted faces (750x1050, transparent rounded corners), named
+# Card_<rank>_<suit>.png. Suit files are indexed by Cards.Suit
+# (SPADES, HEARTS, DIAMONDS, CLUBS); note the source spells clubs "cubs".
+const CARD_FACE_DIR := "res://assets/cards/faces/"
+const _SUIT_FILE := ["spades", "hearts", "diamonds", "cubs"]
+
+
+## Path to a card's painted face, by suit index and rank (1=A … 13=K).
+static func card_face(suit: int, rank: int) -> String:
+	return "%sCard_%s_%s.png" % [CARD_FACE_DIR, Cards.RANK_NAMES[rank], _SUIT_FILE[suit]]
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ asset_paths.gd — the two card SFX
+│ source: godot/scripts/asset_paths.gd  (lines 93-96)
+└──────────────────────────────────────────────────────────────────────────────
+
+const SFX := {
+	"taken": "res://audio/sfx/card_taken.mp3",
+	"moved": "res://audio/sfx/card_moved.mp3",
+}
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ audio_manager.gd — SFX pool + the two card sounds
+│ source: godot/scripts/autoload/audio_manager.gd  (lines 126-144)
+└──────────────────────────────────────────────────────────────────────────────
+
+func play_sfx(sfx_name: String) -> void:
+	if not AssetPaths.SFX.has(sfx_name):
+		return
+	var stream := load(AssetPaths.SFX[sfx_name]) as AudioStream
+	if stream == null:
+		return
+	var player := _sfx_pool[_sfx_index]
+	_sfx_index = (_sfx_index + 1) % _sfx_pool.size()
+	player.stream = stream
+	player.play()
+
+
+func card_taken() -> void:
+	play_sfx("taken")
+
+
+func card_moved() -> void:
+	play_sfx("moved")
+
+
+══════════════════════════════════════════════════════════════════════════════
+  PART 2 — WEB / JAVASCRIPT + CSS IMPLEMENTATION
+══════════════════════════════════════════════════════════════════════════════
+
+Extracted from index.html — a single-file browser build, no framework and no
+build step. The code is written in a deliberately dense style (one statement per
+line, few spaces) because the whole game ships as one file; it is the same
+algorithms as Part 1, so read Part 1 first if you want the commentary.
+
+Global state lives on one object, A, with A.gs holding the game state and A.sel
+the current selection. Three globals the snippets below reference:
+
+  A.gs          the game state object
+  A.tpStreak    the TriPeaks ascending streak counter
+  _skipNextAnim suppresses the automatic FLIP pass for one render, used when a
+                move plays its own bespoke flight animation instead
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.1  CARD MODEL, DECK, RNG AND RESPONSIVE SIZING
+══════════════════════════════════════════════════════════════════════════════
+
+getS() is the web equivalent of _fit_card_size: pick a size tier from the
+viewport width, then scale the tier down proportionally if the widest row would
+not fit. Everything downstream reads the result through CSS custom properties
+(--cw, --ch, --cfs, --cfss, --cfc, --cgap), so the card markup never carries
+pixel sizes.
+
+Note mkRng is a seeded xorshift, so a deal is reproducible from its seed.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — sizing + card utils
+│ source: index.html  (lines 825-881)
+└──────────────────────────────────────────────────────────────────────────────
+
+// ── RESPONSIVE CARD SIZING ─────────────────────────────────
+// Column counts per game (widest row that must fit horizontally)
+const GAME_COLS={klondike:7,spider:10,tripeaks:10,pyramid:7,freecell:8};
+function getS(gameType){
+const vw=window.innerWidth;
+// Base tier by viewport width
+let t;
+if(vw>=1100) t={cw:116,ch:160,cgap:8,coverDown:14,coverUp:36,spDown:12,spUp:30,fcOver:32,cfs:32,cfss:18,cfc:84,tenFs:30};
+else if(vw>=780) t={cw:96,ch:132,cgap:7,coverDown:12,coverUp:30,spDown:10,spUp:25,fcOver:28,cfs:34,cfss:18,cfc:82,tenFs:26};
+else if(vw>=520) t={cw:68,ch:94,cgap:5,coverDown:10,coverUp:24,spDown:9,spUp:20,fcOver:22,cfs:24,cfss:13,cfc:58,tenFs:18};
+else             t={cw:54,ch:74,cgap:4,coverDown:8,coverUp:19,spDown:7,spUp:16,fcOver:18,cfs:19,cfss:10,cfc:44,tenFs:14};
+// Horizontal space consumed by chrome outside the card area:
+// game-screen padding (8px×2) + win95-window border (2px×2) + garea padding (12px×2) = 44px
+const overhead=44;
+const avail=Math.max(160,vw-overhead);
+const numCols=GAME_COLS[gameType]||7;
+// Maximum card width that makes all columns fit without overflowing
+const maxCw=Math.floor((avail-(numCols-1)*t.cgap)/numCols);
+if(maxCw>=t.cw) return t; // plenty of room -- use the tier as-is
+// Scale everything proportionally to fit
+const r=maxCw/t.cw;
+const cw=Math.max(28,maxCw);
+const ch=Math.round(t.ch*r);
+const cgap=Math.max(2,Math.round(t.cgap*r));
+return{
+cw,ch,cgap,
+coverDown: Math.max(4, Math.round(t.coverDown*r)),
+coverUp:   Math.round(t.coverUp*r),
+spDown:    Math.max(4, Math.round(t.spDown*r)),
+spUp:      Math.max(18,Math.round(t.spUp*r)),
+fcOver:    Math.round(t.fcOver*r),
+cfs:    Math.max(8, Math.round(t.cfs*r)),
+cfss:   Math.max(6, Math.round(t.cfss*r)),
+cfc:    Math.max(14,Math.round(t.cfc*r)),
+tenFs:  Math.max(10,Math.round(t.tenFs*r)),
+};
+}
+function applyS(s){
+const r=document.documentElement.style;
+r.setProperty('--cw',s.cw+'px');r.setProperty('--ch',s.ch+'px');
+r.setProperty('--cfs',s.cfs+'px');r.setProperty('--cfss',s.cfss+'px');r.setProperty('--cfc',s.cfc+'px');
+r.setProperty('--cgap',s.cgap+'px');
+}
+function mkRng(seed){let s=seed|0;return()=>{s^=s<<13;s^=s>>17;s^=s<<5;return(s>>>0)/0xFFFFFFFF;};}
+
+// ── CARD UTILS ─────────────────────────────────────────────
+const SYM=['♠','♥','♦','♣'];
+const LBL=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const isRed=s=>s===1||s===2;
+const mkCard=(suit,rank,faceUp=false)=>({suit,rank,faceUp});
+function makeDeck(){const d=[];for(let s=0;s<4;s++)for(let r=1;r<=13;r++)d.push(mkCard(s,r));return d;}
+function shuffle(deck,rng){const d=deck.map(c=>({...c}));for(let i=d.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[d[i],d[j]]=[d[j],d[i]];}return d;}
+function cloneState(s){
+return JSON.parse(JSON.stringify(s,(k,v)=>v===Infinity?'**INF**':v),
+(k,v)=>v==='**INF**'?Infinity:v);
+}
+function emptyH(cls='',label=''){return`<div class="empty-slot ${cls}">${label}</div>`;}
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.2  TRIPEAKS GEOMETRY — the blocker table and the peak positions
+══════════════════════════════════════════════════════════════════════════════
+
+TP_BLK is the identical table to the Godot TP_BLOCKERS. The comment above it
+describes the shape as a horned skull — that was an earlier layout experiment;
+tpPos() below lays out the classic three peaks, and the blocker table is the
+standard TriPeaks one either way.
+
+tpRowYs() is a nicety the Godot build does not have: rows collapse closer
+together (0.44 of card width) while any card in them is still face down, and
+open out (0.90) once the row is fully exposed, so the board breathes as it
+clears. tpPos() places the three tips at 1.5 / 4.5 / 7.5 column steps.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — TP_BLK, TP_ROWS, tpRowYs, tpPos
+│ source: index.html  (lines 1109-1152)
+└──────────────────────────────────────────────────────────────────────────────
+
+// Skull-face layout -- 28 cards arranged as a horned demon skull.
+// Free from start: jaw 24-27, outer cheeks 18+23, outer brow 6+13,
+//   AND brow 8+11 (sit above the eye socket gaps → no card below them).
+// Eye sockets are visual GAPS at x=2TW and x=5TW in the orbital row.
+// Orbitals 15+16 form the nose bridge at x=3TW,4TW, directly under brow 9+10.
+const TP_BLK={
+// Tips blocked by their 2 shoulders
+0:[3,4], 1:[5,6], 2:[7,8],
+// Shoulders each blocked by 2 base cards
+3:[9,10], 4:[10,11], 5:[12,13], 6:[13,14], 7:[15,16], 8:[16,17],
+// Bases each blocked by 2 ground cards
+9:[18,19], 10:[19,20], 11:[20,21], 12:[21,22], 13:[22,23],
+14:[23,24], 15:[24,25], 16:[25,26], 17:[26,27]
+};
+// Cards per row in the classic 3-mountain layout
+const TP_ROWS=[
+[0,1,2],
+[3,4,5,6,7,8],
+[9,10,11,12,13,14,15,16,17],
+[18,19,20,21,22,23,24,25,26,27]
+];
+function tpRowYs(pyramid,cw){
+const VG_DOWN=Math.round(cw*0.44);
+const VG_UP  =Math.round(cw*0.90);
+const ys=[0];
+for(let r=0;r<3;r++){
+const present=TP_ROWS[r+1].filter(i=>pyramid[i]);
+const anyDown=present.length&&present.some(i=>!pyramid[i].faceUp);
+ys.push(ys[r]+(anyDown?VG_DOWN:VG_UP));
+}
+return ys;
+}
+function tpPos(idx,cw,cgap,ys){
+const TW=cw+cgap;const half=Math.round(TW*0.5);
+const y0=ys?ys[0]:0, y1=ys?ys[1]:Math.round(cw*0.70),
+y2=ys?ys[2]:Math.round(cw*0.70)*2, y3=ys?ys[3]:Math.round(cw*0.70)*3;
+if(idx===0) return{x:TW+half,   y:y0};
+if(idx===1) return{x:TW*4+half, y:y0};
+if(idx===2) return{x:TW*7+half, y:y0};
+const shX=[TW,TW*2, TW*4,TW*5, TW*7,TW*8];
+if(idx<=8)  return{x:shX[idx-3], y:y1};
+if(idx<=17) return{x:half+(idx-9)*TW, y:y2};
+return{x:(idx-18)*TW, y:y3};
+}
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.3  TRIPEAKS RULES AND DEAL
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — initTripeaks and the rule predicates
+│ source: index.html  (lines 1153-1177)
+└──────────────────────────────────────────────────────────────────────────────
+
+function initTripeaks(floor){
+const rng=mkRng(Date.now()^(Math.random()*0xFFFFF|0));const deck=shuffle(makeDeck(),rng);
+const pyramid=deck.slice(0,28).map((c,i)=>({...c,faceUp:false}));tpUpdateFaceUp(pyramid);
+const stock=deck.slice(28).map(c=>({...c,faceUp:false}));
+const waste=stock.length?[{...stock.shift(),faceUp:true}]:[];
+const maxRecycle =
+diff(floor)==='easy' ? 1 :
+diff(floor)==='medium' ? 0 :
+0;
+
+return{
+type:'tripeaks',
+pyramid,
+stock,
+waste,
+recycle:0,
+maxRecycle,
+floor
+};
+}
+function tpUpdateFaceUp(pyramid){for(let i=0;i<28;i++){if(pyramid[i]&&tpFree(pyramid,i))pyramid[i].faceUp=true;}}
+function tpFree(pyramid,idx){if(!pyramid[idx])return false;const blk=TP_BLK[idx]||[];return blk.every(b=>!pyramid[b]);}
+function tpCanPlay(card,wasteTop){if(!wasteTop)return true;const diff=Math.abs(card.rank-wasteTop.rank);return diff===1||(card.rank===1&&wasteTop.rank===13)||(card.rank===13&&wasteTop.rank===1);}
+function tpWon(gs){return gs.pyramid.every(c=>!c);}
+function tpDrawStock(){const s=cloneState(A.gs);if(!s.stock.length)return;const c=s.stock.shift();c.faceUp=true;s.waste.push(c);A.gs=s;}
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.4  TRIPEAKS HINTS
+══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — findHintsTripeaks
+│ source: index.html  (lines 1259-1267)
+└──────────────────────────────────────────────────────────────────────────────
+
+function findHintsTripeaks(gs,all){
+const hints=[];const wTop=gs.waste.length?gs.waste[gs.waste.length-1]:null;
+for(let i=0;i<28;i++){
+const card=gs.pyramid[i];if(!card)continue;
+if(tpFree(gs.pyramid,i)&&tpCanPlay(card,wTop)){hints.push({src:'pycard',col:0,idx:i});if(!all)return hints;}
+}
+return hints;
+}
+function findHintsPyramid(gs,all){
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.5  TRIPEAKS RENDERING
+══════════════════════════════════════════════════════════════════════════════
+
+Absolutely positioned cards inside a sized relative wrapper. Two details
+carry the feel: z-index is derived from the y position (floor(y/10), +5 for face-
+up cards) so the peaks stack correctly without a manual ordering pass, and
+data-ckey is the per-card identity the FLIP animator in 2.8 matches on.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — renderTripeaks
+│ source: index.html  (lines 2748-2763)
+└──────────────────────────────────────────────────────────────────────────────
+
+function renderTripeaks(gs,s){
+const {pyramid,stock,waste}=gs;const {cw,ch,cgap}=s;
+const wasteTop=waste.length?waste[waste.length-1]:null;
+const ys=tpRowYs(pyramid,cw);const totalH=ys[3]+ch+10;const totalW=10*(cw+cgap)-cgap;
+let pyH='';
+for(let i=0;i<28;i++){
+const card=pyramid[i];if(!card)continue;const p=tpPos(i,cw,cgap,ys);const free=tpFree(pyramid,i);
+const selCls=(A.sel&&A.sel.type==='pycard'&&A.sel.idx===i)?'sel':'';
+if(!card.faceUp){pyH+=`<div class="card back" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)}"></div>`;}
+else{const cc=isRed(card.suit)?'red':'blk';pyH+=`<div class="card ${cc} ${selCls}" data-src="pycard" data-idx="${i}" data-col="0" data-ckey="${card.suit}-${card.rank}-tp${i}" style="position:absolute;left:${p.x}px;top:${p.y}px;z-index:${Math.floor(p.y/10)+5};cursor:${free?'pointer':'not-allowed'}"><div class="ct"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div><div class="cc">${SYM[card.suit]}</div><div class="cb"><span>${LBL[card.rank]}</span><span>${SYM[card.suit]}</span></div></div>`;}
+}
+const stockH=stock.length?`<div class="card back" data-src="tp-stock" style="cursor:pointer"></div>`:emptyH('','✓');
+const wasteH=wasteTop?`<div class="card ${isRed(wasteTop.suit)?'red':'blk'}"><div class="ct"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div><div class="cc">${SYM[wasteTop.suit]}</div><div class="cb"><span>${LBL[wasteTop.rank]}</span><span>${SYM[wasteTop.suit]}</span></div></div>`:emptyH();
+return`<div class="tp-wrap"><div style="position:relative;width:${totalW}px;height:${totalH}px;flex-shrink:0">${pyH}</div> <div class="tp-stock-area">${stockH}<div style="text-align:center"><div class="tp-label">Waste</div><div id="tp-waste-slot">${wasteH}</div></div><div style="font-family:var(--pixel);font-size:16px;color:rgba(255,255,255,.7);align-self:center">${pyramid.filter(c=>!!c).length} left</div></div></div>`;
+}
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.6  TRIPEAKS INTERACTION + ITS BESPOKE FLIGHT ANIMATION
+══════════════════════════════════════════════════════════════════════════════
+
+The click handler does the same work as _tripeaks_play, and then hand-rolls
+the card flight: capture the source rect and innerHTML before the re-render, set
+_skipNextAnim so the generic FLIP pass stays out of the way, re-render, then
+append an absolutely positioned .fly-card clone at the old rect and transition
+its left/top/width/height to the waste slot's rect over 250ms.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — stock clicks + the TriPeaks play
+│ source: index.html  (lines 3320-3342)
+└──────────────────────────────────────────────────────────────────────────────
+
+if(src==='stock'){pushUndo();A.gs=klDraw(A.gs);A.moves++;render();return;}
+if(src==='sp-stock'){
+if(A.gs.stockGroups.length&&A.gs.tableau.some(c=>!c.length)){showToast('Fill all empty columns before dealing!');return;}
+pushUndo();A.gs=spDeal(A.gs);A.moves++;checkWin();render();return;
+}
+if(src==='tp-stock'){pushUndo();tpDrawStock();A.moves++;render();return;}
+if(src==='py-stock'){pushUndo();A.gs=pyDrawStock(A.gs);A.moves++;render();return;}
+
+if(t==='tripeaks'&&src==='pycard'){
+pushUndo();const gs=A.gs;const wasteTop=gs.waste.length?gs.waste[gs.waste.length-1]:null;const card=gs.pyramid[idx];
+if(tpFree(gs.pyramid,idx)&&tpCanPlay(card,wasteTop)){
+const srcEl=document.querySelector(`[data-src="pycard"][data-idx="${idx}"]`);const srcRect=srcEl?srcEl.getBoundingClientRect():null;const cardInner=srcEl?srcEl.innerHTML:'';const cardCls=isRed(card.suit)?'red':'blk';
+const s=cloneState(gs);s.waste.push({...s.pyramid[idx],faceUp:true});s.pyramid[idx]=null;tpUpdateFaceUp(s.pyramid);A.gs=s;A.moves++;
+A.tpStreak=(A.tpStreak||0)+1;addScore(A.tpStreak,'streak x'+A.tpStreak);if(idx<3)addScore(15,'top card bonus');
+_skipNextAnim=true;render();
+if(srcRect){const wasteSlot=document.getElementById('tp-waste-slot');const destRect=wasteSlot?wasteSlot.getBoundingClientRect():null;if(destRect){const d=document.createElement('div');d.className=`card ${cardCls} fly-card`;d.innerHTML=cardInner;d.style.left=srcRect.left+'px';d.style.top=srcRect.top+'px';d.style.width=srcRect.width+'px';d.style.height=srcRect.height+'px';document.body.appendChild(d);requestAnimationFrame(()=>requestAnimationFrame(()=>{d.style.left=destRect.left+'px';d.style.top=destRect.top+'px';d.style.width=destRect.width+'px';d.style.height=destRect.height+'px';}));setTimeout(()=>d.remove(),320);}}
+if(tpWon(A.gs))handleWin();
+} else {A.tpStreak=0;render();}
+return;
+}
+if(t==='pyramid'){handlePyramidClick(src,idx);return;}
+
+// ── If a card is already selected, try to move to clicked destination ──
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.7  CARD LOOK AND FEEL — CSS
+══════════════════════════════════════════════════════════════════════════════
+
+The whole visual language of a card. The hover lift (-4px, 120ms), the
+selection outline, the hint pulse, the flip keyframe and the .fly-card
+transition all live here. The shared easing curve across the build is
+cubic-bezier(0.22, 0.68, 0, 1.0) — a fast start that settles softly, which is
+what makes a card feel like it was placed rather than teleported.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — card size custom properties
+│ source: index.html  (lines 144-148)
+└──────────────────────────────────────────────────────────────────────────────
+
+  --felt:#1a0d2e;--felt2:#160a26;--felt-shadow:#110820;
+  --pixel:'VT323',monospace;--card-red:#cc0000;--card-black:#000000;
+  --cw:116px;--ch:160px;--cfs:32px;--cfss:18px;--cfc:84px;
+}
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;}
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — card CSS
+│ source: index.html  (lines 416-456)
+└──────────────────────────────────────────────────────────────────────────────
+
+/* ── CARDS ── */
+.card{width:var(--cw);height:var(--ch);border-radius:4px;border:1px solid #7a6a44;background:#e8ddb8;position:relative;cursor:pointer;flex-shrink:0;font-family:'Georgia','Times New Roman',serif;box-shadow:1px 2px 6px rgba(0,0,0,0.55),inset 0 0 18px rgba(0,0,0,0.06);transition:transform 0.12s cubic-bezier(0.22,0.68,0,1.0),box-shadow 0.12s ease;}
+.card.animating{transition:transform 0.22s cubic-bezier(0.22,0.68,0,1.0);pointer-events:none;}
+.card:not(.back):not(.fly-card):hover{transform:translateY(-4px);box-shadow:1px 6px 14px rgba(0,0,0,.7),inset 0 0 18px rgba(0,0,0,.06);}
+.card.sel-top:hover{transform:translateY(-8px);}
+.card.red{color:#8b1a0a;}
+.card.blk{color:#1a1408;}
+.card.back{
+background-color:#1a0000;
+background-image:var(--cardback-img, url("Cardback Tower - 2.png.png"));
+background-repeat:no-repeat;
+background-position:center center;
+background-size:cover;
+border-color:#3a0808;cursor:default;
+box-shadow:1px 2px 6px rgba(0,0,0,0.7),inset 0 0 14px rgba(0,0,0,0.5);}
+.card.back::after{content:'';position:absolute;inset:5px;border:1px solid rgba(80,120,160,.2);border-radius:2px;}
+.card.back.x-revealed{background-color:#1a0820 !important;background-image:repeating-linear-gradient(0deg,rgba(220,180,255,.07) 0,rgba(220,180,255,.07) 2px,transparent 2px,transparent 10px) !important;}
+.card.back.x-revealed::after{border-color:rgba(255,180,255,.3);}
+.card .ct{position:absolute;top:3px;left:5px;line-height:1;display:flex;flex-direction:column;align-items:flex-start;font-family:'Georgia','Times New Roman',serif;}
+.card .ct span:first-child{font-size:var(--cfs);font-weight:700;line-height:1;}
+.card .ct span:last-child{font-size:var(--cfss);font-weight:600;line-height:1.1;opacity:.85;}
+.card .cb{display:none;}
+.card .cc{position:absolute;top:58%;left:50%;transform:translate(-50%,-50%);font-size:var(--cfc);line-height:1;}
+.card.sel{outline:3px solid #0066ff;outline-offset:2px;box-shadow:0 4px 12px rgba(0,102,255,.35);}
+.card.sel-top{transform:translateY(-8px);}
+.card.vdrop{outline:3px solid #00ff00;outline-offset:1px;animation:vblink .5s step-end infinite;}
+@keyframes vblink{0%,100%{outline-color:#00ff00;}50%{outline-color:#008800;}}
+.card.dragging{opacity:.35;}
+.card.hint-glow{outline:3px solid #ffff00 !important;box-shadow:0 0 14px 4px rgba(255,255,0,.7) !important;animation:hint-pulse 0.9s ease-in-out infinite !important;z-index:9999 !important;}
+.card.hint-target{outline:3px solid #00ffaa !important;box-shadow:0 0 14px 4px rgba(0,255,170,.6) !important;}
+@keyframes hint-pulse{0%,100%{outline-color:#ffff00;}50%{outline-color:#ff8800;}}
+.card.item-target{outline:3px solid #ff44ff !important;box-shadow:0 0 14px 4px rgba(255,100,255,.7) !important;animation:item-pulse 0.6s ease-in-out infinite !important;cursor:crosshair !important;}
+@keyframes item-pulse{0%,100%{outline-color:#ff44ff;}50%{outline-color:#aa00ff;}}
+@keyframes card-flip{0%{transform:scaleX(0) perspective(400px);opacity:0.6;}50%{transform:scaleX(0.05) perspective(400px);}100%{transform:scaleX(1) perspective(400px);opacity:1;}}
+.card.flipping{animation:card-flip 0.32s cubic-bezier(0.22,0.68,0,1.0);}
+.fly-card{position:fixed;z-index:9999;pointer-events:none;transition:left 0.25s cubic-bezier(0.22,0.68,0,1.0),top 0.25s cubic-bezier(0.22,0.68,0,1.0),width 0.25s cubic-bezier(0.22,0.68,0,1.0),height 0.25s cubic-bezier(0.22,0.68,0,1.0),opacity 0.25s ease,transform 0.32s cubic-bezier(0.22,0.68,0,1.0);}
+.fly-card.sp-found{transition:left 0.38s cubic-bezier(.15,1.4,.5,1),top 0.38s cubic-bezier(.15,1.4,.5,1),width 0.38s ease,height 0.38s ease,opacity 0.38s ease;}
+.empty-slot{width:var(--cw);height:var(--ch);border-radius:4px;border:1px dashed rgba(255,240,180,.15);background:rgba(0,0,0,.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:rgba(255,240,180,.18);font-size:1.8rem;}
+.sp-complete-slot{width:var(--cw);height:var(--ch);border-radius:2px;border:2px solid;border-color:var(--w95-darker) var(--w95-white) var(--w95-white) var(--w95-darker);background:rgba(0,0,0,.18);box-shadow:inset 1px 1px 0 rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:rgba(255,255,255,.3);font-family:var(--pixel);text-align:center;}
+.sp-complete-slot.filled{background:rgba(0,80,0,.5);border-color:#006600;color:#00ff00;}
+
+
+
+══════════════════════════════════════════════════════════════════════════════
+  2.8  GENERIC MOVE ANIMATION — the FLIP pass (game feel)
+══════════════════════════════════════════════════════════════════════════════
+
+The web equivalent of _capture_positions / _animate_transition. snapCards()
+runs before the re-render and records every [data-ckey] element's screen rect;
+animateCards() runs after and, for each element whose key it recognises, applies
+an inverted transform with no transition, then releases it on the next frame so
+the browser animates it home.
+
+Two refinements worth copying:
+  * duplicate keys are skipped (Spider deals repeated suit/rank pairs, so a key
+    can be ambiguous — do not animate what you cannot identify);
+  * movers are grouped by source pile, sorted by index, and staggered 28ms apart,
+    so moving a run of cards reads as a ripple rather than a single slab.
+
+A card that has no previous snapshot but whose slot held a face-down card last
+frame gets the flip keyframe instead — that is how a newly revealed card turns
+over. flyCardOff() is the removal animation: up 250px, 80px sideways in a random
+direction, 25 degrees of rotation, fading out over 500ms.
+
+┌──────────────────────────────────────────────────────────────────────────────
+│ index.html — snapCards / animateCards / flyCardOff
+│ source: index.html  (lines 1332-1381)
+└──────────────────────────────────────────────────────────────────────────────
+
+//  RENDER
+// ═══════════════════════════════════════════════════════════
+let _snapshots={};let _skipNextAnim=false;let _prevFaceDown=new Set();
+function snapCards(){
+if(_skipNextAnim){_snapshots={};_prevFaceDown=new Set();return;}
+_snapshots={};
+// First pass: find any duplicate keys (happens in Spider with repeated suits)
+const count={};
+document.querySelectorAll('[data-ckey]').forEach(el=>{const k=el.dataset.ckey;count[k]=(count[k]||0)+1;});
+// Second pass: only snapshot unique keys -- duplicates can't be reliably animated
+document.querySelectorAll('[data-ckey]').forEach(el=>{
+const k=el.dataset.ckey;
+if(count[k]>1)return;
+const r=el.getBoundingClientRect();_snapshots[k]={x:r.left,y:r.top};
+});
+// Track face-down card positions for flip-animation detection
+_prevFaceDown=new Set();
+document.querySelectorAll('.card.back[data-col][data-idx]').forEach(el=>_prevFaceDown.add(el.dataset.col+'-'+el.dataset.idx));
+}
+function animateCards(){
+if(_skipNextAnim){_skipNextAnim=false;_snapshots={};return;}
+// Collect moved cards so we can stagger stack moves
+const movers=[];
+document.querySelectorAll('[data-ckey]').forEach(el=>{
+const key=el.dataset.ckey;const prev=_snapshots[key];
+if(!prev&&!el.classList.contains('back')&&_prevFaceDown.has(el.dataset.col+'-'+el.dataset.idx)){el.classList.add('flipping');el.addEventListener('animationend',()=>el.classList.remove('flipping'),{once:true});return;}
+if(!prev)return;const cur=el.getBoundingClientRect();const dx=prev.x-cur.left,dy=prev.y-cur.top;
+if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
+movers.push({el,dx,dy,col:el.dataset.col||'',src:el.dataset.src||'',idx:parseInt(el.dataset.idx)||0});
+});
+// Group by (src+col) to detect stack moves; sort each group by idx for stagger
+const groups={};
+movers.forEach(m=>{const k=m.src+'|'+m.col;(groups[k]=groups[k]||[]).push(m);});
+Object.values(groups).forEach(grp=>{
+grp.sort((a,b)=>a.idx-b.idx);
+grp.forEach((m,i)=>{
+  const delay=i*28;
+  m.el.style.transition='none';m.el.style.transform=`translate(${m.dx}px,${m.dy}px) scale(1.02)`;
+  requestAnimationFrame(()=>{m.el.style.transition=`transform 0.25s ${delay}ms cubic-bezier(0.22,0.68,0,1.0)`;m.el.style.transform='translate(0,0) scale(1)';});
+});
+});
+_snapshots={};
+}
+function flyCardOff(fromRect,innerHTML,cc=''){
+const d=document.createElement('div');d.className=`card ${cc} fly-card`;
+d.style.left=fromRect.left+'px';d.style.top=fromRect.top+'px';d.style.width=fromRect.width+'px';d.style.height=fromRect.height+'px';d.innerHTML=innerHTML;
+document.body.appendChild(d);const dir=(Math.random()>0.5?1:-1);
+requestAnimationFrame(()=>requestAnimationFrame(()=>{d.style.transform=`translateY(-250px) translateX(${dir*80}px) rotate(${dir*25}deg)`;d.style.opacity='0';}));
+setTimeout(()=>d.remove(),500);
+}
+
+
+══════════════════════════════════════════════════════════════════════════════
+  PART 3 — RULES AND TUNING CHEAT SHEET
+══════════════════════════════════════════════════════════════════════════════
+
+--------------------------------------------------------------------------------
+ TRIPEAKS SHAPE
+--------------------------------------------------------------------------------
+
+ 28 cards, four rows, three peaks. Slot indices:
+
+            0                 1                 2            row 0  (peaks)
+          3   4             5   6             7   8          row 1
+        9  10  11        12  13  14        15  16  17        row 2
+     18  19  20  21    22  23  24  25    26  27              row 3  (base, 10)
+
+ Blocker table — slot : the two slots resting on top of it
+
+    0:[3,4]    1:[5,6]    2:[7,8]
+    3:[9,10]   4:[10,11]  5:[12,13]  6:[13,14]  7:[15,16]  8:[16,17]
+    9:[18,19] 10:[19,20] 11:[20,21] 12:[21,22] 13:[22,23]
+   14:[23,24] 15:[24,25] 16:[25,26] 17:[26,27]
+
+ Slots 18-27 have no entry, so they are free from the deal.
+
+ Deck split : deck[0..27]  -> pyramid (all face down, then free slots flip up)
+              deck[28..51] -> stock (24 cards); the first is turned to the waste
+
+--------------------------------------------------------------------------------
+ TRIPEAKS RULES
+--------------------------------------------------------------------------------
+
+ free(i)          every slot in blockers[i] is empty, and slot i is not empty
+ can_play(c, top)  top is null, OR |c.rank - top.rank| == 1,
+                    OR (c.rank == A and top.rank == K)
+                    OR (c.rank == K and top.rank == A)
+ draw              shift one card off the stock, face up, onto the waste
+ won               all 28 pyramid slots are empty
+ recycles          easy floors (index <= 3): 1;  medium and hard: 0
+
+--------------------------------------------------------------------------------
+ TRIPEAKS SCORING
+--------------------------------------------------------------------------------
+
+ card taken from the peaks   + the running streak length, then streak += 1
+ card was a peak (index < 3) + 15 flat, on top of the streak award
+ refused play                streak = 0
+ stock draw                  streak unchanged  (deliberate — see note in code)
+ undo                        restores the streak along with the board
+
+ So a chain of five cards scores 1 + 2 + 3 + 4 + 5 = 15, and clearing a peak as
+ the fifth card of a chain scores 5 + 15 = 20.
+
+--------------------------------------------------------------------------------
+ LAYOUT NUMBERS
+--------------------------------------------------------------------------------
+
+ GODOT                                       WEB
+ card aspect        116 : 160                --cw : --ch, 116 x 160 at the top tier
+ horizontal step    card_w * 1.10            cw + cgap
+ peak x positions   1.5, 4.5, 7.5 steps      same
+ row y step         card_h * 0.42            0.44 * cw collapsed / 0.90 * cw open
+ board footprint    11.0 w x 3.6 h cards     10 columns
+ stock / waste      1.25 card heights        separate flex area to the right
+                    below the base row
+ card width clamp   44 .. 260 px             28 px floor, tiered by viewport
+ board margin       3% of the board          44 px of chrome overhead
+
+--------------------------------------------------------------------------------
+ MOVEMENT AND FEEL NUMBERS
+--------------------------------------------------------------------------------
+
+ GODOT                                       WEB
+ move slide         0.18 s, cubic ease-out   0.25 s, cubic-bezier(.22,.68,0,1)
+ stagger per card   none                     28 ms per card in a run
+ bespoke flight     n/a (generic slide)      0.25 s on left/top/width/height
+ removal fly-off    0.42 s, +/-80 px x,      0.50 s, +/-80 px x, -250 px y,
+                    -180 px y, fade to 0       25 deg rotate, fade to 0
+ flip reveal        face_up flag + redraw    0.32 s scaleX keyframe
+ hover lift         none (desktop pointer)   -4 px, 0.12 s
+ selected lift      gold 3 px ring           -8 px plus a blue outline
+ refusal shake      7, -6, 4, 0 px over      n/a
+                    0.18 s, red tint 0.20 s
+ drag threshold     14 screen px, converted  pointer-based HTML5 drag
+                    to canvas units
+ dragged source     alpha 0.30               opacity 0.35
+ animated card cap  26 per transition        all movers, grouped and staggered
+ shared easing      TRANS_CUBIC, EASE_OUT    cubic-bezier(0.22, 0.68, 0, 1.0)
+
+--------------------------------------------------------------------------------
+ PORTING CHECKLIST
+--------------------------------------------------------------------------------
+
+ 1. Take cards.gd (or the JS card utils). You need: make_card, make_deck,
+    shuffle with an injectable RNG, clone_state, and the uid stamping.
+ 2. Take the TriPeaks section of rules.gd. It has no engine dependency beyond a
+    random number generator. This is the whole game.
+ 3. Take hints.gd's tripeaks() if you want a hint button or "no moves left"
+    detection — it is the same predicate pair, applied across all 28 slots.
+ 4. For the view, the three decisions that matter more than the code:
+      * size cards from a FIXED per-variant footprint, never from the live board;
+      * lay out from a (0,0) origin and centre with one offset pass;
+      * animate by diffing positions per uid after a rebuild, so no move code
+        ever has to know an animation exists.
+ 5. Wire push_undo() before every mutation and add_score() after. Snapshot the
+    streak counter into the undo entry, not just the board.
+ 6. Two sounds carry the entire game: one for picking a card up, one for putting
+    it down. Pool a handful of players so fast play does not cut them off.
+
+================================================================================
+ END OF EXPORT
+================================================================================
