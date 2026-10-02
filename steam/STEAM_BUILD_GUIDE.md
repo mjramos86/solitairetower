@@ -43,8 +43,8 @@ branch and submitting the app to Valve so they can approve it for release.
      `build/mac/SolitaireTowerofDoom.app`.
    - (Optional) **Application → Product/File version:** `0.7.1.0` to match
      `project.godot`.
-   - (macOS) fill in the **code signing / notarisation** fields if you have an
-     Apple Developer ID — see the signing warning in Phase 2.
+   - (macOS) set up signing per Phase 2 — Developer ID + notarisation if you
+     have an Apple Developer account, otherwise the ad-hoc route.
 4. Leave "Export With Debug" **off** for the review build.
 5. This writes `godot/export_presets.cfg` — commit it so the presets are
    reproducible. **Never commit** the export templates, the built binaries, or
@@ -83,11 +83,42 @@ branch and submitting the app to Valve so they can approve it for release.
    build launches. If it prints "extension not installed" or an init failure,
    fix that before uploading.
 
-   ⚠️ **macOS signing.** Exporting the `.app` from Windows works, but it cannot
-   be **code-signed or notarised** without a Mac (or `rcodesign`-style tooling).
-   An unsigned `.app` triggers a Gatekeeper "damaged / unidentified developer"
-   block and Valve may flag it. Either sign/notarise on a Mac before uploading,
-   or hold the macOS depot back and ship Windows + Linux first.
+   ⚠️ **macOS signing — two routes.** A macOS build needs *some* signing: on
+   Apple Silicon the kernel refuses to run an entirely unsigned binary, so a
+   bare unsigned `.app` won't even launch on M-series Macs (most Macs now).
+   Pick one:
+
+   * **Notarised (safest, needs a Mac + Apple Developer account).** Developer ID
+     signature + hardened runtime + notarisation + stapled ticket. Passes
+     Gatekeeper everywhere, including downloads outside Steam. Requires the
+     `disable-library-validation` entitlement so the Valve-signed
+     `libsteam_api.dylib` loads under the hardened runtime. See the dedicated
+     macOS authoring guide for the full procedure.
+
+   * **Ad-hoc (no notarisation, no Apple account, exportable from Windows).**
+     In the macOS export preset: **Code Signing = enabled, rcodesign (built-in),
+     no identity / ad-hoc**; **Hardened Runtime = OFF**; **Notarisation = OFF**.
+     Ad-hoc is the minimum that lets Apple Silicon execute the binary, and with
+     the hardened runtime off there is no library-validation to block the Steam
+     dylib and no notarisation ticket required. This works **because Steam does
+     not quarantine the files it installs**, so Gatekeeper usually does not block
+     an un-notarised app delivered through Steam.
+
+     Trade-offs of the ad-hoc route, know them before shipping:
+     - It relies on Steam's no-quarantine behaviour, not an Apple guarantee —
+       edge cases / security settings can still prompt a right-click → Open.
+     - Anyone who gets the `.app` **outside** Steam (press keys as files, etc.)
+       is blocked.
+     - Valve may still flag an un-notarised Mac build in review.
+     - **Test on at least one real Mac before promoting to `default`.** Ship the
+       ad-hoc build to a **beta branch** first and confirm it launches and
+       achievements fire — an un-launchable Mac build earns "doesn't work on Mac"
+       reviews fast. Do not push a Mac build you have never run straight to
+       `default`.
+
+   If you can't test on any Mac at all, the lowest-risk choice is to **hold the
+   macOS depot back** (leave `5007932` commented in `app_build_5007930.vdf`) and
+   ship Windows + Linux, adding macOS as a later update.
 
 Result: three content-root folders — `build/windows/`, `build/linux/`,
 `build/mac/` — each holding that platform's binary + data + `steam_appid.txt`
