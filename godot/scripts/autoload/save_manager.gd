@@ -57,6 +57,13 @@ var _autosave_accumulator := 0.0
 ## Seconds between autosaves while a run is in progress.
 const AUTOSAVE_INTERVAL := 5.0
 
+## When false, save_game() writes nothing. For the headless capture harnesses
+## under tests/, which stage a plausible profile to photograph — fourteen runs
+## played, banked credits, a named player, a chosen language — and would
+## otherwise commit all of it over the real save of whoever ran them. The test
+## suite leaves this true: it exercises the save file on purpose.
+var persist := true
+
 
 static func default_profile() -> Dictionary:
 	return {
@@ -151,6 +158,12 @@ func load_game() -> void:
 ## Writes to a temp file then renames, so an interrupted write cannot corrupt the
 ## real save. The previous file is kept as a .bak.
 func save_game() -> bool:
+	# Reports success: there was nothing to write, which is not a failure, and
+	# callers that check the result should not treat it as one.
+	if not persist:
+		_dirty = false
+		return true
+
 	_sync_to_slot()
 
 	var data := {

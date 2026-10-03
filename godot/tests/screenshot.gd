@@ -6,6 +6,9 @@ const AudioSettings := preload("res://scripts/ui/audio_settings.gd")
 # has real content to show.
 
 func _ready() -> void:
+	# Photographs only: stage whatever makes a good picture, but never let it
+	# reach the save file of whoever is running this.
+	SaveManager.persist = false
 	get_window().size = Vector2i(1280, 720)
 	await get_tree().process_frame
 

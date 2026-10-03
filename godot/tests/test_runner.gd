@@ -17,6 +17,16 @@ var _current := ""
 func _ready() -> void:
 	print("\n══ Solitaire Tower of Doom — logic tests ══\n")
 
+	# Pin the language before the first assertion. Locale reads it from the save
+	# file at startup, and several tests below assert on rendered English text,
+	# so a suite run after anything that switched language — the capture
+	# harnesses, or a developer simply playing in French — would fail on the
+	# compendium with five phantom errors that have nothing to do with the code.
+	# erase_all(), which most tests call, resets the profile but not the live
+	# Locale, so it is no defence against this.
+	var player_language := Locale.lang
+	Locale.set_language("en")
+
 	test_deck()
 	test_card_faces()
 	test_klondike()
@@ -53,6 +63,9 @@ func _ready() -> void:
 	test_lifetime_stats()
 	test_localization()
 	test_patron_coach()
+
+	# Hand the developer's own language back before quitting.
+	Locale.set_language(player_language)
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
