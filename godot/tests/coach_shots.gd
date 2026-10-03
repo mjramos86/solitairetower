@@ -1,4 +1,4 @@
-extends Node
+extends Control
 
 ## Renders the patron coach in all five variants, idle and speaking, so the
 ## framing can be judged before the feature is committed. Every bubble below is
@@ -13,6 +13,10 @@ var _host: Control
 
 func _ready() -> void:
 	get_window().size = Vector2i(1600, 900)
+	# app.gd puts the Windows-95 theme on the App root, which this harness never
+	# instantiates — without it every button here would render unstyled and the
+	# captures would not show what a player sees.
+	theme = UITheme.build()
 	await get_tree().process_frame
 	RunState.new_run()
 	RunState.gold = 320
@@ -33,9 +37,18 @@ func _ready() -> void:
 	await _idle("pyramid", "coach_pyramid_idle")
 	await _pyramid_bad_pair("coach_pyramid_bubble")
 
-	# The same refusal in French, to check a longer line still fits the bubble.
+	# The How to play briefing, which is what the corner button opens.
+	for type in ["klondike", "spider", "freecell", "tripeaks", "pyramid"]:
+		await _briefing(type, "coach_brief_%s" % type)
+
+	# Muted: the portrait dims, the switch stays held down, and the same refused
+	# deal that spoke above now says nothing.
+	await _muted("coach_muted")
+
+	# French, to check the longer wording still fits both the line and the panel.
 	Locale.set_language("fr")
 	await _spider_blocked_deal("coach_spider_bubble_fr")
+	await _briefing("spider", "coach_brief_spider_fr")
 	Locale.set_language("en")
 
 	print("COACH SHOTS DONE")
@@ -127,6 +140,28 @@ func _pairs_waste(gs: Dictionary, card: Dictionary) -> bool:
 		if wi >= 0 and int(card["rank"]) + int(w[wi]["rank"]) == 13:
 			return true
 	return false
+
+
+## The corner's How to play button, pressed.
+func _briefing(type: String, name: String) -> void:
+	RunState.start_game(type, 4)
+	await _mount(type)
+	_host._patron_coach._on_help_pressed()
+	await _settle(name)
+
+
+## The mute switch on, then a refusal that would otherwise have spoken.
+func _muted(name: String) -> void:
+	RunState.start_game("spider", 8)
+	var gs: Dictionary = RunState.gs
+	for c in range(6, 10):
+		(gs["tableau"][c] as Array).clear()
+	await _mount("spider")
+	_host._patron_coach._mute_button.button_pressed = true
+	_host._draw_stock()
+	await _settle(name)
+	# Leave the profile as it was found, so later shots are not silenced too.
+	_host._patron_coach._mute_button.button_pressed = false
 
 
 # ── Plumbing ──────────────────────────────────────────────────────────────────

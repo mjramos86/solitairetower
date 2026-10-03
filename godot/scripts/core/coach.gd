@@ -16,6 +16,28 @@ extends RefCounted
 ## then stays silent rather than filling the bubble with noise.
 
 
+## The whole rulebook of one variant in a single speech, for the How to play
+## button. Not a reaction: the player asked, so it is the one line the mute
+## switch does not silence.
+##
+## Each variant is ONE multi-line string rather than a list of translated
+## fragments, so a translator reads the briefing as a briefing and can reorder a
+## clause without the key drifting from its English source.
+static func how_to_play(type: String) -> String:
+	match type:
+		"klondike":
+			return "Klondike. Four foundations, one suit each, climbing Ace to King — fill all four and the floor is yours.\n• The tableau runs down in alternating colours: red on black, black on red.\n• Only a King may open an empty column.\n• Draw from the stock to the waste and play the waste's top card.\n• Clearing the cards above a face-down one turns it over."
+		"spider":
+			return "Spider. Eight runs, King down to Ace in a single suit; each run you finish leaves the table.\n• A card lands on the rank just above it, whatever the suit.\n• Only a run already in one suit travels as a block — a mixed one moves card by card.\n• Deal ten more cards when you are stuck, but never while a column stands empty.\n• Clear all eight runs to win."
+		"freecell":
+			return "FreeCell. Every card is face up from the first move, and every deal can be won. Build four foundations, Ace to King, one suit each.\n• Columns run down in alternating colours: red on black, black on red.\n• Each free cell parks a single card.\n• One move carries (free cells + 1) cards, doubled for every empty column.\n• Nothing is hidden. The whole puzzle is in front of you from the start."
+		"tripeaks":
+			return "TriPeaks. Clear all twenty-eight cards from the three peaks.\n• Take any uncovered card one rank above or below the top of the waste.\n• The Ace bridges King and Two, so a chain never has to stop there.\n• A card is uncovered once the two below it are gone.\n• Draw from the stock when nothing fits — it breaks your chain, and a long chain scores far more."
+		"pyramid":
+			return "Pyramid. Clear every card of the pyramid by pairing them to thirteen.\n• The Ace counts one, the Jack eleven, the Queen twelve, the King thirteen.\n• A King is thirteen on its own and clears alone.\n• Only an uncovered card can be paired: the two below it must go first.\n• Pair with the top of the waste, or turn the stock for a new one."
+	return ""
+
+
 ## Refused deal from the stock. Spider is the only variant that can refuse one.
 static func deal(gs: Dictionary) -> String:
 	if String(gs.get("type", "")) != "spider":

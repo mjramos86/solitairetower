@@ -18,6 +18,8 @@ extends Control
 const PORTRAIT_W := 168.0
 const PORTRAIT_H := 208.0
 const BUBBLE_MAX_W := 560.0
+## The How to play briefing is a paragraph, not a line, so it gets its own width.
+const BRIEFING_W := 760.0
 const EDGE := 18.0          # gap kept from the felt's bottom-right corner
 const FADE := 0.18
 ## How long a line stays up: a floor, plus reading time per character, capped so
@@ -36,6 +38,10 @@ var _tween: Tween
 var _hide_timer: SceneTreeTimer
 var _patron := ""
 var _row: HBoxContainer
+var _help_button: Button
+var _mute_button: Button
+## A briefing stays up until it is dismissed; a reaction retires on its own.
+var _sticky := false
 
 
 func _ready() -> void:
@@ -43,6 +49,10 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
 	set_patron(RunState.patron)
+	# The language picker can be reached mid-run through the pause menu, and the
+	# two button labels are the only text here that is not rebuilt on each line.
+	Locale.changed.connect(_relabel)
+	_show_mute_state(is_muted())
 
 
 func _build() -> void:
@@ -65,7 +75,11 @@ func _build() -> void:
 	_tail.offset = 30.0
 	_tail.apply_margin()
 	_tail.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	# Transparent to the board while a reaction is up, clickable while a briefing
+	# is: the panel covers part of the felt, so it must be dismissable by the
+	# obvious gesture and not only by the button that opened it.
 	_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tail.gui_input.connect(_on_bubble_input)
 	_tail.modulate.a = 0.0
 	_tail.visible = false
 	row.add_child(_tail)
@@ -106,6 +120,26 @@ func _build() -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(column)
 
+	# Two controls sit above the portrait: the briefing on demand, and the switch
+	# that silences everything the patron says unasked.
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 4)
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	column.add_child(buttons)
+
+	_help_button = _corner_button("HOW TO PLAY")
+	_help_button.pressed.connect(_on_help_pressed)
+	buttons.add_child(_help_button)
+
+	_mute_button = _corner_button("MUTE")
+	# The W95 theme draws a held-down toggle sunken, but at this size that alone
+	# is too quiet to read as state, so the label names the state too and the
+	# portrait dims with it.
+	_mute_button.toggle_mode = true
+	_mute_button.button_pressed = is_muted()
+	_mute_button.toggled.connect(_on_mute_toggled)
+	buttons.add_child(_mute_button)
+
 	_frame = PanelContainer.new()
 	_frame.add_theme_stylebox_override("panel",
 		UITheme.bevel_raised(UITheme.W95_BG, Vector2(4, 4)))
@@ -142,6 +176,64 @@ func _build() -> void:
 	_place.call_deferred()
 
 
+## The three cues that the patron is silenced: a sunken switch, a label naming
+## the state rather than the action, and a portrait that has stepped back.
+func _show_mute_state(muted: bool) -> void:
+	_mute_button.text = Locale.t("MUTED") if muted else Locale.t("MUTE")
+	_portrait.modulate = Color(1, 1, 1, 0.55) if muted else Color.WHITE
+
+
+## Re-applies the button labels in the current language.
+func _relabel() -> void:
+	_help_button.text = Locale.t("HOW TO PLAY")
+	_show_mute_state(is_muted())
+	# set_patron short-circuits on an unchanged id, so clear it to force the name
+	# strip (one patron is known by a translated alias) through the new map.
+	_patron = ""
+	set_patron(RunState.patron)
+
+
+## A small Windows-95 button sized for the corner; the theme supplies the bevel.
+func _corner_button(label: String) -> Button:
+	var button := Button.new()
+	button.text = Locale.t(label)
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", 15)
+	return button
+
+
+## Whether the patron's unasked commentary is switched off. Stored on the
+## profile, so it survives the run and the session.
+func is_muted() -> bool:
+	return bool(SaveManager.profile.get("patron_coach_muted", false))
+
+
+func _on_mute_toggled(pressed: bool) -> void:
+	SaveManager.profile["patron_coach_muted"] = pressed
+	SaveManager.mark_dirty()
+	_show_mute_state(pressed)
+	# Silence takes effect at once, but never swallows a briefing the player
+	# asked for and is still reading.
+	if pressed and not _sticky:
+		hide_line()
+
+
+## The whole rulebook for the variant in play. Asked for, so it ignores the mute
+## switch; pressing again puts it away.
+## A click anywhere on an open briefing puts it away.
+func _on_bubble_input(event: InputEvent) -> void:
+	if _sticky and event is InputEventMouseButton and event.pressed:
+		hide_line()
+
+
+func _on_help_pressed() -> void:
+	if _sticky:
+		hide_line()
+		return
+	var type := String(RunState.gs.get("type", ""))
+	_speak(Coach.how_to_play(type), true)
+
+
 ## Re-pins the portrait (and whatever bubble is open) to the felt's bottom-right
 ## corner at its current size. Deferred by its callers so the row has already
 ## recomputed its minimum size when the offsets are taken from it.
@@ -175,13 +267,26 @@ func set_patron(id: String) -> void:
 	_name_label.text = Locale.t(shown).to_upper()
 
 
-## Says one line, or clears the bubble when the line is empty. Re-saying while a
-## line is up replaces it and restarts the dwell, so a player mashing an illegal
-## move sees one steady bubble rather than a flicker.
+## A reaction to something the board refused. Silenced by the mute switch. It
+## replaces an open briefing rather than queueing behind it: once the player is
+## moving cards again, live feedback is worth more than the rulebook they left
+## open. Re-saying while a line is up restarts the dwell, so a player mashing an
+## illegal move sees one steady bubble rather than a flicker.
 func say(text: String) -> void:
+	if is_muted():
+		return
+	_speak(text, false)
+
+
+## Puts a line in the bubble. `sticky` keeps it there until it is dismissed —
+## the briefing — instead of retiring it after a reading pause.
+func _speak(text: String, sticky: bool) -> void:
 	if text.strip_edges().is_empty():
 		hide_line()
 		return
+	_sticky = sticky
+	_bubble.custom_minimum_size.x = BRIEFING_W if sticky else BUBBLE_MAX_W
+	_tail.mouse_filter = Control.MOUSE_FILTER_STOP if sticky else Control.MOUSE_FILTER_IGNORE
 	set_patron(RunState.patron)
 	_label.text = Locale.t(text)
 	if _tween and _tween.is_valid():
@@ -194,6 +299,8 @@ func say(text: String) -> void:
 	_tween.tween_property(_tail, "scale", Vector2.ONE, FADE) \
 		.from(Vector2(0.92, 0.92)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+	if sticky:
+		return
 	var dwell := clampf(DWELL_MIN + _label.text.length() * DWELL_PER_CHAR, DWELL_MIN, DWELL_MAX)
 	_hide_timer = get_tree().create_timer(dwell)
 	_hide_timer.timeout.connect(_on_dwell_done.bind(_label.text))
@@ -201,11 +308,13 @@ func say(text: String) -> void:
 
 func _on_dwell_done(spoken: String) -> void:
 	# Only retire the line that armed this timer; a newer one has its own.
-	if _label.text == spoken:
+	if _label.text == spoken and not _sticky:
 		hide_line()
 
 
 func hide_line() -> void:
+	_sticky = false
+	_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not _tail.visible:
 		return
 	if _tween and _tween.is_valid():

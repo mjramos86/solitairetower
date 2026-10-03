@@ -52,6 +52,7 @@ func _ready() -> void:
 	test_achievements()
 	test_lifetime_stats()
 	test_localization()
+	test_patron_coach()
 
 	print("\n──────────────────────────────────────────")
 	print("  passed: %d   failed: %d" % [_passed, _failed])
@@ -2209,6 +2210,51 @@ func test_lifetime_stats() -> void:
 ## carry exactly the same English keys (so one language cannot silently drift
 ## from another), lookups return the translation, and an unknown string falls
 ## back to the English source rather than breaking.
+## The patron names the rule that refused a move, so a wrong line teaches a wrong
+## rule. These check the two refusals that are easiest to get backwards, and that
+## every line the corner can show exists in every language the picker offers —
+## test_localization only proves the maps agree with EACH OTHER, not that a
+## string the code actually asks for is in them.
+func test_patron_coach() -> void:
+	suite("patron coach")
+
+	# Spider refuses a deal while any column is empty, and says so. The same
+	# board with every column occupied has nothing to explain.
+	var sp := Rules.init_spider(8)
+	check_eq(Coach.deal(sp), "", "a dealable Spider board draws no comment")
+	(sp["tableau"][3] as Array).clear()
+	check(Coach.deal(sp).contains("empty"), "an empty column explains the blocked deal")
+	sp["stock_groups"] = []
+	check(Coach.deal(sp).contains("stock is spent"), "a spent stock says so, not 'empty column'")
+	check_eq(Coach.deal(Rules.init_klondike(4)), "", "only Spider can refuse a deal")
+
+	# FreeCell quotes the live supermove capacity: (free cells + 1) × 2^empties.
+	var fc := Rules.init_freecell(4, false)
+	var deep := -1
+	for c in (fc["tableau"] as Array).size():
+		if (fc["tableau"][c] as Array).size() > Rules.freecell_max_movable(fc):
+			deep = c
+			break
+	check(deep >= 0, "a FreeCell column holds more than one move can carry")
+	if deep >= 0:
+		var line := Coach.pickup(fc, {"kind": "tableau", "col": deep, "index": 0})
+		check(line.contains(str(Rules.freecell_max_movable(fc))),
+			"the carry limit quotes the live capacity")
+
+	var original := Locale.lang
+	for code in Locale.LANGUAGES:
+		Locale.set_language(code)
+		for label in ["HOW TO PLAY", "MUTE", "MUTED"]:
+			check(code == "en" or Locale.t(label) != label,
+				"%s translates the corner button '%s'" % [code.to_upper(), label])
+		for type in ["klondike", "spider", "freecell", "tripeaks", "pyramid"]:
+			var brief := Coach.how_to_play(type)
+			check(not brief.is_empty(), "%s has a How to play briefing" % type)
+			check(code == "en" or Locale.t(brief) != brief,
+				"%s translates the %s briefing" % [code.to_upper(), type])
+	Locale.set_language(original)
+
+
 func test_localization() -> void:
 	suite("localization")
 
