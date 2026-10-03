@@ -45,10 +45,14 @@ func _ready() -> void:
 	# deal that spoke above now says nothing.
 	await _muted("coach_muted")
 
-	# French, to check the longer wording still fits both the line and the panel.
-	Locale.set_language("fr")
-	await _spider_blocked_deal("coach_spider_bubble_fr")
-	await _briefing("spider", "coach_brief_spider_fr")
+	# Every other language the picker offers, on the two widest pieces of text:
+	# a refusal and a briefing. Translations run longer than the English they
+	# came from, so this is where the bubble and the panel are checked for fit.
+	for code in ["fr", "es", "pt"]:
+		Locale.set_language(code)
+		await _spider_blocked_deal("coach_spider_bubble_%s" % code)
+		await _briefing("spider", "coach_brief_spider_%s" % code)
+		await _briefing("freecell", "coach_brief_freecell_%s" % code)
 	Locale.set_language("en")
 
 	print("COACH SHOTS DONE")
