@@ -1,6 +1,7 @@
 extends PanelContainer
 
 const AudioSettings := preload("res://scripts/ui/audio_settings.gd")
+const PATRON_COACH := preload("res://scripts/ui/patron_coach.gd")
 
 ## The card table. Lays out and drives all five variants.
 ##
@@ -70,6 +71,10 @@ const BOARD_MARGIN := 0.03
 @onready var _status_row: HBoxContainer = $Rows/StatusBar/StatusRow
 @onready var _overlays: CanvasLayer = $Overlays
 
+## The run's patron, watching from the felt's bottom-right corner. Every refused
+## action is routed through _coach() so the player hears the rule that refused it.
+var _patron_coach: Control
+
 ## The clickable "★ N pts" status pane, built in code so it can open the ledger.
 var _score_pane: Button
 ## The five status-bar text panes: floor, variant, lives, score, timer.
@@ -134,7 +139,22 @@ func _ready() -> void:
 	_style_chrome()
 	_build_window_buttons()
 	_build_status_panes()
+	_build_patron_coach()
 	_rebuild()
+
+
+## Sits the patron on top of the felt, as a sibling rather than a child: the felt
+## is emptied and rebuilt on every move, and the coach has to survive that.
+func _build_patron_coach() -> void:
+	_patron_coach = PATRON_COACH.new()
+	_board_frame.add_child(_patron_coach)
+
+
+## Routes a refused action to the patron. An empty line means the rules have
+## nothing worth saying, and the corner stays quiet.
+func _coach(line: String) -> void:
+	if _patron_coach != null and not line.is_empty():
+		_patron_coach.say(line)
 
 
 ## Keeps the play timer rolling in real time. The status bar otherwise only
@@ -1481,6 +1501,7 @@ func _click_slot(meta: Dictionary) -> void:
 		# unit, only its top card can).
 		if not _begin_selection(meta) and _is_faceup_card(meta):
 			_reject_feedback(meta)
+			_coach(Coach.pickup(gs, meta))
 	else:
 		_handle_target(meta)
 
@@ -1707,6 +1728,7 @@ func _end_drag(drop_point: Vector2) -> void:
 	else:
 		_rebuild()  # rejected: snap back
 		_reject_feedback(target)  # dropped on an illegal destination
+		_coach(Coach.drop(RunState.gs, _drag_cards, target))
 	_drag_source = {}
 	_drag_cards = []
 
@@ -1853,6 +1875,12 @@ func _handle_target(target: Dictionary) -> void:
 		_after_move()
 		return
 
+	# The placement itself was refused, so name the rule now — even when the
+	# click is about to be reinterpreted below as a fresh pick-up, because what
+	# the player just attempted was the placement.
+	var held := _take_cards(Cards.clone_state(RunState.gs), _selection, true)
+	_coach(Coach.drop(RunState.gs, held, target))
+
 	# The held run can't go on the clicked card. Rather than punishing the click
 	# (which forced an annoying "click twice" — the first click consumed by a
 	# stale selection, e.g. clicking an Ace and getting a shake, then it works),
@@ -1993,7 +2021,11 @@ func _draw_stock() -> void:
 	if String(gs["type"]) == "spider":
 		var result := Rules.spider_deal(gs)
 		if _same_pile_counts(gs, result["state"]) and result["completed"].is_empty():
-			return  # no groups left, or a blocked deal — nothing happened
+			# No groups left, or a blocked deal. Both used to be a dead click with
+			# no feedback at all, which is exactly the "the deal button is broken"
+			# report this corner exists to answer.
+			_coach(Coach.deal(gs))
+			return
 		RunState.push_undo()
 		RunState.gs = result["state"]
 		for _s in result["completed"]:
@@ -2049,6 +2081,7 @@ func _tripeaks_play(meta: Dictionary) -> void:
 		# A failed play resets the streak.
 		RunState.tp_streak = 0
 		_rebuild()
+		_coach(Coach.play(gs, meta))
 		return
 	RunState.push_undo()
 	gs["pyramid"][idx] = null
@@ -2069,6 +2102,7 @@ func _pyramid_click(meta: Dictionary) -> void:
 	var gs := Cards.clone_state(RunState.gs)
 	var picked = _pyramid_card(gs, meta)
 	if picked == null:
+		_coach(Coach.play(gs, meta))
 		return
 
 	if int(picked["rank"]) == Cards.RANK_KING:
@@ -2126,6 +2160,7 @@ func _pyramid_click(meta: Dictionary) -> void:
 	else:
 		_selection = {}
 		_rebuild()
+		_coach(Coach.play(gs, meta))
 
 
 func _pyramid_card(gs: Dictionary, meta: Dictionary):

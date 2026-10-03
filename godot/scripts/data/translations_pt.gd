@@ -563,4 +563,29 @@ const MAP := {
 	#  Misc / toasts
 	# ══════════════════════════════════════════════════════════════════════════
 	"Save reset: %s": "Save reiniciado: %s",
+
+	# ══════════════════════════════════════════════════════════════════════════
+	#  Patron coach — the rule named aloud when the table refuses a move
+	# ══════════════════════════════════════════════════════════════════════════
+	"No dealing while a column stands empty. Fill every gap first, then the stock will give.": "Nada de distribuir enquanto houver uma coluna vazia. Preencha primeiro cada vão e o monte cederá.",
+	"The stock is spent — what lies on the table is all that remains.": "O monte acabou — o que está na mesa é tudo o que resta.",
+	"A foundation takes one card at a time, never a run.": "Uma fundação recebe uma carta de cada vez, nunca uma sequência.",
+	"Each foundation keeps to a single suit — that pile is not yours to fill.": "Cada fundação atém-se a um único naipe — essa pilha não é sua para preencher.",
+	"Foundations climb from the Ace upward, one rank at a time.": "As fundações sobem a partir do Ás, um grau de cada vez.",
+	"A free cell holds a single card, and that one is taken.": "Uma célula livre guarda uma só carta, e essa já está ocupada.",
+	"A card only lands on the rank just above it. Suit matters when you lift a run, not when you place one.": "Uma carta só assenta sobre o grau imediatamente acima. O naipe importa ao levantar uma sequência, não ao pousá-la.",
+	"Columns run down in alternating colours — red on black, black on red.": "As colunas descem alternando as cores — vermelho sobre preto, preto sobre vermelho.",
+	"Only a King may open an empty column.": "Só um Rei pode abrir uma coluna vazia.",
+	"The tableau runs down in alternating colours — red on black, black on red.": "O tableau desce alternando as cores — vermelho sobre preto, preto sobre vermelho.",
+	"That card lies face down. Clear the cards above it and it will turn.": "Essa carta está virada para baixo. Limpe as que estão por cima e ela virará.",
+	"Only a run descending in one suit travels as a block. A mixed run moves one card at a time.": "Só uma sequência descendente do mesmo naipe viaja em bloco. Uma sequência misturada avança carta a carta.",
+	"A run travels whole only while it descends in alternating colours.": "Uma sequência viaja inteira apenas enquanto desce alternando as cores.",
+	"You can carry %d cards at once, not %d — each free cell and each empty column raises the count.": "Pode levar %d cartas de cada vez, não %d — cada célula livre e cada coluna vazia aumentam esse número.",
+	"That card is still covered. Clear the two below it first.": "Essa carta ainda está coberta. Limpe primeiro as duas que a bloqueiam.",
+	"Take only a card one rank above or below the waste. The Ace bridges King and Two.": "Tire apenas uma carta um grau acima ou abaixo do descarte. O Ás liga o Rei ao Dois.",
+	"Pair cards that add to thirteen. A King is worth thirteen alone.": "Emparelhe cartas que somem treze. Um Rei vale treze sozinho.",
+	"Nowhere for that card to go. Deal a new row once every column holds a card.": "Essa carta não tem para onde ir. Distribua uma nova fila assim que cada coluna tiver uma carta.",
+	"Nowhere for that card to go — park it in a free cell and dig deeper.": "Essa carta não tem para onde ir — guarde-a numa célula livre e escave mais fundo.",
+	"Nowhere for that card to go. Draw from the stock and come back to it.": "Essa carta não tem para onde ir. Compre do monte e volte a ela.",
+	"Nowhere for that card to go just now.": "Essa carta não tem para onde ir por agora.",
 }
