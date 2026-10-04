@@ -64,6 +64,7 @@ func _ready() -> void:
 	test_localization()
 	test_patron_coach()
 	await test_first_briefing()
+	test_shuffle_vs_abandon()
 
 	# Hand the developer's own language back before quitting.
 	Locale.set_language(player_language)
@@ -2223,6 +2224,52 @@ func test_lifetime_stats() -> void:
 ## carry exactly the same English keys (so one language cannot silently drift
 ## from another), lookups return the translation, and an unknown string falls
 ## back to the English source rather than breaking.
+## Shuffle and Abandon both cost a life, which is the whole reason they were easy
+## to confuse in the code — Shuffle was routing through the abandon path and
+## throwing the player back to the tower. They differ in everything else:
+## Shuffle re-deals the floor the player is on and leaves them at the table;
+## Abandon gives the floor up, returns to the tower, and re-rolls what is offered
+## there.
+func test_shuffle_vs_abandon() -> void:
+	suite("shuffle vs abandon")
+
+	RunState.new_run()
+	RunState.start_game("spider", 4)
+	var before: Dictionary = (RunState.choices[4] as Dictionary).duplicate()
+	var board := JSON.stringify(RunState.gs)
+
+	check(RunState.new_shuffle(), "a shuffle costs a life")
+	check_eq(RunState.lives, 2, "one life spent")
+	check_eq(RunState.screen, "game", "a shuffle keeps the player at the table")
+	check_eq(RunState.gtype, "spider", "and on the same variant")
+	check_eq(RunState.floor_index, 4, "and on the same floor")
+	check(JSON.stringify(RunState.gs) != board, "the cards are re-dealt")
+	check_eq(RunState.choices[4], before, "a shuffle does not re-roll the floor's offer")
+	check_eq(RunState.moves, 0, "the move count restarts")
+	check(RunState.undo_stack.is_empty(), "the undo history is dropped")
+
+	# Abandon: out to the tower, with a fresh offer waiting there.
+	RunState.new_run()
+	RunState.start_game("spider", 4)
+	check(RunState.abandon_floor(), "an abandon costs a life")
+	check_eq(RunState.screen, "map", "an abandon returns to the tower")
+
+	# The re-roll draws from the same generator as the original offer, so it can
+	# legitimately come back identical; what matters is that it was re-rolled.
+	# A floor offers two of the five variants, so an identical redraw is possible
+	# but will not survive a dozen attempts.
+	var rerolled := false
+	for attempt in 12:
+		RunState.new_run()
+		RunState.start_game("spider", 4)
+		var offer: Dictionary = (RunState.choices[4] as Dictionary).duplicate()
+		RunState.abandon_floor()
+		if RunState.choices[4] != offer:
+			rerolled = true
+			break
+	check(rerolled, "an abandon re-rolls the floor\'s offered variants")
+
+
 ## The briefing opens itself the first time a profile meets a variant, and never
 ## again. This replaced the always-on rules strip, so getting it wrong means
 ## either a player never sees the rules or sees them on every single floor.
