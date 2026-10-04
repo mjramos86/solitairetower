@@ -40,7 +40,8 @@ func _ready() -> void:
 	theme = UITheme.build()
 	RunState.screen_changed.connect(_on_screen_changed)
 	RunState.toast.connect(show_toast)
-	SaveManager.save_corrupted.connect(func(reason): show_toast("Save reset: %s" % reason))
+	SaveManager.save_corrupted.connect(func(reason):
+		show_toast(Locale.t("Save reset: %s") % reason))
 	_toast.modulate.a = 0.0
 	# The boot cards play once at launch, then hand off to the title screen.
 	_show("boot")

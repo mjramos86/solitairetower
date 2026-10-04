@@ -375,7 +375,7 @@ func undo_move() -> bool:
 	if undo_stack.is_empty():
 		return false
 	if undos_remaining() <= 0:
-		toast.emit("No undos left this floor_index!")
+		toast.emit(Locale.t("No undos left this floor!"))
 		return false
 	var prev: Dictionary = undo_stack.pop_back()
 	gs = prev["gs"]

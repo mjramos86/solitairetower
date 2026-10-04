@@ -606,4 +606,49 @@ const MAP := {
 	"FreeCell. Every card is face up from the first move, and every deal can be won. Build four foundations, Ace to King, one suit each.\n• Columns run down in alternating colours: red on black, black on red.\n• Each free cell parks a single card.\n• One move carries (free cells + 1) cards, doubled for every empty column.\n• Nothing is hidden. The whole puzzle is in front of you from the start.": "FreeCell. Todas las cartas están boca arriba desde la primera jugada, y todo reparto tiene solución. Construye cuatro fundaciones, del As al Rey, una por palo.\n• Las columnas descienden alternando colores: rojo sobre negro, negro sobre rojo.\n• Cada celda libre aloja una sola carta.\n• Una jugada transporta (celdas libres + 1) cartas, y esa cifra se duplica por cada columna vacía.\n• Nada está oculto. Todo el rompecabezas está ante ti desde el principio.",
 	"TriPeaks. Clear all twenty-eight cards from the three peaks.\n• Take any uncovered card one rank above or below the top of the waste.\n• The Ace bridges King and Two, so a chain never has to stop there.\n• A card is uncovered once the two below it are gone.\n• Draw from the stock when nothing fits — it breaks your chain, and a long chain scores far more.": "TriPeaks. Despeja las veintiocho cartas de los tres picos.\n• Toma cualquier carta descubierta un rango por encima o por debajo de la cima del descarte.\n• El As une al Rey con el Dos, así que una cadena nunca tiene que detenerse ahí.\n• Una carta queda descubierta en cuanto desaparecen las dos que tiene debajo.\n• Roba del mazo cuando nada encaje: rompe tu cadena, y una cadena larga puntúa mucho más.",
 	"Pyramid. Clear every card of the pyramid by pairing them to thirteen.\n• The Ace counts one, the Jack eleven, the Queen twelve, the King thirteen.\n• A King is thirteen on its own and clears alone.\n• Only an uncovered card can be paired: the two below it must go first.\n• Pair with the top of the waste, or turn the stock for a new one.": "Pyramid. Despeja todas las cartas de la pirámide emparejándolas para sumar trece.\n• El As vale uno, la Jota once, la Reina doce, el Rey trece.\n• Un Rey vale trece por sí solo y se retira solo.\n• Solo una carta descubierta puede emparejarse: las dos que tiene debajo deben salir antes.\n• Empareja con la cima del descarte, o roba del mazo para descubrir otra.",
+
+	# ══════════════════════════════════════════════════════════════════════════
+	#  Dialogs, score ledger and in-game notices
+	# ══════════════════════════════════════════════════════════════════════════
+	"Shuffle": "Rebarajar",
+	"Abandon Floor": "Abandonar el piso",
+	"Abandon": "Abandonar",
+	"Overwrite Slot": "Sobrescribir ranura",
+	"Overwrite": "Sobrescribir",
+	"Delete Save": "Borrar partida",
+	"Name your player": "Nombra a tu jugador",
+	"Abandon this floor?\n\n": "¿Abandonar este piso?\n\n",
+	"You will lose a life.": "Perderás una vida.",
+	"Your Vial of Quicksilver will be used — no life lost.": "Se usará tu Vial de Azogue: no perderás ninguna vida.",
+	"Overwrite the save in slot %d? This cannot be undone.": "¿Sobrescribir la partida de la ranura %d? No se puede deshacer.",
+	"Delete the save in slot %d permanently?": "¿Borrar permanentemente la partida de la ranura %d?",
+	"Next from the stock:": "Próximas cartas del mazo:",
+	"Floor total": "Total del piso",
+	"floor cleared": "piso superado",
+	"card points": "puntos de cartas",
+	"ace to foundation": "As a la fundación",
+	"suit completed": "palo completado",
+	"card to foundation": "carta a la fundación",
+	"streak x%d": "racha x%d",
+	"top card bonus": "bonus carta superior",
+	"pair matched": "pareja encontrada",
+	"waste pair": "pareja con el descarte",
+	"king removed": "Rey retirado",
+	"View this floor's score history": "Ver el historial de puntos de este piso",
+	"✓ Usable in %s": "✓ Utilizable en %s",
+	"✗ No effect in %s": "✗ Sin efecto en %s",
+	"Click a board card to stash it, or click here to take the stashed card back.": "Haz clic en una carta del tablero para guardarla, o aquí para recuperar la guardada.",
+	"Card kept in the stash.": "Carta guardada en el gabinete.",
+	"Select a card on the board to stash it.": "Elige una carta del tablero para guardarla.",
+	"ALCHEMIST'S CABINET: click where the stashed card should go (or click the stash to cancel)": "GABINETE DEL ALQUIMISTA: haz clic donde debe ir la carta guardada (o en el gabinete para cancelar)",
+	"Stashed %s%s": "Guardada: %s%s",
+	"The stashed card does not fit there.": "La carta guardada no encaja ahí.",
+	"No undos left this floor!": "¡No quedan deshacer en este piso!",
+
+	# ══════════════════════════════════════════════════════════════════════════
+	#  Save recovery and slot names
+	# ══════════════════════════════════════════════════════════════════════════
+	"Could not open %s (error %d)": "No se pudo abrir %s (error %d)",
+	"Save file is not valid JSON": "El archivo de partida no es JSON válido",
+	"Player %d": "Jugador %d",
 }
