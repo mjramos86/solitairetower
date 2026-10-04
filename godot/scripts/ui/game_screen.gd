@@ -2,6 +2,7 @@ extends PanelContainer
 
 const AudioSettings := preload("res://scripts/ui/audio_settings.gd")
 const PATRON_COACH := preload("res://scripts/ui/patron_coach.gd")
+const UIScaleRow := preload("res://scripts/ui/ui_scale_row.gd")
 
 ## The card table. Lays out and drives all five variants.
 ##
@@ -2392,6 +2393,14 @@ func _show_pause_overlay() -> void:
 
 	# Volume sliders, so the player can balance music and effects mid-run.
 	box.add_child(AudioSettings.build_controls(true))
+
+	# Interface size, reachable without leaving the run. Changing it resizes
+	# every control on screen, this overlay included, so the overlay is thrown
+	# away and rebuilt at the new size rather than left half-laid-out. The clock
+	# stays stopped across the rebuild — the player is still paused.
+	box.add_child(UIScaleRow.build(func():
+		_clear_overlays()
+		_show_pause_overlay.call_deferred()))
 
 	var resume := Button.new()
 	resume.text = Locale.t("▶ Continue")

@@ -5,6 +5,7 @@ extends Control
 ## labels switch immediately.
 
 const AudioSettings := preload("res://scripts/ui/audio_settings.gd")
+const UIScaleRow := preload("res://scripts/ui/ui_scale_row.gd")
 
 var _panel: VBoxContainer
 
@@ -60,6 +61,9 @@ func _rebuild() -> void:
 		lang_row.add_child(btn)
 	_panel.add_child(lang_row)
 
+	# ── Interface scale ──
+	_panel.add_child(UIScaleRow.build(_rebuild))
+
 	# ── Audio ──
 	_panel.add_child(_section_label(Locale.t("Audio")))
 	var audio := AudioSettings.build_controls(true)
@@ -80,6 +84,7 @@ func _rebuild() -> void:
 func _on_language(code: String) -> void:
 	Locale.set_language(code)
 	_rebuild()  # relabel this screen in the newly chosen language
+
 
 
 func _section_label(text: String) -> Label:

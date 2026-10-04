@@ -588,6 +588,8 @@ const MAP := {
 	"Nowhere for that card to go. Draw from the stock and come back to it.": "Cette carte n’a nulle part où aller. Piochez, puis revenez-y.",
 	"Nowhere for that card to go just now.": "Cette carte n’a nulle part où aller pour l’instant.",
 
+	"Interface Size": "Taille de l’interface",
+
 	# ══════════════════════════════════════════════════════════════════════════
 	#  Patron coach — the corner controls and the How to play briefings
 	# ══════════════════════════════════════════════════════════════════════════

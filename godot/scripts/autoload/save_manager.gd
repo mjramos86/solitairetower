@@ -34,6 +34,8 @@ const MAX_NAME_LEN := 18
 signal saved
 ## Emitted when a save file was found to be unreadable and defaults were used.
 signal save_corrupted(reason: String)
+## Emitted after the interface scale changes, so an open screen can re-lay itself.
+signal ui_scale_changed
 ## Emitted when a finished run is recorded locally, so the online leaderboard can
 ## push it. Carries the stored entry dict.
 signal score_recorded(entry: Dictionary)
@@ -82,6 +84,7 @@ static func default_profile() -> Dictionary:
 		"sfx_volume": 0.7,
 		"patron_coach_muted": false,
 		"seen_variant_briefings": [],
+		"ui_scale": 1.0,
 		"runs_played": 0,
 		"runs_won": 0,
 		"total_score": 0,
@@ -99,8 +102,39 @@ static func _empty_slots() -> Array:
 	return s
 
 
+## The interface scales, including the cards. Everything is laid out in the
+## 1920x1080 design canvas, which the engine then fits to the window — so on a
+## large display the whole board grows with the screen but nothing grows
+## RELATIVE to it, and 13px of status text stays 13px of design units however
+## big the monitor is. content_scale_factor shrinks the design canvas, which
+## enlarges everything drawn in it; fonts re-rasterise at the new size rather
+## than being stretched, so the text gets bigger without getting softer.
+const UI_SCALES := [1.0, 1.25, 1.5]
+
+
+func ui_scale() -> float:
+	return clampf(float(profile.get("ui_scale", 1.0)), UI_SCALES[0], UI_SCALES[-1])
+
+
+func set_ui_scale(value: float) -> void:
+	profile["ui_scale"] = clampf(value, UI_SCALES[0], UI_SCALES[-1])
+	mark_dirty()
+	save_game()
+	apply_ui_scale()
+	ui_scale_changed.emit()
+
+
+## Pushes the stored scale onto the root window. Safe to call before the window
+## exists (during a headless test, say); it simply does nothing then.
+func apply_ui_scale() -> void:
+	var w := get_window()
+	if w != null:
+		w.content_scale_factor = ui_scale()
+
+
 func _ready() -> void:
 	load_game()
+	apply_ui_scale()
 
 
 func _process(delta: float) -> void:

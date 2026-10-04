@@ -65,6 +65,7 @@ func _ready() -> void:
 	test_patron_coach()
 	await test_first_briefing()
 	test_shuffle_vs_abandon()
+	test_ui_scale()
 
 	# Hand the developer's own language back before quitting.
 	Locale.set_language(player_language)
@@ -500,6 +501,20 @@ func test_game_hud() -> void:
 	# The pause overlay stops the clock; resuming is available on it.
 	screen._on_pause()
 	check_eq(overlays.get_child_count(), 1, "pause opens one overlay")
+
+	# It carries the interface-size picker, so a player on a big screen can fix
+	# the text without abandoning the run to reach the title-screen options.
+	var pause_text := ""
+	for l in overlays.find_children("*", "Label", true, false):
+		pause_text += (l as Label).text + "\n"
+	check(pause_text.contains(Locale.t("Interface Size").to_upper()),
+		"the pause overlay offers the interface size")
+	var sizes := 0
+	for b in overlays.find_children("*", "Button", true, false):
+		if (b as Button).text.ends_with("%"):
+			sizes += 1
+	check_eq(sizes, SaveManager.UI_SCALES.size(), "one button per size")
+
 	screen._clear_overlays()
 	await get_tree().process_frame
 
@@ -2224,6 +2239,40 @@ func test_lifetime_stats() -> void:
 ## carry exactly the same English keys (so one language cannot silently drift
 ## from another), lookups return the translation, and an unknown string falls
 ## back to the English source rather than breaking.
+## The interface scale. Everything is laid out in design units, so this is the
+## one setting that makes text, chrome and cards larger together; a wrong value
+## reaching the window would resize the whole game.
+func test_ui_scale() -> void:
+	suite("interface scale")
+	SaveManager.erase_all()
+
+	check_eq(SaveManager.ui_scale(), 1.0, "a fresh profile starts at 100%")
+	check(SaveManager.default_profile().has("ui_scale"), "the scale is part of the profile")
+
+	SaveManager.set_ui_scale(1.25)
+	check_eq(SaveManager.ui_scale(), 1.25, "the chosen scale is kept")
+	check_eq(get_window().content_scale_factor, 1.25, "and reaches the window")
+
+	# A value from a hand-edited or future save must not be able to blow the
+	# window up or collapse it.
+	SaveManager.set_ui_scale(9.0)
+	check_eq(SaveManager.ui_scale(), SaveManager.UI_SCALES[-1], "an oversized value is clamped")
+	SaveManager.set_ui_scale(0.1)
+	check_eq(SaveManager.ui_scale(), SaveManager.UI_SCALES[0], "an undersized value is clamped")
+
+	SaveManager.profile["ui_scale"] = "nonsense"
+	check_eq(SaveManager.ui_scale(), SaveManager.UI_SCALES[0], "a corrupt value falls back")
+
+	# It survives a save/load round trip, which is the point of storing it.
+	SaveManager.set_ui_scale(1.5)
+	SaveManager.save_game()
+	SaveManager.load_game()
+	check_eq(SaveManager.ui_scale(), 1.5, "the scale survives a reload")
+
+	SaveManager.set_ui_scale(1.0)
+	SaveManager.erase_all()
+
+
 ## Shuffle and Abandon both cost a life, which is the whole reason they were easy
 ## to confuse in the code — Shuffle was routing through the abandon path and
 ## throwing the player back to the tower. They differ in everything else:
