@@ -501,6 +501,20 @@ func test_game_hud() -> void:
 	# The pause overlay stops the clock; resuming is available on it.
 	screen._on_pause()
 	check_eq(overlays.get_child_count(), 1, "pause opens one overlay")
+
+	# It carries the interface-size picker, so a player on a big screen can fix
+	# the text without abandoning the run to reach the title-screen options.
+	var pause_text := ""
+	for l in overlays.find_children("*", "Label", true, false):
+		pause_text += (l as Label).text + "\n"
+	check(pause_text.contains(Locale.t("Interface Size").to_upper()),
+		"the pause overlay offers the interface size")
+	var sizes := 0
+	for b in overlays.find_children("*", "Button", true, false):
+		if (b as Button).text.ends_with("%"):
+			sizes += 1
+	check_eq(sizes, SaveManager.UI_SCALES.size(), "one button per size")
+
 	screen._clear_overlays()
 	await get_tree().process_frame
 
