@@ -58,7 +58,6 @@ const BOARD_MARGIN := 0.03
 @onready var _gold_label: Label = $Rows/Toolbar/ToolRow/Gold
 @onready var _hearts_label: Label = $Rows/Toolbar/ToolRow/Hearts
 @onready var _progress: ProgressBar = $Rows/ScoreBar
-@onready var _rules_label: Label = $Rows/Rules
 @onready var _inventory_bar: HBoxContainer = $Rows/Toolbar/ToolRow/Inventory
 @onready var _undo_button: Button = $Rows/Toolbar/ToolRow/Undo
 @onready var _shuffle_button: Button = $Rows/Toolbar/ToolRow/Shuffle
@@ -207,21 +206,6 @@ func _style_chrome() -> void:
 	# The gold "time credits" pill: yellow, sunken.
 	_gold_label.add_theme_stylebox_override("normal", _pill_box())
 	_gold_label.add_theme_color_override("font_color", UITheme.GOLD_PILL_TEXT)
-
-	# Rules strip: light grey band, small pixel text.
-	var rules_box := StyleBoxFlat.new()
-	rules_box.bg_color = UITheme.W95_HOVER
-	rules_box.border_width_top = 1
-	rules_box.border_width_bottom = 1
-	rules_box.border_color = UITheme.W95_DARKER
-	rules_box.content_margin_left = 8
-	rules_box.content_margin_right = 8
-	rules_box.content_margin_top = 3
-	rules_box.content_margin_bottom = 3
-	_rules_label.add_theme_stylebox_override("normal", rules_box)
-	_rules_label.add_theme_font_override("font", pixel)
-	_rules_label.add_theme_font_size_override("font_size", 15)
-	_rules_label.add_theme_color_override("font_color", Color("333333"))
 
 	# The felt board: sunken well, dark purple fill.
 	_board_frame.add_theme_stylebox_override("panel",
@@ -448,11 +432,6 @@ func _refresh_header() -> void:
 	_progress.visible = RunState.gtype == "klondike"
 	_progress.max_value = GameData.MAX_CARD_POINTS
 	_progress.value = RunState.total_card_points()
-
-	var rule_items := PackedStringArray()
-	for r in GameData.RULES.get(RunState.gtype, []):
-		rule_items.append("▸ " + Locale.t(str(r)))
-	_rules_label.text = "  ".join(rule_items)
 
 	_undo_button.text = Locale.t("↩ Undo (%d)") % RunState.undos_remaining()
 	_undo_button.disabled = RunState.undo_stack.is_empty() or RunState.undos_remaining() <= 0

@@ -476,7 +476,6 @@ func test_game_hud() -> void:
 	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Moves") != null, "moves counter present")
 	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Gold") != null, "gold display present")
 	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Hearts") != null, "hearts present")
-	check(screen.get_node_or_null("Rows/Rules") != null, "rules strip present")
 	check(screen._score_pane is Button, "score is a clickable status pane")
 	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Shuffle") != null, "shuffle button present")
 	check(screen.get_node_or_null("Rows/Toolbar/ToolRow/Pause") != null, "pause button present")
@@ -484,8 +483,8 @@ func test_game_hud() -> void:
 	check(screen.get_node_or_null("Rows/TitleBar/TitleRow/TitleText") != null, "title bar present")
 	check(screen.get_node_or_null("Overlays") is CanvasLayer, "overlay layer present")
 
-	check(GameData.RULES.has("klondike"), "rules data exists for klondike")
-	check(not screen._rules_label.text.is_empty(), "rules strip is populated")
+	check(screen.get_node_or_null("Rows/Rules") == null,
+		"the rules strip is gone — the patron's How to play replaced it")
 	check("320" in screen._gold_label.text, "gold shows the current amount")
 
 	# The score-history overlay builds its rows and clears cleanly.
