@@ -248,9 +248,12 @@ func forfeit_run() -> void:
 	end_run(false)
 
 
+## A fresh deal of the floor the player is already on: same variant, same floor,
+## new cards, and they stay at the table. It costs a life, like abandoning, but
+## it is not abandoning — it must not bounce the player out to the tower.
 func new_shuffle() -> bool:
 	SaveManager.record_game_result(gtype, false)
-	if not _lose_life():
+	if not _lose_life(false):
 		return false
 	undo_stack = []
 	moves = 0
@@ -263,7 +266,17 @@ func new_shuffle() -> bool:
 	return true
 
 
-func _lose_life() -> bool:
+## Spends a life. Returns false when that was the last one — the run is over and
+## the screen has already been routed to game over.
+##
+## `to_map` is the whole difference between the two buttons that cost a life.
+## Abandoning gives the floor up, so it sends the player back to the tower, where
+## the variant choice has been re-rolled. A shuffle only asks for a different
+## deal of the SAME floor, so it must leave the player at the table; it also
+## emits its own state_changed once the new board exists, which is why nothing is
+## emitted here on that path — doing both would rebuild the screen once on the
+## old board before the new one is dealt.
+func _lose_life(to_map := true) -> bool:
 	lives -= 1
 	lives_changed.emit(lives)
 	tp_streak = 0
@@ -273,8 +286,9 @@ func _lose_life() -> bool:
 		set_screen("gameover")
 		end_run(false)
 		return false
-	set_screen("map")
-	state_changed.emit()
+	if to_map:
+		set_screen("map")
+		state_changed.emit()
 	return true
 
 
