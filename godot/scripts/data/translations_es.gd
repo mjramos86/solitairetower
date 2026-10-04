@@ -593,6 +593,8 @@ const MAP := {
 	"Nowhere for that card to go. Draw from the stock and come back to it.": "Esa carta no tiene adónde ir. Roba del mazo y vuelve a ella.",
 	"Nowhere for that card to go just now.": "Esa carta no tiene adónde ir por ahora.",
 
+	"Interface Size": "Tamaño de la interfaz",
+
 	# ══════════════════════════════════════════════════════════════════════════
 	#  Patron coach — the corner controls and the How to play briefings
 	# ══════════════════════════════════════════════════════════════════════════

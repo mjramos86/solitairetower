@@ -60,6 +60,23 @@ func _rebuild() -> void:
 		lang_row.add_child(btn)
 	_panel.add_child(lang_row)
 
+	# ── Interface scale ──
+	_panel.add_child(_section_label(Locale.t("Interface Size")))
+	var scale_row := HBoxContainer.new()
+	scale_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	scale_row.add_theme_constant_override("separation", 12)
+	for value in SaveManager.UI_SCALES:
+		var sbtn := Button.new()
+		sbtn.text = "%d%%" % roundi(float(value) * 100.0)
+		sbtn.custom_minimum_size = Vector2(120, 48)
+		sbtn.add_theme_font_override("font", UITheme.font("pixel"))
+		sbtn.add_theme_font_size_override("font_size", 22)
+		# The active size reads as selected, the same way the language row does.
+		sbtn.disabled = is_equal_approx(float(value), SaveManager.ui_scale())
+		sbtn.pressed.connect(_on_ui_scale.bind(float(value)))
+		scale_row.add_child(sbtn)
+	_panel.add_child(scale_row)
+
 	# ── Audio ──
 	_panel.add_child(_section_label(Locale.t("Audio")))
 	var audio := AudioSettings.build_controls(true)
@@ -80,6 +97,13 @@ func _rebuild() -> void:
 func _on_language(code: String) -> void:
 	Locale.set_language(code)
 	_rebuild()  # relabel this screen in the newly chosen language
+
+
+## Takes effect at once, so the player judges the new size on this very screen
+## rather than having to go back into a game to see what they picked.
+func _on_ui_scale(value: float) -> void:
+	SaveManager.set_ui_scale(value)
+	_rebuild()
 
 
 func _section_label(text: String) -> Label:
