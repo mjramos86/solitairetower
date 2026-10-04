@@ -66,6 +66,7 @@ func _ready() -> void:
 	await test_first_briefing()
 	test_shuffle_vs_abandon()
 	test_ui_scale()
+	await test_dialog_and_ledger_localization()
 
 	# Hand the developer's own language back before quitting.
 	Locale.set_language(player_language)
@@ -2239,6 +2240,65 @@ func test_lifetime_stats() -> void:
 ## carry exactly the same English keys (so one language cannot silently drift
 ## from another), lookups return the translation, and an unknown string falls
 ## back to the English source rather than breaking.
+## Dialogs and the score ledger were English in every language: nothing on those
+## two paths went through Locale. They are translated at the point of display now
+## — Modal for every dialog in the game, _reason_text for every ledger row — so
+## these check the display boundary itself, not just that the maps agree.
+func test_dialog_and_ledger_localization() -> void:
+	suite("dialog + ledger localization")
+	var original := Locale.lang
+	Locale.set_language("fr")
+
+	# A dialog built the way the Abandon and Shuffle buttons build theirs.
+	# confirm() returns nothing, so the dialog is read back out of the tree.
+	Modal.confirm(self, "Shuffle",
+		"Re-deal this floor with a fresh shuffle?\n\nYou will lose a life.",
+		Callable(), "Shuffle", "Cancel")
+	await get_tree().process_frame
+	var dialog := ""
+	for l in get_tree().root.find_children("*", "Label", true, false):
+		dialog += (l as Label).text + "\n"
+	for b in get_tree().root.find_children("*", "Button", true, false):
+		dialog += (b as Button).text + "\n"
+	check(not dialog.contains("You will lose a life."),
+		"the dialog body is not left in English")
+	check(dialog.contains(Locale.t("You will lose a life.")),
+		"the dialog body is translated")
+	check(dialog.contains(Locale.t("Cancel")), "dialog buttons are translated")
+	for node in get_tree().root.get_children():
+		if node is CanvasLayer and node.layer == 100:
+			node.queue_free()
+	await get_tree().process_frame
+
+	# Ledger reasons, including the streak one that carries its own number and so
+	# cannot be looked up whole.
+	RunState.new_run()
+	RunState.start_game("tripeaks", 4)
+	var screen: Control = load("res://scenes/screens/game_screen.tscn").instantiate()
+	add_child(screen)
+	await get_tree().process_frame
+	check_eq(screen._reason_text("streak x4"), Locale.tf("streak x%d", [4]),
+		"a streak reason keeps its number through translation")
+	check(screen._reason_text("streak x4").contains("4"), "and still shows it")
+	for reason in ["floor cleared", "card points", "suit completed",
+			"card to foundation", "pair matched", "king removed"]:
+		check(screen._reason_text(reason) != reason,
+			"the ledger translates '%s'" % reason)
+	screen.queue_free()
+	await get_tree().process_frame
+
+	# Every language must carry the whole set, not just French.
+	for code in Locale.LANGUAGES:
+		if code == "en":
+			continue
+		Locale.set_language(code)
+		for key in ["Abandon Floor", "You will lose a life.", "Floor total",
+				"suit completed", "Stashed %s%s", "No undos left this floor!"]:
+			check(Locale.t(key) != key, "%s translates '%s'" % [code.to_upper(), key])
+
+	Locale.set_language(original)
+
+
 ## The interface scale. Everything is laid out in design units, so this is the
 ## one setting that makes text, chrome and cards larger together; a wrong value
 ## reaching the window would resize the whole game.

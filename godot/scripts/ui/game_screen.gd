@@ -320,7 +320,7 @@ func _add_status_pane(clickable: bool) -> Control:
 		button.add_theme_font_size_override("font_size", 18)
 		button.add_theme_color_override("font_color", UITheme.W95_DARKER)
 		button.add_theme_color_override("font_hover_color", UITheme.W95_TITLE)
-		button.tooltip_text = "View this floor's score history"
+		button.tooltip_text = Locale.t("View this floor's score history")
 		button.pressed.connect(_show_score_history)
 		_status_row.add_child(_wrap_pane(button))
 		return button
@@ -553,7 +553,8 @@ func _show_item_tooltip(item: Dictionary, anchor: Control) -> void:
 	var usable := ItemEffects.usable_in(String(item["effect"]), RunState.gtype)
 	var variant: String = Locale.t(GameData.NAMES.get(RunState.gtype, RunState.gtype))
 	var verdict := Label.new()
-	verdict.text = ("✓ Usable in %s" % variant) if usable else ("✗ No effect in %s" % variant)
+	verdict.text = (Locale.t("✓ Usable in %s") % variant) if usable \
+		else (Locale.t("✗ No effect in %s") % variant)
 	verdict.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	verdict.add_theme_font_override("font", UITheme.font("body"))
 	verdict.add_theme_font_size_override("font_size", 15)
@@ -618,7 +619,7 @@ func _build_toolbox_slot() -> Control:
 	else:
 		var c: Dictionary = RunState.toolbox_card
 		button.text = "🗄️ %s%s (%d)" % [Cards.rank_name(c), Cards.symbol(c), RunState.toolbox_uses]
-	button.tooltip_text = "Click a board card to stash it, or click here to take the stashed card back."
+	button.tooltip_text = Locale.t("Click a board card to stash it, or click here to take the stashed card back.")
 	button.pressed.connect(_on_toolbox_pressed)
 	return button
 
@@ -629,15 +630,15 @@ func _on_toolbox_pressed() -> void:
 	if String(_item_mode.get("effect", "")) == "toolbox-place":
 		_item_mode = {}
 		_banner.visible = false
-		RunState.toast.emit("Card kept in the stash.")
+		RunState.toast.emit(Locale.t("Card kept in the stash."))
 		_rebuild()
 		return
 	if RunState.toolbox_card == null:
-		RunState.toast.emit("Select a card on the board to stash it.")
+		RunState.toast.emit(Locale.t("Select a card on the board to stash it."))
 		return
 	# Taking the card back puts it in hand: select it as the pending move source.
 	_item_mode = {"effect": "toolbox-place", "inv_index": -1,
-		"banner": "ALCHEMIST'S CABINET: click where the stashed card should go (or click the stash to cancel)"}
+		"banner": Locale.t("ALCHEMIST'S CABINET: click where the stashed card should go (or click the stash to cancel)")}
 	_show_banner()
 	_rebuild()
 
@@ -746,7 +747,7 @@ func _start_timed(timed: Dictionary) -> void:
 			for c in timed["cards"]:
 				names.append("%s%s" % [Cards.rank_name(c), Cards.symbol(c)])
 			var layer := Modal.alert(self, "Quill of Ravens",
-				"Next from the stock:\n\n  " + "\n  ".join(names))
+				Locale.t("Next from the stock:") + "\n\n  " + "\n  ".join(names))
 			get_tree().create_timer(float(timed["seconds"])).timeout.connect(func():
 				if is_instance_valid(layer):
 					layer.queue_free())
@@ -2220,7 +2221,7 @@ func _try_stash(meta: Dictionary) -> bool:
 	RunState.toolbox_card = card
 	RunState.toolbox_uses -= 1
 	AudioManager.card_taken()
-	RunState.toast.emit("Stashed %s%s" % [Cards.rank_name(card), Cards.symbol(card)])
+	RunState.toast.emit(Locale.t("Stashed %s%s") % [Cards.rank_name(card), Cards.symbol(card)])
 	_rebuild()
 	return true
 
@@ -2255,7 +2256,7 @@ func _try_unstash(meta: Dictionary) -> void:
 				accepted = true
 
 	if not accepted:
-		RunState.toast.emit("The stashed card does not fit there.")
+		RunState.toast.emit(Locale.t("The stashed card does not fit there."))
 		return
 
 	RunState.push_undo()
@@ -2461,7 +2462,7 @@ func _show_score_history() -> void:
 		count += 1
 		var amount := int(e.get("amount", 0))
 		floor_total += amount
-		rows.add_child(_score_row(str(e.get("reason", "score")),
+		rows.add_child(_score_row(_reason_text(str(e.get("reason", "score"))),
 			"%s%d pts" % ["+" if amount >= 0 else "", amount],
 			UITheme.GOLD if amount >= 0 else UITheme.DANGER))
 
@@ -2473,13 +2474,29 @@ func _show_score_history() -> void:
 	else:
 		var sep := HSeparator.new()
 		box.add_child(sep)
-		box.add_child(_score_row("Floor total",
+		box.add_child(_score_row(Locale.t("Floor total"),
 			"%s%d pts" % ["+" if floor_total >= 0 else "", floor_total], UITheme.TEXT))
 
 	var close := Button.new()
 	close.text = Locale.t("Close")
 	close.pressed.connect(_clear_overlays)
 	box.add_child(close)
+
+
+## A ledger reason in the player's language. Reasons are stored as the English
+## source at the moment they are scored, so they are translated here on the way
+## to the screen — a run saved in one language and resumed in another then reads
+## correctly, which storing the translation would not.
+##
+## TriPeaks' streak reason carries its multiplier and is already formatted by the
+## time it is stored, so it is matched back to its template rather than looked up
+## whole; every other reason is a plain key.
+func _reason_text(reason: String) -> String:
+	var streak := RegEx.create_from_string("^streak x(\\d+)$")
+	var m := streak.search(reason)
+	if m != null:
+		return Locale.tf("streak x%d", [int(m.get_string(1))])
+	return Locale.t(reason)
 
 
 func _score_row(label_text: String, value_text: String, value_color: Color) -> Control:

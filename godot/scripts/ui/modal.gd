@@ -7,6 +7,11 @@ extends RefCounted
 ##
 ## Everything lives in a CanvasLayer added to the scene tree root so the modal
 ## floats above the whole screen and is never clipped by its caller's layout.
+##
+## Titles, messages and button labels are translated HERE rather than at each
+## call site. Every dialog in the game funnels through custom(), so one pass at
+## this boundary covers them all, and a caller that already translated its text
+## is unharmed — a string with no entry in the map comes back unchanged.
 
 const DIM := Color(0, 0, 0, 0.55)
 
@@ -60,7 +65,7 @@ static func custom(host: Node, title: String, body: Control, buttons: Array) -> 
 	stack.add_theme_constant_override("separation", 0)
 	window.add_child(stack)
 
-	stack.add_child(_titlebar(title))
+	stack.add_child(_titlebar(Locale.t(title)))
 
 	var pad := MarginContainer.new()
 	pad.add_theme_constant_override("margin_left", 20)
@@ -83,7 +88,7 @@ static func custom(host: Node, title: String, body: Control, buttons: Array) -> 
 
 	for spec in buttons:
 		var button := Button.new()
-		button.text = String(spec.get("text", "OK"))
+		button.text = Locale.t(String(spec.get("text", "OK")))
 		button.custom_minimum_size = Vector2(96, 0)
 		if bool(spec.get("danger", false)):
 			button.add_theme_color_override("font_color", UITheme.MAROON)
@@ -102,7 +107,7 @@ static func custom(host: Node, title: String, body: Control, buttons: Array) -> 
 
 static func _message_body(message: String) -> Control:
 	var label := Label.new()
-	label.text = message
+	label.text = Locale.t(message)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.custom_minimum_size.x = 380
 	label.add_theme_font_override("font", UITheme.font("body"))  # message prose → Inter
