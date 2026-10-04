@@ -81,6 +81,7 @@ static func default_profile() -> Dictionary:
 		"music_volume": 0.7,
 		"sfx_volume": 0.7,
 		"patron_coach_muted": false,
+		"seen_variant_briefings": [],
 		"runs_played": 0,
 		"runs_won": 0,
 		"total_score": 0,

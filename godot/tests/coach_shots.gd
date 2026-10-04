@@ -24,6 +24,13 @@ func _ready() -> void:
 	RunState.new_run()
 	RunState.gold = 320
 	RunState.inventory = [GameData.item_by_id("sticky-note"), GameData.item_by_id("magnifier")]
+	# Every variant counts as already met, so the briefing only appears where a
+	# shot below asks for it rather than opening itself over the idle captures.
+	for type in ["klondike", "spider", "freecell", "tripeaks", "pyramid"]:
+		SaveManager.mark_seen("seen_variant_briefings", type)
+
+	# ...except this one, which is the arrival on a variant for the first time.
+	await _first_visit("tripeaks", "coach_first_visit")
 
 	await _idle("klondike", "coach_klondike_idle")
 	await _klondike_foundation("coach_klondike_bubble")
@@ -147,6 +154,17 @@ func _pairs_waste(gs: Dictionary, card: Dictionary) -> bool:
 		if wi >= 0 and int(card["rank"]) + int(w[wi]["rank"]) == 13:
 			return true
 	return false
+
+
+## Arriving on a variant this profile has never played: the briefing opens by
+## itself, with nothing clicked.
+func _first_visit(type: String, name: String) -> void:
+	SaveManager.profile["seen_variant_briefings"] = []
+	RunState.start_game(type, 4)
+	await _mount(type)
+	await _settle(name)
+	for t in ["klondike", "spider", "freecell", "tripeaks", "pyramid"]:
+		SaveManager.mark_seen("seen_variant_briefings", t)
 
 
 ## The corner's How to play button, pressed.

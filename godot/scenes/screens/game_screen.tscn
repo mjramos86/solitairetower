@@ -75,9 +75,6 @@ size_flags_horizontal = 3
 layout_mode = 2
 text = "♥♥♥"
 
-[node name="Rules" type="Label" parent="Rows"]
-layout_mode = 2
-
 [node name="ScoreBar" type="ProgressBar" parent="Rows"]
 custom_minimum_size = Vector2(0, 6)
 layout_mode = 2

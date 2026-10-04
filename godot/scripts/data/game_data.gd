@@ -22,7 +22,11 @@ const ICONS := {
 	"freecell": "👑",
 }
 
-## Per-variant rules shown as a reference strip during play. Ported from RULES.
+## Per-variant rules, one terse line each. These were the reference strip above
+## the board until the patron's How to play briefing replaced it — the strip and
+## the briefing said the same thing twice, and only one of them was written as
+## someone speaking. Nothing in the game draws these now; they are still exported
+## by tests/dump_text.gd for the external Tower Text Studio. Ported from RULES.
 const RULES := {
 	"klondike": [
 		"Build 4 foundation piles A→K by suit",
