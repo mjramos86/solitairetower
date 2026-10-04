@@ -63,6 +63,7 @@ func _ready() -> void:
 	test_lifetime_stats()
 	test_localization()
 	test_patron_coach()
+	await test_first_briefing()
 
 	# Hand the developer's own language back before quitting.
 	Locale.set_language(player_language)
@@ -2222,6 +2223,57 @@ func test_lifetime_stats() -> void:
 ## carry exactly the same English keys (so one language cannot silently drift
 ## from another), lookups return the translation, and an unknown string falls
 ## back to the English source rather than breaking.
+## The briefing opens itself the first time a profile meets a variant, and never
+## again. This replaced the always-on rules strip, so getting it wrong means
+## either a player never sees the rules or sees them on every single floor.
+func test_first_briefing() -> void:
+	suite("first-time briefing")
+	SaveManager.erase_all()
+
+	var packed := load("res://scenes/screens/game_screen.tscn") as PackedScene
+
+	RunState.new_run()
+	RunState.start_game("spider", 4)
+	var first := packed.instantiate()
+	add_child(first)
+	await get_tree().process_frame
+	check(first._patron_coach._sticky, "a first visit to Spider opens the briefing")
+	check(SaveManager.has_seen("seen_variant_briefings", "spider"),
+		"the visit is remembered on the profile")
+	first.queue_free()
+
+	# Same variant again: the player has had the rules, so the corner stays shut.
+	RunState.start_game("spider", 5)
+	var second := packed.instantiate()
+	add_child(second)
+	await get_tree().process_frame
+	check(not second._patron_coach._sticky, "a second visit to Spider stays quiet")
+	second.queue_free()
+
+	# A different variant is a different first time.
+	RunState.start_game("pyramid", 5)
+	var other := packed.instantiate()
+	add_child(other)
+	await get_tree().process_frame
+	check(other._patron_coach._sticky, "a first visit to Pyramid opens its own briefing")
+	other.queue_free()
+
+	# Muted: nothing opens, and the variant stays unseen so the briefing is still
+	# waiting if the patron is switched back on.
+	SaveManager.erase_all()
+	SaveManager.profile["patron_coach_muted"] = true
+	RunState.start_game("freecell", 4)
+	var muted := packed.instantiate()
+	add_child(muted)
+	await get_tree().process_frame
+	check(not muted._patron_coach._sticky, "a muted patron opens nothing")
+	check(not SaveManager.has_seen("seen_variant_briefings", "freecell"),
+		"and leaves the variant unseen, so muting does not burn the briefing")
+	muted.queue_free()
+	SaveManager.profile["patron_coach_muted"] = false
+	await get_tree().process_frame
+
+
 ## The patron names the rule that refused a move, so a wrong line teaches a wrong
 ## rule. These check the two refusals that are easiest to get backwards, and that
 ## every line the corner can show exists in every language the picker offers —

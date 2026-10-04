@@ -28,6 +28,10 @@ const DWELL_MIN := 3.2
 const DWELL_PER_CHAR := 0.045
 const DWELL_MAX := 7.0
 
+## Variants whose briefing the player has already been handed, on the profile so
+## it is remembered across runs and sessions.
+const SEEN_BRIEFINGS := "seen_variant_briefings"
+
 var _frame: PanelContainer
 var _portrait: TextureRect
 var _name_label: Label
@@ -216,6 +220,24 @@ func _on_mute_toggled(pressed: bool) -> void:
 	# asked for and is still reading.
 	if pressed and not _sticky:
 		hide_line()
+
+
+## Opens the briefing unasked, the first time a profile meets a variant. The
+## always-on rules strip above the board used to teach this passively; with it
+## gone, a player who has never seen Spider should be handed the rules rather
+## than left to notice a small button in the corner.
+##
+## A muted patron stays quiet — an unasked briefing is exactly what muting is
+## for — and the variant is left unseen, so the briefing is still waiting if the
+## player switches the patron back on.
+func offer_briefing(type: String) -> void:
+	if type.is_empty() or is_muted() or SaveManager.has_seen(SEEN_BRIEFINGS, type):
+		return
+	var text := Coach.how_to_play(type)
+	if text.is_empty():
+		return
+	SaveManager.mark_seen(SEEN_BRIEFINGS, type)
+	_speak(text, true)
 
 
 ## The whole rulebook for the variant in play. Asked for, so it ignores the mute

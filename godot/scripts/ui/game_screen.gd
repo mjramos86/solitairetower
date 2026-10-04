@@ -140,6 +140,9 @@ func _ready() -> void:
 	_build_status_panes()
 	_build_patron_coach()
 	_rebuild()
+	# A screen is instanced per floor, so this runs once on arrival; the coach
+	# itself decides whether this profile has met the variant before.
+	_patron_coach.offer_briefing(String(RunState.gtype))
 
 
 ## Sits the patron on top of the felt, as a sibling rather than a child: the felt
