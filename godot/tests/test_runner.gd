@@ -2293,8 +2293,18 @@ func test_dialog_and_ledger_localization() -> void:
 			continue
 		Locale.set_language(code)
 		for key in ["Abandon Floor", "You will lose a life.", "Floor total",
-				"suit completed", "Stashed %s%s", "No undos left this floor!"]:
+				"suit completed", "Stashed %s%s", "No undos left this floor!",
+				"Save reset: %s", "Save file is not valid JSON", "Player %d"]:
 			check(Locale.t(key) != key, "%s translates '%s'" % [code.to_upper(), key])
+
+	# A slot created without a typed name falls back to a localised default.
+	Locale.set_language("fr")
+	SaveManager.erase_all()
+	SaveManager.new_game(1, "")
+	check_eq(SaveManager.player_name, Locale.tf("Player %d", [2]),
+		"an unnamed slot takes its default name in the player's language")
+	check(SaveManager.player_name != "Player 2", "and not the English source")
+	SaveManager.erase_all()
 
 	Locale.set_language(original)
 

@@ -644,4 +644,11 @@ const MAP := {
 	"Stashed %s%s": "Guardada: %s%s",
 	"The stashed card does not fit there.": "La carta guardada no encaja ahí.",
 	"No undos left this floor!": "¡No quedan deshacer en este piso!",
+
+	# ══════════════════════════════════════════════════════════════════════════
+	#  Save recovery and slot names
+	# ══════════════════════════════════════════════════════════════════════════
+	"Could not open %s (error %d)": "No se pudo abrir %s (error %d)",
+	"Save file is not valid JSON": "El archivo de partida no es JSON válido",
+	"Player %d": "Jugador %d",
 }

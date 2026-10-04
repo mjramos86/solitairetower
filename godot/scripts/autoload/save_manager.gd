@@ -166,14 +166,14 @@ func load_game() -> void:
 
 	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if f == null:
-		_recover("Could not open %s (error %d)" % [SAVE_PATH, FileAccess.get_open_error()])
+		_recover(Locale.t("Could not open %s (error %d)") % [SAVE_PATH, FileAccess.get_open_error()])
 		return
 	var text := f.get_as_text()
 	f.close()
 
 	var parsed = JSON.parse_string(text)
 	if typeof(parsed) != TYPE_DICTIONARY:
-		_recover("Save file is not valid JSON")
+		_recover(Locale.t("Save file is not valid JSON"))
 		return
 
 	var data: Dictionary = _migrate(parsed)
@@ -251,6 +251,11 @@ func _migrate(data: Dictionary) -> Dictionary:
 		return data
 	# Version 1 stored a single {profile, run, highscores}. Fold that lone profile
 	# into slot 0 named "Player 1" so existing players keep their progress.
+	#
+	# That name stays English on purpose. This runs from SaveManager._ready(),
+	# which the autoload order puts BEFORE Locale reads the saved language, so a
+	# translation here would come out in whatever language Locale had not yet
+	# loaded. It is a stored name the player can rename, not a label.
 	if version == 1 or data.has("profile"):
 		var migrated := {"version": SAVE_VERSION, "slots": _empty_slots(),
 			"highscores": data.get("highscores", [])}
@@ -348,7 +353,7 @@ func new_game(index: int, name: String) -> void:
 	active_slot = index
 	player_name = name.strip_edges().substr(0, MAX_NAME_LEN)
 	if player_name == "":
-		player_name = "Player %d" % (index + 1)
+		player_name = Locale.tf("Player %d", [index + 1])
 	profile = default_profile()
 	run = {}
 	_sync_to_slot()
