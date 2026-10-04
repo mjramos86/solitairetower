@@ -563,4 +563,41 @@ const MAP := {
 	#  Misc / toasts
 	# ══════════════════════════════════════════════════════════════════════════
 	"Save reset: %s": "Save reiniciado: %s",
+
+	# ══════════════════════════════════════════════════════════════════════════
+	#  Patron coach — the rule named aloud when the table refuses a move
+	# ══════════════════════════════════════════════════════════════════════════
+	"No dealing while a column stands empty. Fill every gap first, then the stock will give.": "Nada de distribuir enquanto houver uma coluna vazia. Preencha primeiro cada vão e o monte cederá.",
+	"The stock is spent — what lies on the table is all that remains.": "O monte acabou — o que está na mesa é tudo o que resta.",
+	"A foundation takes one card at a time, never a run.": "Uma fundação recebe uma carta de cada vez, nunca uma sequência.",
+	"Each foundation keeps to a single suit — that pile is not yours to fill.": "Cada fundação atém-se a um único naipe — essa pilha não é sua para preencher.",
+	"Foundations climb from the Ace upward, one rank at a time.": "As fundações sobem a partir do Ás, um grau de cada vez.",
+	"A free cell holds a single card, and that one is taken.": "Uma célula livre guarda uma só carta, e essa já está ocupada.",
+	"A card only lands on the rank just above it. Suit matters when you lift a run, not when you place one.": "Uma carta só assenta sobre o grau imediatamente acima. O naipe importa ao levantar uma sequência, não ao pousá-la.",
+	"Columns run down in alternating colours — red on black, black on red.": "As colunas descem alternando as cores — vermelho sobre preto, preto sobre vermelho.",
+	"Only a King may open an empty column.": "Só um Rei pode abrir uma coluna vazia.",
+	"The tableau runs down in alternating colours — red on black, black on red.": "O tableau desce alternando as cores — vermelho sobre preto, preto sobre vermelho.",
+	"That card lies face down. Clear the cards above it and it will turn.": "Essa carta está virada para baixo. Limpe as que estão por cima e ela virará.",
+	"Only a run descending in one suit travels as a block. A mixed run moves one card at a time.": "Só uma sequência descendente do mesmo naipe viaja em bloco. Uma sequência misturada avança carta a carta.",
+	"A run travels whole only while it descends in alternating colours.": "Uma sequência viaja inteira apenas enquanto desce alternando as cores.",
+	"You can carry %d cards at once, not %d — each free cell and each empty column raises the count.": "Pode levar %d cartas de cada vez, não %d — cada célula livre e cada coluna vazia aumentam esse número.",
+	"That card is still covered. Clear the two below it first.": "Essa carta ainda está coberta. Limpe primeiro as duas que a bloqueiam.",
+	"Take only a card one rank above or below the waste. The Ace bridges King and Two.": "Tire apenas uma carta um grau acima ou abaixo do descarte. O Ás liga o Rei ao Dois.",
+	"Pair cards that add to thirteen. A King is worth thirteen alone.": "Emparelhe cartas que somem treze. Um Rei vale treze sozinho.",
+	"Nowhere for that card to go. Deal a new row once every column holds a card.": "Essa carta não tem para onde ir. Distribua uma nova fila assim que cada coluna tiver uma carta.",
+	"Nowhere for that card to go — park it in a free cell and dig deeper.": "Essa carta não tem para onde ir — guarde-a numa célula livre e escave mais fundo.",
+	"Nowhere for that card to go. Draw from the stock and come back to it.": "Essa carta não tem para onde ir. Compre do monte e volte a ela.",
+	"Nowhere for that card to go just now.": "Essa carta não tem para onde ir por agora.",
+
+	# ══════════════════════════════════════════════════════════════════════════
+	#  Patron coach — the corner controls and the How to play briefings
+	# ══════════════════════════════════════════════════════════════════════════
+	"HOW TO PLAY": "COMO JOGAR",
+	"MUTE": "SILENCIAR",
+	"MUTED": "SILENCIADO",
+	"Klondike. Four foundations, one suit each, climbing Ace to King — fill all four and the floor is yours.\n• The tableau runs down in alternating colours: red on black, black on red.\n• Only a King may open an empty column.\n• Draw from the stock to the waste and play the waste's top card.\n• Clearing the cards above a face-down one turns it over.": "Klondike. Quatro fundações, uma por naipe, subindo do Ás ao Rei — complete as quatro e o andar é seu.\n• O tableau desce alternando as cores: vermelho sobre preto, preto sobre vermelho.\n• Só um Rei pode abrir uma coluna vazia.\n• Compre do monte para o descarte e jogue a carta do topo do descarte.\n• Limpar as cartas que cobrem uma carta virada para baixo faz com que ela vire.",
+	"Spider. Eight runs, King down to Ace in a single suit; each run you finish leaves the table.\n• A card lands on the rank just above it, whatever the suit.\n• Only a run already in one suit travels as a block — a mixed one moves card by card.\n• Deal ten more cards when you are stuck, but never while a column stands empty.\n• Clear all eight runs to win.": "Spider. Oito sequências, do Rei ao Ás num mesmo naipe; cada sequência concluída deixa a mesa.\n• Uma carta assenta sobre o grau imediatamente acima, seja qual for o naipe.\n• Só uma sequência já de um mesmo naipe viaja em bloco — uma misturada avança carta a carta.\n• Distribua mais dez cartas quando estiver travado, mas nunca enquanto houver uma coluna vazia.\n• Complete as oito sequências para vencer.",
+	"FreeCell. Every card is face up from the first move, and every deal can be won. Build four foundations, Ace to King, one suit each.\n• Columns run down in alternating colours: red on black, black on red.\n• Each free cell parks a single card.\n• One move carries (free cells + 1) cards, doubled for every empty column.\n• Nothing is hidden. The whole puzzle is in front of you from the start.": "FreeCell. Todas as cartas estão viradas para cima desde a primeira jogada, e toda partida tem solução. Construa quatro fundações, do Ás ao Rei, uma por naipe.\n• As colunas descem alternando as cores: vermelho sobre preto, preto sobre vermelho.\n• Cada célula livre acomoda uma só carta.\n• Uma jogada transporta (células livres + 1) cartas, e esse número dobra a cada coluna vazia.\n• Nada está escondido. O quebra-cabeça inteiro está à sua frente desde o início.",
+	"TriPeaks. Clear all twenty-eight cards from the three peaks.\n• Take any uncovered card one rank above or below the top of the waste.\n• The Ace bridges King and Two, so a chain never has to stop there.\n• A card is uncovered once the two below it are gone.\n• Draw from the stock when nothing fits — it breaks your chain, and a long chain scores far more.": "TriPeaks. Limpe as vinte e oito cartas dos três picos.\n• Tire qualquer carta descoberta um grau acima ou abaixo do topo do descarte.\n• O Ás liga o Rei ao Dois, por isso uma corrente nunca precisa parar aí.\n• Uma carta fica descoberta assim que as duas abaixo dela desaparecem.\n• Compre do monte quando nada servir — isso quebra a sua corrente, e uma corrente longa pontua muito mais.",
+	"Pyramid. Clear every card of the pyramid by pairing them to thirteen.\n• The Ace counts one, the Jack eleven, the Queen twelve, the King thirteen.\n• A King is thirteen on its own and clears alone.\n• Only an uncovered card can be paired: the two below it must go first.\n• Pair with the top of the waste, or turn the stock for a new one.": "Pyramid. Limpe todas as cartas da pirâmide emparelhando-as para somar treze.\n• O Ás vale um, o Valete onze, a Dama doze, o Rei treze.\n• Um Rei vale treze sozinho e sai sozinho.\n• Só uma carta descoberta pode ser emparelhada: as duas abaixo dela têm de sair primeiro.\n• Emparelhe com o topo do descarte, ou compre do monte para descobrir outra.",
 }

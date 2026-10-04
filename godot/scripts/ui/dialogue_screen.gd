@@ -1,41 +1,8 @@
 extends Control
 
 
-## A speech bubble's pointy tail, drawn in _draw so it cannot be resized by the
-## layout the way a Panel child would be. Extends MarginContainer, whose margin
-## on the pointing side reserves the space the triangle is painted into.
-##   "left" — points toward John Dee's portrait (his lines)
-##   "down" — points down toward the viewer (the player's lines)
-## The base of the triangle overlaps a few pixels into the bubble so the white
-## fill blends over the bubble's black border, and only the two outer edges are
-## outlined — so it reads as a real comic-book tail, not a square notch.
-class BubbleTail extends MarginContainer:
-	const REACH := 22.0   # how far the point sticks out past the bubble
-	const SPREAD := 28.0  # width of the tail where it meets the bubble
-	var dir := "left"
-
-	func _draw() -> void:
-		var fill := Color.WHITE
-		var line := Color.BLACK
-		var overlap := 4.0  # push the base into the bubble to cover its border
-		if dir == "down":
-			var base_y := size.y - REACH
-			var cx := 46.0
-			var a := Vector2(cx, base_y - overlap)
-			var b := Vector2(cx + SPREAD, base_y - overlap)
-			var tip := Vector2(cx + SPREAD * 0.4, size.y - 1.0)
-			draw_colored_polygon([a, b, tip], fill)
-			draw_line(a, tip, line, 3.0)
-			draw_line(b, tip, line, 3.0)
-		else:  # left
-			var base_x := REACH
-			var cy := 26.0
-			var a := Vector2(base_x + overlap, cy)
-			var b := Vector2(base_x + overlap, cy + SPREAD)
-			var tip := Vector2(1.0, cy + SPREAD * 0.4)
-			draw_colored_polygon([a, b, tip], fill)
-			draw_line(a, tip, line, 3.0)
-			draw_line(b, tip, line, 3.0)
+## The pointy comic tail used by the speech bubbles below lives in its own
+## script, shared with the table-side patron coach: res://scripts/ui/bubble_tail.gd
 
 
 ## Every conversation in the game, rebuilt to match the web build's two modes.
@@ -609,10 +576,7 @@ func _call_content(beat: Dictionary) -> void:
 func _speech_bubble(text: String, tail_dir := "left") -> Control:
 	var tail := BubbleTail.new()
 	tail.dir = tail_dir
-	if tail_dir == "down":
-		tail.add_theme_constant_override("margin_bottom", BubbleTail.REACH)
-	else:
-		tail.add_theme_constant_override("margin_left", BubbleTail.REACH)
+	tail.apply_margin()
 
 	var bubble := PanelContainer.new()
 	var style := StyleBoxFlat.new()
