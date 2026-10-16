@@ -66,6 +66,7 @@ func _ready() -> void:
 	await test_first_briefing()
 	test_shuffle_vs_abandon()
 	test_ui_scale()
+	test_patron_shop()
 	await test_dialog_and_ledger_localization()
 
 	# Hand the developer's own language back before quitting.
@@ -550,7 +551,14 @@ func test_win_overlay() -> void:
 	# Winning raises exactly one overlay and does not advance on its own.
 	screen._check_win()
 	check(RunState.win_overlay, "win sets the overlay flag")
-	check_eq(overlays.get_child_count(), 1, "win raises exactly one overlay")
+	# One MODAL overlay. The floor-clear score bonus is settled at win time now,
+	# so its "+N pts" float rides along on the same layer; it is transient and
+	# grouped apart precisely so it is not mistaken for a dialog.
+	var modals := 0
+	for node in overlays.get_children():
+		if not node.is_in_group("score_float"):
+			modals += 1
+	check_eq(modals, 1, "win raises exactly one modal overlay")
 	check(not RunState.done.has(0), "the floor is not cleared until the player descends")
 
 	# Descending clears the floor and routes onward (to the shop from floor 0).
@@ -559,7 +567,7 @@ func test_win_overlay() -> void:
 	if button != null:
 		button.pressed.emit()
 	check(RunState.done.has(0), "descending marks the floor cleared")
-	check_eq(RunState.screen, "shop", "descending from floor 0 routes to the shop")
+	check_eq(RunState.screen, "map", "descending from floor 0 returns to the tower")
 
 	remove_child(screen)
 	screen.queue_free()
@@ -1001,15 +1009,16 @@ func test_full_run() -> void:
 	check_eq(RunState.lives, 3, "no life lost while the item is held")
 	check_eq(RunState.inventory.size(), 0, "item is consumed")
 
-	# The shop awards credits and restocks.
+	# Clearing a floor pays its bonuses and goes straight back to the tower: the
+	# between-floors shop is gone, the patron sells during the floor instead.
 	RunState.new_run()
 	RunState.start_game("klondike", 0)
+	check_eq(RunState.shop_items.size(), 3, "a floor opens with three offers")
 	RunState.next_floor()
-	check_eq(RunState.screen, "shop", "clearing a floor opens the shop")
-	check(RunState.shop_gold_earned > 0, "shop awards credits")
+	check_eq(RunState.screen, "map", "clearing a floor returns to the tower")
+	check(RunState.shop_gold_earned > 0, "the floor awards credits")
 	check_eq(RunState.gold, RunState.shop_gold_earned, "credits are banked")
-	check_eq(RunState.shop_items.size(), 3, "shop restocks 3 items")
-	check_eq(RunState.floor_index, 1, "floor advances past the shop")
+	check_eq(RunState.floor_index, 1, "floor advances")
 
 	SaveManager.erase_all()
 
@@ -1738,7 +1747,7 @@ func test_item_effects() -> void:
 	check(not RunState.done.has(0), "the floor clears only when the player descends")
 	RunState.next_floor()  # simulate the descend button
 	check(RunState.done.has(0), "descending clears the floor")
-	check_eq(RunState.screen, "shop", "patronage routes to the shop after descending")
+	check_eq(RunState.screen, "map", "patronage returns to the tower after descending")
 
 	# ── Vial of Quicksilver: retreat with no life lost ──
 	RunState.new_run()
@@ -2307,6 +2316,86 @@ func test_dialog_and_ledger_localization() -> void:
 	SaveManager.erase_all()
 
 	Locale.set_language(original)
+
+
+## The patron's shop: gold earned on the board, spent during the floor.
+##
+## The calibration is the part worth pinning. Score is not comparable between
+## variants — a cleared Klondike floor scores around 1200 and a cleared Pyramid
+## around 160 — so the gold rate is keyed to progress events instead, one rate
+## per variant, each chosen so clearing any floor pays about the same. Get that
+## wrong and the tower develops a "correct" branch.
+func test_patron_shop() -> void:
+	suite("patron shop")
+
+	# Progress events in a full clear of each variant. These are what the rates
+	# in GOLD_PER_PROGRESS were divided into; if a variant's scoring changes,
+	# this is the table that has to move with it.
+	var events := {"klondike": 52, "freecell": 52, "spider": 8, "tripeaks": 28, "pyramid": 28}
+	for type in events:
+		var paid: int = GameData.gold_per_progress(type) * int(events[type])
+		check(absi(paid - GameData.GOLD_PER_FLOOR) <= 15,
+			"%s pays %d for a full clear, near the %d target" % [type, paid, GameData.GOLD_PER_FLOOR])
+
+	# The board pays as it is cleared, at the rate of the variant in play.
+	RunState.new_run()
+	RunState.start_game("spider", 4)
+	check_eq(RunState.gold, 0, "a run starts broke")
+	check_eq(RunState.shop_items.size(), 3, "a floor opens with three offers")
+	RunState.award_progress_gold()
+	check_eq(RunState.gold, GameData.gold_per_progress("spider"), "progress pays at once")
+	check_eq(RunState.board_gold, RunState.gold, "and is tallied for the clear screen")
+
+	# Buying: the offer shrinks as the floor's three purchases are spent.
+	RunState.gold = 5000
+	var first: Dictionary = RunState.shop_items[0]
+	check(RunState.shop_buy(first), "an affordable offer can be bought")
+	check_eq(RunState.inventory.size(), 1, "it reaches the inventory")
+	check_eq(RunState.gold, 5000 - int(first["price"]), "and is paid for")
+	check_eq(RunState.shop_items.size(), 2, "two offers remain after the first buy")
+	check(RunState.shop_buy(RunState.shop_items[0]), "a second buy is allowed")
+	check_eq(RunState.shop_items.size(), 1, "one offer remains")
+	check(RunState.shop_buy(RunState.shop_items[0]), "a third buy is allowed")
+	check_eq(RunState.shop_buys_left(), 0, "the floor's purchases are spent")
+	check(RunState.shop_items.is_empty(), "and the stall is bare")
+
+	# A fresh floor reopens the stall.
+	RunState.start_game("klondike", 5)
+	check_eq(RunState.shop_buys_left(), GameData.SHOP_BUYS_PER_FLOOR, "a new floor restocks the purchases")
+	check_eq(RunState.shop_items.size(), 3, "and the offers")
+
+	# A thin purse buys nothing.
+	RunState.gold = 0
+	check(not RunState.shop_buy(RunState.shop_items[0]), "an unaffordable offer is refused")
+	check_eq(RunState.inventory.size(), 3, "and nothing is added")
+
+	# Rerolling costs gold and leaves the purchase count alone.
+	RunState.new_run()
+	RunState.start_game("klondike", 4)
+	RunState.gold = 500
+	check(RunState.shop_reroll(), "a reroll is allowed")
+	check_eq(RunState.gold, 500 - GameData.REROLL_COST, "and is paid for")
+	check_eq(RunState.shop_buys_left(), GameData.SHOP_BUYS_PER_FLOOR, "a reroll is not a purchase")
+	RunState.gold = GameData.REROLL_COST - 1
+	check(not RunState.shop_reroll(), "a reroll below the fee is refused")
+
+	# The reason rerolls are paid in gold and never in score: push_undo
+	# snapshots `score` and undo_move restores it, so a score-priced reroll
+	# would be handed back by the player's next undo. Gold is not snapshotted,
+	# so a purchase cannot be rewound into a refund.
+	RunState.new_run()
+	RunState.start_game("klondike", 4)
+	RunState.gold = 1000
+	RunState.push_undo()
+	var before_gold := RunState.gold
+	RunState.shop_buy(RunState.shop_items[0])
+	var after_buy := RunState.gold
+	check(after_buy < before_gold, "the purchase is charged")
+	RunState.undo_move()
+	check_eq(RunState.gold, after_buy, "undo does not refund a purchase")
+	check_eq(RunState.inventory.size(), 1, "nor take the item back")
+
+	SaveManager.erase_all()
 
 
 ## The interface scale. Everything is laid out in design units, so this is the

@@ -44,6 +44,15 @@ var gold := 0
 var inventory: Array = []
 var shop_items: Array = []
 var shop_gold_earned := 0
+## Gold the board paid out during the floor in progress, and how many of the
+## floor's purchases are spent. Both reset when a floor starts.
+var board_gold := 0
+var floor_buys := 0
+## True once the cleared floor has been settled (its score bonus and gold
+## awarded). Guards against paying twice: the win overlay settles so it has
+## numbers to show, and next_floor settles too for the paths that never raise an
+## overlay — the skip-floor item and the test cheat.
+var floor_settled := false
 var shop_gold_breakdown: Array = []
 
 var patron := "johndee"
@@ -98,6 +107,9 @@ func new_run() -> void:
 	shop_items = []
 	shop_gold_earned = 0
 	shop_gold_breakdown = []
+	board_gold = 0
+	floor_buys = 0
+	floor_settled = false
 	patron = "johndee"
 	bonus_undos = 0
 	extra_freecell = false
@@ -130,6 +142,10 @@ func start_game(type: String, target_floor: int) -> void:
 	toolbox_uses = 0
 	extra_freecell = false
 	tp_streak = 0
+	board_gold = 0
+	floor_buys = 0
+	floor_settled = false
+	restock_shop()
 
 	gs = Rules.init_game(type, target_floor, extra_freecell)
 	Cards.assign_uids(gs)
@@ -140,13 +156,39 @@ func start_game(type: String, target_floor: int) -> void:
 
 ## Clears the floor and routes to the next beat: victory, a patron interlude,
 ## or the shop. Ported from nextFloor.
+## Closes the books on a cleared floor: the clear bonus, and the gold the floor
+## is owed on top of what the board already paid. Split out of next_floor so the
+## floor-clear overlay can SHOW these numbers — it opens before the player
+## descends, and used to have nothing to report because none of this had
+## happened yet.
+##
+## Idempotent, because two paths reach it: the overlay settles so it has figures
+## to display, and next_floor settles for the paths that raise no overlay at all
+## (the skip-floor item, the test cheat).
+func settle_floor() -> void:
+	if floor_settled:
+		return
+	floor_settled = true
+	add_score(100 * (GameData.TOTAL_FLOORS - floor_index), "floor cleared")
+
+	var elapsed := Time.get_ticks_msec() - floor_start_time
+	shop_gold_breakdown = GameData.floor_gold_breakdown(
+		elapsed, score - floor_start_score, floor_undos_used,
+		lives >= floor_start_lives, board_gold)
+	shop_gold_earned = 0
+	for row in shop_gold_breakdown:
+		if row["earned"] and not bool(row.get("already_paid", false)):
+			shop_gold_earned += int(row["amount"])
+	gold += shop_gold_earned
+
+
 func next_floor() -> void:
 	if not done.has(floor_index):
 		done.append(floor_index)
 	tp_streak = 0
 	SaveManager.record_game_result(gtype, true)
 	Achievements.on_game_won()
-	add_score(100 * (GameData.TOTAL_FLOORS - floor_index), "floor cleared")
+	settle_floor()
 	floor_cleared.emit(floor_index)
 
 	if floor_index >= GameData.TOTAL_FLOORS - 1:
@@ -192,23 +234,13 @@ func _pending_interlude() -> String:
 	return ""
 
 
+## Moves on to the next floor. The between-floors shop is gone — the patron
+## sells during a floor now — so this goes straight back to the tower, and the
+## floor's earnings have already been settled and shown on the clear overlay.
 func proceed_to_shop() -> void:
-	var elapsed := Time.get_ticks_msec() - floor_start_time
-	shop_gold_breakdown = GameData.floor_gold_breakdown(
-		elapsed, score - floor_start_score, floor_undos_used, lives >= floor_start_lives)
-	shop_gold_earned = 0
-	for row in shop_gold_breakdown:
-		if row["earned"]:
-			shop_gold_earned += int(row["amount"])
-	gold += shop_gold_earned
-
-	var owned := []
-	for it in inventory:
-		owned.append(it["id"])
-	shop_items = GameData.generate_shop_items(owned, null, patron)
-
+	settle_floor()
 	floor_index += 1
-	set_screen("shop")
+	set_screen("map")
 	state_changed.emit()
 
 
@@ -354,6 +386,77 @@ func total_card_points() -> int:
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Undo
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  The patron's shop — open during a floor, not between them
+# ══════════════════════════════════════════════════════════════════════════════
+
+## One progress event on the board: a card reaching a foundation, a suit
+## completed, a card cleared from a pyramid. Paid at the variant's own rate so
+## clearing any floor pays about the same, whichever variant it was.
+##
+## Deliberately NOT routed through add_score: score is not comparable between
+## variants, and gold must be.
+func award_progress_gold() -> void:
+	var rate := GameData.gold_per_progress(gtype)
+	if rate <= 0:
+		return
+	gold += rate
+	board_gold += rate
+	state_changed.emit()
+
+
+## Refills the offer to whatever the floor's remaining purchases allow, skipping
+## anything already in the inventory. Called on arrival, after a buy, and after
+## a reroll.
+func restock_shop() -> void:
+	var owned := []
+	for it in inventory:
+		owned.append(it["id"])
+	var slots := GameData.SHOP_BUYS_PER_FLOOR - floor_buys
+	shop_items = GameData.generate_shop_items(owned, null, patron, slots)
+
+
+func shop_buys_left() -> int:
+	return maxi(0, GameData.SHOP_BUYS_PER_FLOOR - floor_buys)
+
+
+## Buys one of the offered items. The offer then shrinks by one and the rest are
+## redrawn, so a second visit is a fresh decision rather than the same two cards
+## the player already turned down.
+func shop_buy(item: Dictionary) -> bool:
+	if shop_buys_left() <= 0:
+		return false
+	if inventory.size() >= GameData.INVENTORY_SLOTS:
+		toast.emit(Locale.t("Your inventory is full."))
+		return false
+	var price := int(item.get("price", 0))
+	if gold < price:
+		return false
+	gold -= price
+	inventory.append(item)
+	floor_buys += 1
+	restock_shop()
+	toast.emit(Locale.t("Acquired %s") % Locale.t(String(item.get("name", ""))))
+	state_changed.emit()
+	return true
+
+
+## Redraws the offers for a flat fee. Paid in GOLD, never in score: push_undo
+## snapshots `score` and undo_move restores it, so a reroll charged to the score
+## would be refunded by the player's next undo.
+func shop_reroll() -> bool:
+	if shop_items.is_empty() or shop_buys_left() <= 0:
+		return false
+	if gold < GameData.REROLL_COST:
+		return false
+	gold -= GameData.REROLL_COST
+	restock_shop()
+	state_changed.emit()
+	return true
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 func push_undo() -> void:

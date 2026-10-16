@@ -63,6 +63,42 @@ const RULES := {
 const TOTAL_FLOORS := 10
 const STARTING_LIVES := 3
 const INVENTORY_SLOTS := 3
+
+## ── The in-game shop ──────────────────────────────────────────────────────────
+##
+## Gold is paid out as the board advances rather than in a lump when the floor
+## ends, because the shop now opens DURING a floor and needs something to spend
+## there. The rate is per variant, and keyed to progress rather than to score,
+## for a specific reason: score is not comparable between variants. A cleared
+## Klondike floor scores around 1200 and a cleared Pyramid around 160, so paying
+## a fraction of score would make Klondike roughly seven times richer and push
+## every player down the same branch of the tower.
+##
+## Each rate is instead calibrated against the number of progress events a full
+## clear contains, so clearing any floor pays about GOLD_PER_FLOOR, whichever
+## variant it was.
+const GOLD_PER_FLOOR := 150
+const GOLD_PER_PROGRESS := {
+	"klondike": 3,    # 52 cards reaching a foundation → 156
+	"freecell": 3,    # 52 cards reaching a foundation → 156
+	"spider": 19,     #  8 suits completed             → 152
+	"tripeaks": 5,    # 28 cards taken from the peaks  → 140
+	"pyramid": 5,     # 28 cards cleared               → 140
+}
+
+## Purchases allowed per floor. The offer shrinks as they are spent — three on
+## arrival, two after the first buy, one after the second — so the cap is
+## something the player can see rather than a message when they hit it.
+const SHOP_BUYS_PER_FLOOR := 3
+
+## Rerolling the remaining offers. Deliberately under the cheapest item (60), so
+## it stays a real option on a thin purse without being free.
+const REROLL_COST := 40
+
+
+## Gold for one progress event in the variant being played.
+static func gold_per_progress(type: String) -> int:
+	return int(GOLD_PER_PROGRESS.get(type, 0))
 const UNDOS_PER_FLOOR := 3
 
 ## Perfect card score: 52 cards × 20 points. Used by the progress bar.
@@ -188,7 +224,7 @@ static func patron_item_pool(patron: String) -> Array:
 ## Three distinct items the player does not already own, weighted toward cheap
 ## tiers. Ported from generateShopItems.
 static func generate_shop_items(owned_ids: Array, rng: RandomNumberGenerator = null,
-		patron: String = "") -> Array:
+		patron: String = "", count: int = SHOP_BUYS_PER_FLOOR) -> Array:
 	if rng == null:
 		rng = Cards.new_rng()
 	var available := []
@@ -196,7 +232,7 @@ static func generate_shop_items(owned_ids: Array, rng: RandomNumberGenerator = n
 		if not owned_ids.has(item["id"]):
 			available.append(item)
 	var chosen := []
-	for i in 3:
+	for i in maxi(count, 0):
 		if available.is_empty():
 			break
 		var total := 0
@@ -251,8 +287,14 @@ static func floor_choice(floor_index: int, rng: RandomNumberGenerator = null) ->
 
 
 ## Time-credit awards for clearing a floor. Ported from calcFloorGoldBreakdown.
-static func floor_gold_breakdown(elapsed_ms: int, score_gained: int, undos_used: int, lives_kept: bool) -> Array:
-	var rows := [{"label": "Floor Cleared", "amount": 50, "earned": true}]
+## `board_gold` is what the floor already paid out progressively; it is listed
+## so the player can see where their money came from, but it is NOT added again
+## — it is in their purse already. Everything below it is awarded on the spot.
+static func floor_gold_breakdown(elapsed_ms: int, score_gained: int, undos_used: int,
+		lives_kept: bool, board_gold: int = 0) -> Array:
+	var rows := [{"label": "Earned on the Board", "amount": board_gold, "earned": true,
+		"already_paid": true}]
+	rows.append({"label": "Floor Cleared", "amount": 50, "earned": true})
 	var no_undo := undos_used == 0
 	rows.append({"label": "No Undos", "amount": 20 if no_undo else 0, "earned": no_undo})
 	var fast := elapsed_ms < 180000

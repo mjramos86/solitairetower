@@ -20,6 +20,9 @@ const PORTRAIT_H := 208.0
 const BUBBLE_MAX_W := 560.0
 ## The How to play briefing is a paragraph, not a line, so it gets its own width.
 const BRIEFING_W := 760.0
+## The shop stands where the portrait does, so it is sized to sit comfortably in
+## the same corner rather than to fill the felt.
+const SHOP_W := 330.0
 const EDGE := 18.0          # gap kept from the felt's bottom-right corner
 const FADE := 0.18
 ## How long a line stays up: a floor, plus reading time per character, capped so
@@ -44,6 +47,11 @@ var _patron := ""
 var _row: HBoxContainer
 var _help_button: Button
 var _mute_button: Button
+var _shop_button: Button
+## The shop stands in the portrait's place rather than beside it: the patron IS
+## the shop, and the corner has no room for both.
+var _shop_panel: VBoxContainer
+var _shop_open := false
 ## A briefing stays up until it is dismissed; a reaction retires on its own.
 var _sticky := false
 
@@ -56,6 +64,14 @@ func _ready() -> void:
 	# The language picker can be reached mid-run through the pause menu, and the
 	# two button labels are the only text here that is not rebuilt on each line.
 	Locale.changed.connect(_relabel)
+	# Gold arrives while the stall is open, so what is affordable changes under
+	# the player's eyes. Only redraws when the stall is actually showing.
+	RunState.state_changed.connect(func():
+		if _shop_open:
+			_rebuild_shop())
+	Locale.changed.connect(func():
+		if _shop_open:
+			_rebuild_shop())
 	_show_mute_state(is_muted())
 
 
@@ -135,6 +151,11 @@ func _build() -> void:
 	_help_button.pressed.connect(_on_help_pressed)
 	buttons.add_child(_help_button)
 
+	_shop_button = _corner_button("SHOP")
+	_shop_button.toggle_mode = true
+	_shop_button.toggled.connect(_on_shop_toggled)
+	buttons.add_child(_shop_button)
+
 	_mute_button = _corner_button("MUTE")
 	# The W95 theme draws a held-down toggle sunken, but at this size that alone
 	# is too quiet to read as state, so the label names the state too and the
@@ -155,6 +176,12 @@ func _build() -> void:
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(_portrait)
+
+	_shop_panel = VBoxContainer.new()
+	_shop_panel.add_theme_constant_override("separation", 6)
+	_shop_panel.custom_minimum_size.x = SHOP_W
+	_shop_panel.visible = false
+	_frame.add_child(_shop_panel)
 
 	var strip := PanelContainer.new()
 	var strip_box := StyleBoxFlat.new()
@@ -178,6 +205,86 @@ func _build() -> void:
 	strip.add_child(_name_label)
 
 	_place.call_deferred()
+
+
+## Opens or closes the patron's stall. The portrait steps aside for it, and the
+## briefing bubble is put away — the two compete for the same corner and for the
+## player's attention.
+func _on_shop_toggled(open: bool) -> void:
+	_shop_open = open
+	if open:
+		hide_line()
+	_portrait.visible = not open
+	_shop_panel.visible = open
+	if open:
+		_rebuild_shop()
+	_place.call_deferred()
+
+
+## Redraws the stall from RunState. Called on open and after every purchase or
+## reroll, because both change what is on offer and what the player can afford.
+func _rebuild_shop() -> void:
+	for child in _shop_panel.get_children():
+		child.queue_free()
+	if not _shop_open:
+		return
+
+	var purse := Label.new()
+	purse.text = Locale.t("⏳ %d · %d left") % [RunState.gold, RunState.shop_buys_left()]
+	purse.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	purse.add_theme_font_override("font", UITheme.font("pixel"))
+	purse.add_theme_font_size_override("font_size", 16)
+	purse.add_theme_color_override("font_color", UITheme.GOLD_PILL_TEXT)
+	_shop_panel.add_child(purse)
+
+	if RunState.shop_buys_left() <= 0 or RunState.shop_items.is_empty():
+		var done := Label.new()
+		done.text = Locale.t("The patron has nothing left for you this floor.")
+		done.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		done.add_theme_font_override("font", UITheme.font("body"))
+		done.add_theme_font_size_override("font_size", 15)
+		done.add_theme_color_override("font_color", UITheme.W95_DARKER)
+		_shop_panel.add_child(done)
+		return
+
+	for item in RunState.shop_items:
+		_shop_panel.add_child(_offer_button(item))
+
+	var reroll := Button.new()
+	reroll.text = Locale.t("⟳ Reroll (%d)") % GameData.REROLL_COST
+	reroll.focus_mode = Control.FOCUS_NONE
+	reroll.add_theme_font_override("font", UITheme.font("pixel"))
+	reroll.add_theme_font_size_override("font_size", 15)
+	reroll.disabled = RunState.gold < GameData.REROLL_COST
+	reroll.pressed.connect(func():
+		if RunState.shop_reroll():
+			AudioManager.card_taken()
+			_rebuild_shop()
+			_place.call_deferred())
+	_shop_panel.add_child(reroll)
+
+
+## One offer: its glyph, its name and its price, as a single button. Disabled —
+## rather than hidden — when it cannot be afforded, so the player can see what
+## they are saving toward.
+func _offer_button(item: Dictionary) -> Button:
+	var price := int(item.get("price", 0))
+	var button := Button.new()
+	button.text = "%s %s\n⏳ %d" % [item.get("icon", ""),
+		Locale.t(String(item.get("name", ""))), price]
+	button.focus_mode = Control.FOCUS_NONE
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.add_theme_font_override("font", UITheme.font("pixel"))
+	button.add_theme_font_size_override("font_size", 16)
+	button.tooltip_text = Locale.t(String(item.get("desc", "")))
+	button.disabled = RunState.gold < price \
+		or RunState.inventory.size() >= GameData.INVENTORY_SLOTS
+	button.pressed.connect(func():
+		if RunState.shop_buy(item):
+			AudioManager.card_moved()
+			_rebuild_shop()
+			_place.call_deferred())
+	return button
 
 
 ## The three cues that the patron is silenced: a sunken switch, a label naming
