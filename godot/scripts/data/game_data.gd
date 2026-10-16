@@ -77,13 +77,22 @@ const INVENTORY_SLOTS := 3
 ## Each rate is instead calibrated against the number of progress events a full
 ## clear contains, so clearing any floor pays about GOLD_PER_FLOOR, whichever
 ## variant it was.
-const GOLD_PER_FLOOR := 150
+##
+## The figure is 50 rather than the 150 this started at. The end-of-floor
+## bonuses below were left untouched when the board payout was added, so the
+## floor's income was not redistributed, it was multiplied: 245 a floor against
+## the 95 it used to be. A tier-0 item went from costing two thirds of a floor's
+## savings to a quarter of one, at the same moment the cap rose to three
+## purchases a floor, which made the cheap half of the catalogue loose change.
+## At 50 the floor pays 145 — half again what it did, enough to justify three
+## purchases without devaluing what they buy.
+const GOLD_PER_FLOOR := 50
 const GOLD_PER_PROGRESS := {
-	"klondike": 3,    # 52 cards reaching a foundation → 156
-	"freecell": 3,    # 52 cards reaching a foundation → 156
-	"spider": 19,     #  8 suits completed             → 152
-	"tripeaks": 5,    # 28 cards taken from the peaks  → 140
-	"pyramid": 5,     # 28 cards cleared               → 140
+	"klondike": 1,    # 52 cards reaching a foundation → 52
+	"freecell": 1,    # 52 cards reaching a foundation → 52
+	"spider": 6,      #  8 suits completed             → 48
+	"tripeaks": 2,    # 28 cards taken from the peaks  → 56
+	"pyramid": 2,     # 28 cards cleared               → 56
 }
 
 ## Purchases allowed per floor. The offer shrinks as they are spent — three on

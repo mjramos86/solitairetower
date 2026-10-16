@@ -2334,7 +2334,7 @@ func test_patron_shop() -> void:
 	var events := {"klondike": 52, "freecell": 52, "spider": 8, "tripeaks": 28, "pyramid": 28}
 	for type in events:
 		var paid: int = GameData.gold_per_progress(type) * int(events[type])
-		check(absi(paid - GameData.GOLD_PER_FLOOR) <= 15,
+		check(absi(paid - GameData.GOLD_PER_FLOOR) <= 8,
 			"%s pays %d for a full clear, near the %d target" % [type, paid, GameData.GOLD_PER_FLOOR])
 
 	# The board pays as it is cleared, at the rate of the variant in play.
@@ -2364,10 +2364,19 @@ func test_patron_shop() -> void:
 	check_eq(RunState.shop_buys_left(), GameData.SHOP_BUYS_PER_FLOOR, "a new floor restocks the purchases")
 	check_eq(RunState.shop_items.size(), 3, "and the offers")
 
-	# A thin purse buys nothing.
+	# The two refusals, separately — the inventory is full at this point, so a
+	# single check here would pass for whichever reason fired first and prove
+	# nothing about the other.
+	check_eq(RunState.inventory.size(), GameData.INVENTORY_SLOTS, "the inventory is full")
+	RunState.gold = 5000
+	check(not RunState.shop_buy(RunState.shop_items[0]), "a full inventory refuses a buy")
+	check_eq(RunState.inventory.size(), GameData.INVENTORY_SLOTS, "and nothing is added")
+
+	RunState.inventory = []
+	RunState.start_game("klondike", 6)
 	RunState.gold = 0
-	check(not RunState.shop_buy(RunState.shop_items[0]), "an unaffordable offer is refused")
-	check_eq(RunState.inventory.size(), 3, "and nothing is added")
+	check(not RunState.shop_buy(RunState.shop_items[0]), "an empty purse refuses a buy")
+	check(RunState.inventory.is_empty(), "and still nothing is added")
 
 	# Rerolling costs gold and leaves the purchase count alone.
 	RunState.new_run()
@@ -2385,7 +2394,10 @@ func test_patron_shop() -> void:
 	# so a purchase cannot be rewound into a refund.
 	RunState.new_run()
 	RunState.start_game("klondike", 4)
-	RunState.gold = 1000
+	# Comfortably above the dearest item in the catalogue (1400): the offer is
+	# drawn at random, and a purse that only covers the cheap tiers makes this
+	# check pass or fail on the draw.
+	RunState.gold = 5000
 	RunState.push_undo()
 	var before_gold := RunState.gold
 	RunState.shop_buy(RunState.shop_items[0])
