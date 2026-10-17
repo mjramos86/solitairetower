@@ -1937,6 +1937,7 @@ func _try_move(from: Dictionary, to: Dictionary) -> bool:
 					pile[pile.size() - 1]["face_up"] = true
 				gs["foundations"].append(suit)
 				RunState.add_score(Rules.PTS_SUIT_COMPLETED, "suit completed")
+				RunState.award_progress_gold()
 	RunState.gs = gs
 	RunState.moves += 1
 	return true
@@ -1989,12 +1990,14 @@ func _score_move(gs: Dictionary, from: Dictionary, to: Dictionary, cards: Array)
 		"klondike":
 			if to.get("kind") == "foundation":
 				RunState.award_card_points(cards[0], Rules.PTS_FOUNDATION)
+				RunState.award_progress_gold()
 			elif from.get("kind") == "waste" and to.get("kind") == "tableau":
 				for c in cards:
 					RunState.award_card_points(c, Rules.PTS_WASTE_TO_TABLEAU)
 		"freecell":
 			if to.get("kind") == "foundation":
 				RunState.add_score(Rules.PTS_FREECELL_FOUNDATION, "card to foundation")
+				RunState.award_progress_gold()
 
 
 func _draw_stock() -> void:
@@ -2014,6 +2017,7 @@ func _draw_stock() -> void:
 		RunState.gs = result["state"]
 		for _s in result["completed"]:
 			RunState.add_score(Rules.PTS_SUIT_COMPLETED, "suit completed")
+			RunState.award_progress_gold()
 		_selection = {}
 		AudioManager.card_moved()
 		_after_move()
@@ -2074,6 +2078,7 @@ func _tripeaks_play(meta: Dictionary) -> void:
 	Rules.tripeaks_update_face_up(gs["pyramid"])
 	RunState.gs = gs
 	RunState.tp_streak += 1
+	RunState.award_progress_gold()
 	RunState.add_score(RunState.tp_streak, "streak x%d" % RunState.tp_streak)
 	if idx < 3:
 		RunState.add_score(Rules.PTS_TRIPEAKS_PEAK, "top card bonus")
@@ -2169,7 +2174,16 @@ func _pyramid_card(gs: Dictionary, meta: Dictionary):
 	return null
 
 
+## Every Pyramid card leaves the board through here — king alone, one-click
+## pair or two-click pair — so it is the one place the floor's gold has to be
+## paid from.
+##
+## Only the pyramid side pays. A pair clears one pyramid card and one waste
+## card, and paying for both would hand Pyramid nearly twice the floor's gold;
+## what the player is making progress against is the pyramid, not the waste.
 func _pyramid_remove(gs: Dictionary, meta: Dictionary) -> void:
+	if meta.get("kind") == "pyramid":
+		RunState.award_progress_gold()
 	match meta.get("kind"):
 		"pyramid": gs["pyramid"][int(meta["index"])] = null
 		"waste":
@@ -2276,6 +2290,9 @@ func _after_move() -> void:
 func _check_win() -> void:
 	if Rules.is_won(RunState.gs):
 		RunState.win_overlay = true
+		# Close the floor's books first: the overlay reports the clear bonus and
+		# the gold, and neither existed until this ran.
+		RunState.settle_floor()
 		_show_win_overlay()
 
 
@@ -2314,6 +2331,11 @@ func _show_win_overlay() -> void:
 	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	message.add_theme_color_override("font_color", UITheme.TEXT)
 	box.add_child(message)
+
+	# The floor's earnings, which used to live on the between-floors shop screen.
+	# That screen is gone — the patron sells during the floor now — so this is
+	# the one place the player is told how their play turned into gold.
+	box.add_child(_floor_earnings())
 
 	var descend := Button.new()
 	descend.text = Locale.t("[ ESCAPE ]") if last else Locale.t("[ DESCEND ]")
@@ -2481,6 +2503,32 @@ func _show_score_history() -> void:
 	close.text = Locale.t("Close")
 	close.pressed.connect(_clear_overlays)
 	box.add_child(close)
+
+
+## The floor-clear breakdown: the points gained, the gold the board paid out as
+## it was cleared, and the bonuses awarded for HOW it was cleared.
+func _floor_earnings() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+
+	box.add_child(_score_row(Locale.t("Points this floor"),
+		"%s%d" % ["+" if RunState.score - RunState.floor_start_score >= 0 else "",
+			RunState.score - RunState.floor_start_score], UITheme.TEXT))
+	box.add_child(HSeparator.new())
+
+	for row in RunState.shop_gold_breakdown:
+		if not bool(row["earned"]):
+			continue
+		# The board's own payout already reached the purse during play, so it is
+		# shown as a reminder of where the money came from, not as a new award.
+		var paid := bool(row.get("already_paid", false))
+		box.add_child(_score_row(Locale.t(String(row["label"])),
+			"⏳ %d" % int(row["amount"]),
+			UITheme.TEXT_DIM if paid else UITheme.GOLD))
+
+	box.add_child(HSeparator.new())
+	box.add_child(_score_row(Locale.t("Time Credits"), "⏳ %d" % RunState.gold, UITheme.GOLD))
+	return box
 
 
 ## A ledger reason in the player's language. Reasons are stored as the English

@@ -342,6 +342,7 @@ static func _ace_to_foundation(type: String, gs: Dictionary) -> Dictionary:
 			for revealed in Rules.klondike_auto_reveal(s):
 				RunState.award_card_points(revealed, Rules.PTS_REVEAL)
 			RunState.add_score(15, "ace to foundation")
+			RunState.award_progress_gold()
 		else:
 			RunState.add_score(5, "ace to foundation")
 		return _result(true, "Ace sent to its foundation.")

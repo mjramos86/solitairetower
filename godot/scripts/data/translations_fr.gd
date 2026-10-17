@@ -646,4 +646,15 @@ const MAP := {
 	"Could not open %s (error %d)": "Impossible d’ouvrir %s (erreur %d)",
 	"Save file is not valid JSON": "Le fichier de sauvegarde n’est pas du JSON valide",
 	"Player %d": "Joueur %d",
+
+	# ══════════════════════════════════════════════════════════════════════════
+	#  The patron's in-game shop
+	# ══════════════════════════════════════════════════════════════════════════
+	"SHOP": "BOUTIQUE",
+	"⏳ %d · %d left": "⏳ %d · %d restants",
+	"⟳ Reroll (%d)": "⟳ Relancer (%d)",
+	"The patron has nothing left for you this floor.": "Le patron n’a plus rien pour vous à cet étage.",
+	"Your inventory is full.": "Votre inventaire est plein.",
+	"Points this floor": "Points de cet étage",
+	"Earned on the Board": "Gagné sur le plateau",
 }
