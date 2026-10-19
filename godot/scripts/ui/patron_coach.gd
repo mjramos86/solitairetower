@@ -15,14 +15,19 @@ extends Control
 ## A plain Control reports no minimum size of its own, so nothing here can push
 ## the board's layout around.
 
-const PORTRAIT_W := 168.0
-const PORTRAIT_H := 208.0
+## The patron and the stall are one column now, so they share a width. The
+## board reserves exactly this much on its right — see game_screen._rebuild —
+## which is what keeps a deep Spider column from growing into the stall.
+const COLUMN_W := 250.0
+const PORTRAIT_W := COLUMN_W
+const PORTRAIT_H := 196.0
 const BUBBLE_MAX_W := 560.0
 ## The How to play briefing is a paragraph, not a line, so it gets its own width.
 const BRIEFING_W := 760.0
-## The shop stands where the portrait does, so it is sized to sit comfortably in
-## the same corner rather than to fill the felt.
-const SHOP_W := 330.0
+## Space the whole column needs, including the margin it keeps from the felt's
+## corner. The board subtracts this before sizing its cards.
+static func reserved_width() -> float:
+	return COLUMN_W + EDGE * 2.0
 const EDGE := 18.0          # gap kept from the felt's bottom-right corner
 const FADE := 0.18
 ## How long a line stays up: a floor, plus reading time per character, capped so
@@ -47,11 +52,11 @@ var _patron := ""
 var _row: HBoxContainer
 var _help_button: Button
 var _mute_button: Button
-var _shop_button: Button
-## The shop stands in the portrait's place rather than beside it: the patron IS
-## the shop, and the corner has no room for both.
+## The stall sits under the portrait and is always open: a shop you have to
+## remember to look in is a shop players forget exists, and the whole point of
+## moving it into the floor was that it should be where the decision is made.
 var _shop_panel: VBoxContainer
-var _shop_open := false
+var _shop_frame: PanelContainer
 ## A briefing stays up until it is dismissed; a reaction retires on its own.
 var _sticky := false
 
@@ -66,12 +71,11 @@ func _ready() -> void:
 	Locale.changed.connect(_relabel)
 	# Gold arrives while the stall is open, so what is affordable changes under
 	# the player's eyes. Only redraws when the stall is actually showing.
-	RunState.state_changed.connect(func():
-		if _shop_open:
-			_rebuild_shop())
-	Locale.changed.connect(func():
-		if _shop_open:
-			_rebuild_shop())
+	# The stall is always on screen, so it follows the purse continuously: gold
+	# arrives as the board advances and what is affordable changes under the
+	# player's eyes.
+	RunState.state_changed.connect(_rebuild_shop)
+	Locale.changed.connect(_rebuild_shop)
 	_show_mute_state(is_muted())
 
 
@@ -151,11 +155,6 @@ func _build() -> void:
 	_help_button.pressed.connect(_on_help_pressed)
 	buttons.add_child(_help_button)
 
-	_shop_button = _corner_button("SHOP")
-	_shop_button.toggle_mode = true
-	_shop_button.toggled.connect(_on_shop_toggled)
-	buttons.add_child(_shop_button)
-
 	_mute_button = _corner_button("MUTE")
 	# The W95 theme draws a held-down toggle sunken, but at this size that alone
 	# is too quiet to read as state, so the label names the state too and the
@@ -177,11 +176,7 @@ func _build() -> void:
 	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(_portrait)
 
-	_shop_panel = VBoxContainer.new()
-	_shop_panel.add_theme_constant_override("separation", 6)
-	_shop_panel.custom_minimum_size.x = SHOP_W
-	_shop_panel.visible = false
-	_frame.add_child(_shop_panel)
+
 
 	var strip := PanelContainer.new()
 	var strip_box := StyleBoxFlat.new()
@@ -204,30 +199,28 @@ func _build() -> void:
 	_name_label.add_theme_color_override("font_color", UITheme.GOLD)
 	strip.add_child(_name_label)
 
-	_place.call_deferred()
+	_shop_frame = PanelContainer.new()
+	_shop_frame.add_theme_stylebox_override("panel",
+		UITheme.bevel_raised(UITheme.W95_BG, Vector2(6, 6)))
+	_shop_frame.custom_minimum_size.x = COLUMN_W
+	column.add_child(_shop_frame)
 
+	_shop_panel = VBoxContainer.new()
+	_shop_panel.add_theme_constant_override("separation", 4)
+	_shop_frame.add_child(_shop_panel)
+	_rebuild_shop()
 
-## Opens or closes the patron's stall. The portrait steps aside for it, and the
-## briefing bubble is put away — the two compete for the same corner and for the
-## player's attention.
-func _on_shop_toggled(open: bool) -> void:
-	_shop_open = open
-	if open:
-		hide_line()
-	_portrait.visible = not open
-	_shop_panel.visible = open
-	if open:
-		_rebuild_shop()
 	_place.call_deferred()
 
 
 ## Redraws the stall from RunState. Called on open and after every purchase or
 ## reroll, because both change what is on offer and what the player can afford.
 func _rebuild_shop() -> void:
-	for child in _shop_panel.get_children():
-		child.queue_free()
-	if not _shop_open:
+	if _shop_panel == null:
 		return
+	for child in _shop_panel.get_children():
+		_shop_panel.remove_child(child)
+		child.queue_free()
 
 	var purse := Label.new()
 	purse.text = Locale.t("⏳ %d · %d left") % [RunState.gold, RunState.shop_buys_left()]
@@ -262,6 +255,7 @@ func _rebuild_shop() -> void:
 			_rebuild_shop()
 			_place.call_deferred())
 	_shop_panel.add_child(reroll)
+
 
 
 ## One offer: its glyph, its name and its price, as a single button. Disabled —

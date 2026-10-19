@@ -828,7 +828,13 @@ func _rebuild() -> void:
 	_refresh_inventory()
 
 	var gs := RunState.gs
-	var board_w := _board.size.x
+	# The patron's column is permanent furniture on the right of the felt, so
+	# the board is sized and centred in what is left rather than in the whole
+	# width. Reserving it is what keeps a deep Spider column or a wide TriPeaks
+	# row from growing underneath the stall — the alternative, letting the board
+	# use the full width and hoping, is how the briefing ended up clipping cards
+	# in FreeCell and Pyramid.
+	var board_w := maxf(_board.size.x - PATRON_COACH.reserved_width(), 200.0)
 	var board_h := _board.size.y
 
 	# Animate only between two layouts of the same game at the same board size;
