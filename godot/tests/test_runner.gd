@@ -734,20 +734,24 @@ func test_shop_and_choices() -> void:
 	check_eq(Rules.difficulty(5), "medium", "floor 5 is medium")
 	check_eq(Rules.difficulty(9), "hard", "floor 9 is hard")
 
-	# Gold breakdown: a perfect floor earns every bonus.
+	# Gold breakdown. The board payout is passed separately and is already in
+	# the purse, so what these totals measure is the end-of-floor bonus alone.
 	var perfect := GameData.floor_gold_breakdown(60000, 1000, 0, true)
 	var total := 0
 	for row in perfect:
-		if row["earned"]:
+		if row["earned"] and not bool(row.get("already_paid", false)):
 			total += int(row["amount"])
-	check_eq(total, 105, "perfect floor earns 50+20+15+10+10")
+	check_eq(total, 35, "perfect floor earns 10+8+7 skill bonuses +10 score")
 
+	# A messy clear earns nothing at the end. That is not a punishment: the
+	# floor already paid about GOLD_PER_FLOOR into the purse while it was being
+	# played, and that payout is what clearing a floor is worth now.
 	var sloppy := GameData.floor_gold_breakdown(400000, 0, 3, false)
 	var sloppy_total := 0
 	for row in sloppy:
-		if row["earned"]:
+		if row["earned"] and not bool(row.get("already_paid", false)):
 			sloppy_total += int(row["amount"])
-	check_eq(sloppy_total, 50, "slow floor with undos earns only the base")
+	check_eq(sloppy_total, 0, "a slow clear with undos earns no end bonus")
 
 
 func test_save_round_trip() -> void:
@@ -2336,6 +2340,23 @@ func test_patron_shop() -> void:
 		var paid: int = GameData.gold_per_progress(type) * int(events[type])
 		check(absi(paid - GameData.GOLD_PER_FLOOR) <= 8,
 			"%s pays %d for a full clear, near the %d target" % [type, paid, GameData.GOLD_PER_FLOOR])
+
+	# The invariant the whole in-floor shop rests on: a floor must be able to
+	# fund a purchase out of its OWN play. This failed before the rebalance —
+	# a floor paid 50 on the board and the cheapest item cost 60, so every
+	# purchase was really financed by the previous floor's end bonuses and the
+	# shop was a between-floors shop in disguise. A third of a floor's payout
+	# is the bar: reaching the cheap tier should take a few progress events,
+	# not a whole board.
+	var cheapest := 1 << 30
+	for item in GameData.SHOP_ITEMS:
+		cheapest = mini(cheapest, int(item["price"]))
+	check(cheapest * 3 <= GameData.GOLD_PER_FLOOR,
+		"the cheapest item (%d) is inside a third of a floor's payout (%d)"
+			% [cheapest, GameData.GOLD_PER_FLOOR])
+	check(GameData.REROLL_COST < cheapest,
+		"a reroll (%d) stays under the cheapest item (%d)"
+			% [GameData.REROLL_COST, cheapest])
 
 	# The board pays as it is cleared, at the rate of the variant in play.
 	RunState.new_run()

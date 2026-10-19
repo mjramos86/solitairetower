@@ -153,7 +153,6 @@ const MAP := {
 	"⏳  Floor %d Cleared — Time Credits Awarded": "⏳  Étage %d réussi — Crédits Temporels accordés",
 	"🏪  John Dee's Cabinet of Curiosities — %d Items Available": "🏪 Le Cabinet de curiosités de John Dee — %d objets disponibles",
 	"🎒  Your Inventory (%d/%d slots)": "🎒  Votre inventaire (%d/%d emplacements)",
-	"Floor Cleared": "Étage réussi",
 	"No Undos": "Aucune annulation",
 	"Under 3 min": "Moins de 3 min",
 	"Full Lives": "Vies intactes",

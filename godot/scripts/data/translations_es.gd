@@ -158,7 +158,6 @@ const MAP := {
 	"⏳  Floor %d Cleared — Time Credits Awarded": "⏳  Piso %d superado — Créditos Temporales otorgados",
 	"🏪  John Dee's Cabinet of Curiosities — %d Items Available": "🏪  El Gabinete de Curiosidades de John Dee — %d objetos disponibles",
 	"🎒  Your Inventory (%d/%d slots)": "🎒  Tu inventario (%d/%d espacios)",
-	"Floor Cleared": "Piso superado",
 	"No Undos": "Sin deshacer",
 	"Under 3 min": "Menos de 3 min",
 	"Full Lives": "Vidas intactas",
