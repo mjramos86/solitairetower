@@ -78,31 +78,31 @@ const INVENTORY_SLOTS := 3
 ## clear contains, so clearing any floor pays about GOLD_PER_FLOOR, whichever
 ## variant it was.
 ##
-## The figure is 50 rather than the 150 this started at. The end-of-floor
-## bonuses below were left untouched when the board payout was added, so the
-## floor's income was not redistributed, it was multiplied: 245 a floor against
-## the 95 it used to be. A tier-0 item went from costing two thirds of a floor's
-## savings to a quarter of one, at the same moment the cap rose to three
-## purchases a floor, which made the cheap half of the catalogue loose change.
-## At 50 the floor pays 145 — half again what it did, enough to justify three
-## purchases without devaluing what they buy.
-const GOLD_PER_FLOOR := 50
+## The figure is 160, up from 50, and the end-of-floor bonuses below came down
+## from 95 to 25 to pay for most of it. That trade is the whole point. At 50 a
+## floor could not fund even the cheapest item (60) out of its own play: every
+## purchase was really being paid for by the PREVIOUS floor's end bonuses, which
+## made an in-floor shop a between-floors shop wearing a costume. Simulated
+## runs put only 15% of purchases after the first third of a floor. At 160 the
+## board crosses the cheap tier about every seven progress events, so the money
+## arrives while there is still a board to spend it on.
+##
+## Spider pays in lumps of 20 rather than a trickle because its progress event
+## is a completed suit. Finishing one should visibly unlock something.
+const GOLD_PER_FLOOR := 160
 const GOLD_PER_PROGRESS := {
-	"klondike": 1,    # 52 cards reaching a foundation → 52
-	"freecell": 1,    # 52 cards reaching a foundation → 52
-	"spider": 6,      #  8 suits completed             → 48
-	"tripeaks": 2,    # 28 cards taken from the peaks  → 56
-	"pyramid": 2,     # 28 cards cleared               → 56
+	"klondike": 3,    # 52 cards reaching a foundation → 156
+	"freecell": 3,    # 52 cards reaching a foundation → 156
+	"spider": 20,     #  8 suits completed             → 160
+	"tripeaks": 6,    # 28 cards taken from the peaks  → 168
+	"pyramid": 6,     # 28 cards cleared               → 168
 }
 
-## Purchases allowed per floor. The offer shrinks as they are spent — three on
-## arrival, two after the first buy, one after the second — so the cap is
-## something the player can see rather than a message when they hit it.
 const SHOP_BUYS_PER_FLOOR := 3
 
-## Rerolling the remaining offers. Deliberately under the cheapest item (60), so
+## Rerolling the remaining offers. Deliberately under the cheapest item (40), so
 ## it stays a real option on a thin purse without being free.
-const REROLL_COST := 40
+const REROLL_COST := 25
 
 
 ## Gold for one progress event in the variant being played.
@@ -119,64 +119,64 @@ const TIER_WEIGHTS := [5, 3, 2, 1]
 ## Every purchasable item. `effect` is the switch the game logic dispatches on.
 const SHOP_ITEMS := [
 	# ── tier 0, cheap ──
-	{"id": "sticky-note", "name": "Scrying Glass", "icon": "🔮", "price": 60, "tier": 0,
+	{"id": "sticky-note", "name": "Scrying Glass", "icon": "🔮", "price": 40, "tier": 0,
 	 "effect": "hint", "desc": "Highlights one valid move on the board.",
 	 "use": "Instant: glows on valid source & target.", "best_for": "All games"},
-	{"id": "rubber-band", "name": "Knotted Cord", "icon": "🪢", "price": 75, "tier": 0,
+	{"id": "rubber-band", "name": "Knotted Cord", "icon": "🪢", "price": 50, "tier": 0,
 	 "effect": "extra-undos", "desc": "You only get 3 undos per floor. This adds 5 more.",
 	 "use": "Instant: adds 5 undos to your budget.", "best_for": "All games"},
-	{"id": "coffee", "name": "Mortlake Brew", "icon": "🧪", "price": 70, "tier": 0,
+	{"id": "coffee", "name": "Mortlake Brew", "icon": "🧪", "price": 45, "tier": 0,
 	 "effect": "free-draw", "desc": "Draw 1 extra card from stock for free.",
 	 "use": "Instant: free stock draw.", "best_for": "Klondike · TriPeaks"},
-	{"id": "pencil", "name": "Quill of Ravens", "icon": "🪶", "price": 85, "tier": 0,
+	{"id": "pencil", "name": "Quill of Ravens", "icon": "🪶", "price": 55, "tier": 0,
 	 "effect": "peek", "desc": "Peek at the top 3 cards in the stock pile.",
 	 "use": "Shows a 6-second preview window.", "best_for": "Klondike · TriPeaks"},
-	{"id": "tape", "name": "Sealing Wax", "icon": "🕯️", "price": 90, "tier": 0,
+	{"id": "tape", "name": "Sealing Wax", "icon": "🕯️", "price": 60, "tier": 0,
 	 "effect": "extra-cycle", "desc": "Get one free waste→stock recycle.",
 	 "use": "Instant: recycles without counting.", "best_for": "Klondike · Pyramid"},
 	# ── tier 1, medium ──
-	{"id": "scissors", "name": "Athame", "icon": "🗡️", "price": 185, "tier": 1,
+	{"id": "scissors", "name": "Athame", "icon": "🗡️", "price": 120, "tier": 1,
 	 "effect": "remove-card", "desc": "Remove any one face-up card from the board entirely.",
 	 "use": "Click mode: pick a card to vanish it.", "best_for": "Pyramid · TriPeaks"},
-	{"id": "magnifier", "name": "Obsidian Mirror", "icon": "🪞", "price": 210, "tier": 1,
+	{"id": "magnifier", "name": "Obsidian Mirror", "icon": "🪞", "price": 135, "tier": 1,
 	 "effect": "reveal-all", "desc": "Reveal all face-down cards for 8 seconds.",
 	 "use": "Instant: temporary x-ray vision.", "best_for": "Spider · Klondike"},
-	{"id": "stapler", "name": "Wax Seal Press", "icon": "🏷️", "price": 220, "tier": 1,
+	{"id": "stapler", "name": "Wax Seal Press", "icon": "🏷️", "price": 140, "tier": 1,
 	 "effect": "ace-to-found", "desc": "Digs an Ace out from anywhere — even buried or face-down — and sends it to its foundation.",
 	 "use": "Instant: finds an Ace anywhere.", "best_for": "Klondike · FreeCell"},
-	{"id": "eraser", "name": "Philosopher's Sponge", "icon": "🧽", "price": 245, "tier": 1,
+	{"id": "eraser", "name": "Philosopher's Sponge", "icon": "🧽", "price": 160, "tier": 1,
 	 "effect": "big-undo", "desc": "Mega-undo: rewind up to 10 moves at once.",
 	 "use": "Instant: pops 10 undo states.", "best_for": "All games"},
-	{"id": "envelope", "name": "Sealed Letter", "icon": "✉️", "price": 195, "tier": 1,
+	{"id": "envelope", "name": "Sealed Letter", "icon": "✉️", "price": 125, "tier": 1,
 	 "effect": "free-cycle", "desc": "Shuffle waste back into stock for free.",
 	 "use": "Instant: free recycle.", "best_for": "Klondike · Pyramid"},
-	{"id": "paperclip", "name": "Brass Compass", "icon": "🧭", "price": 165, "tier": 1,
+	{"id": "paperclip", "name": "Brass Compass", "icon": "🧭", "price": 105, "tier": 1,
 	 "effect": "flip-card", "desc": "Flip any face-down tableau card face-up.",
 	 "use": "Click mode: pick a face-down card.", "best_for": "Spider · Klondike"},
-	{"id": "calculator", "name": "Astrolabe", "icon": "⚙️", "price": 180, "tier": 1,
+	{"id": "calculator", "name": "Astrolabe", "icon": "⚙️", "price": 115, "tier": 1,
 	 "effect": "hint-all", "desc": "Flash ALL valid moves for 8 seconds.",
 	 "use": "Instant: full board hint glow.", "best_for": "All games"},
 	# ── tier 2, expensive ──
-	{"id": "briefcase", "name": "Hermetic Casket", "icon": "⚱️", "price": 430, "tier": 2,
+	{"id": "briefcase", "name": "Hermetic Casket", "icon": "⚱️", "price": 300, "tier": 2,
 	 "effect": "retrieve-waste", "desc": "Bring any buried waste card to the top to play next.",
 	 "use": "Opens waste picker -- select a card.", "best_for": "Klondike · TriPeaks"},
-	{"id": "spare-key", "name": "Skeleton Key", "icon": "🗝️", "price": 390, "tier": 2,
+	{"id": "spare-key", "name": "Skeleton Key", "icon": "🗝️", "price": 270, "tier": 2,
 	 "effect": "extra-freecell", "desc": "Unlock a 5th free cell for this entire floor.",
 	 "use": "Instant: adds a free cell slot.", "best_for": "FreeCell"},
-	{"id": "toolbox", "name": "Alchemist's Cabinet", "icon": "🗄️", "price": 360, "tier": 2,
+	{"id": "toolbox", "name": "Alchemist's Cabinet", "icon": "🗄️", "price": 250, "tier": 2,
 	 "effect": "toolbox", "desc": "Creates a temporary off-board card stash (1 card, 8 uses).",
 	 "use": "Drag any card in/out of the stash.", "best_for": "Spider · FreeCell · Klondike"},
-	{"id": "broom", "name": "Angelic Besom", "icon": "🧹", "price": 410, "tier": 2,
+	{"id": "broom", "name": "Angelic Besom", "icon": "🧹", "price": 285, "tier": 2,
 	 "effect": "broom", "desc": "Sweep the top card of any pile to the first empty column.",
 	 "use": "Click mode: pick a source pile top.", "best_for": "Spider · FreeCell"},
 	# ── tier 3, rare ──
-	{"id": "master-key", "name": "Enochian Key", "icon": "🔑", "price": 920, "tier": 3,
+	{"id": "master-key", "name": "Enochian Key", "icon": "🔑", "price": 690, "tier": 3,
 	 "effect": "choose-from-stock", "desc": "Pull any card from stock to the top of the waste pile.",
 	 "use": "Opens stock browser -- pick your card.", "best_for": "Klondike · TriPeaks"},
-	{"id": "extinguisher", "name": "Vial of Quicksilver", "icon": "🧫", "price": 1100, "tier": 3,
+	{"id": "extinguisher", "name": "Vial of Quicksilver", "icon": "🧫", "price": 825, "tier": 3,
 	 "effect": "no-life-abandon", "desc": "Abandon this floor without losing a life.",
 	 "use": "Instant: safe retreat to the map.", "best_for": "All games (emergency!)"},
-	{"id": "exec-chair", "name": "Queen's Patronage", "icon": "👑", "price": 1400, "tier": 3,
+	{"id": "exec-chair", "name": "Queen's Patronage", "icon": "👑", "price": 1050, "tier": 3,
 	 "effect": "skip-floor", "desc": "Skip this floor entirely -- counts as cleared!",
 	 "use": "Instant: auto-win current floor.", "best_for": "All games (boss skip!)"},
 ]
@@ -298,17 +298,23 @@ static func floor_choice(floor_index: int, rng: RandomNumberGenerator = null) ->
 ## Time-credit awards for clearing a floor. Ported from calcFloorGoldBreakdown.
 ## `board_gold` is what the floor already paid out progressively; it is listed
 ## so the player can see where their money came from, but it is NOT added again
-## — it is in their purse already. Everything below it is awarded on the spot.
+## here — the row is marked already_paid and settle_floor skips it.
+##
+## There is no "Floor Cleared" row any more. It used to pay a flat 50 for
+## finishing, on top of the board's own payout, which meant the bulk of a
+## floor's income landed after the shop for that floor had closed. The board
+## payout IS the clear reward now: collecting all of it is what clearing a
+## floor means. What is left here is the three skill bonuses, shrunk to match,
+## so playing well still pays without pulling the money back out of the floor.
 static func floor_gold_breakdown(elapsed_ms: int, score_gained: int, undos_used: int,
 		lives_kept: bool, board_gold: int = 0) -> Array:
 	var rows := [{"label": "Earned on the Board", "amount": board_gold, "earned": true,
 		"already_paid": true}]
-	rows.append({"label": "Floor Cleared", "amount": 50, "earned": true})
 	var no_undo := undos_used == 0
-	rows.append({"label": "No Undos", "amount": 20 if no_undo else 0, "earned": no_undo})
+	rows.append({"label": "No Undos", "amount": 10 if no_undo else 0, "earned": no_undo})
 	var fast := elapsed_ms < 180000
-	rows.append({"label": "Under 3 min", "amount": 15 if fast else 0, "earned": fast})
-	rows.append({"label": "Full Lives", "amount": 10 if lives_kept else 0, "earned": lives_kept})
+	rows.append({"label": "Under 3 min", "amount": 8 if fast else 0, "earned": fast})
+	rows.append({"label": "Full Lives", "amount": 7 if lives_kept else 0, "earned": lives_kept})
 	var pts_bonus := int(score_gained / 500.0) * 5
 	if pts_bonus > 0:
 		rows.append({"label": "Score Bonus", "amount": pts_bonus, "earned": true})
