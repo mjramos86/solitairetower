@@ -435,6 +435,14 @@ func _on_dwell_done(spoken: String) -> void:
 		hide_line()
 
 
+## True while the bubble is holding a line that waits to be dismissed — the
+## How to play briefing and the first-visit briefing. Callers that retire their
+## OWN line check this first, so clearing a stale warning cannot also wipe a
+## briefing the player opened in the meantime.
+func is_sticky() -> bool:
+	return _sticky
+
+
 func hide_line() -> void:
 	_sticky = false
 	_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
