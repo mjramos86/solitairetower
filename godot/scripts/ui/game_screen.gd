@@ -83,6 +83,9 @@ var _status_panes: Array = []
 ## {"kind": "tableau"/"waste"/"freecell"/"pyramid", "col": int, "index": int}
 var _selection: Dictionary = {}
 var _card_size := Vector2(70, 98)
+## True once the patron has named the current dead end, so the warning is
+## spoken once and not re-spoken on every rebuild of the same locked board.
+var _stuck_announced := false
 
 ## Armed click-targeting item, e.g. the Athame waiting for a card to remove.
 var _item_mode: Dictionary = {}
@@ -144,6 +147,9 @@ func _ready() -> void:
 	# A screen is instanced per floor, so this runs once on arrival; the coach
 	# itself decides whether this profile has met the variant before.
 	_patron_coach.offer_briefing(String(RunState.gtype))
+	# A deal can be dead on arrival — Pyramid in particular can open with no
+	# pair in reach — and no move will follow to trigger the usual check.
+	_check_stuck()
 
 
 ## Sits the patron on top of the felt, as a sibling rather than a child: the felt
@@ -1146,6 +1152,58 @@ func _is_selected(meta: Dictionary) -> bool:
 #  Layouts
 # ══════════════════════════════════════════════════════════════════════════════
 
+## The counter that sits on the foot of the draw pile: how many cards are left
+## to draw, and how many redeals the difficulty still allows (∞ when unlimited).
+##
+## It is drawn ON the pile rather than under it because the row below the stock
+## is the tableau in Klondike and the waste in Pyramid — anything placed in that
+## gap collides with a real pile at small card sizes.
+##
+## Spider counts DEALS, not cards: its stock is handed out ten at a time, so the
+## number a player needs is how many more rows they can deal. The ⬇ marks that.
+func _spawn_stock_counter(gs: Dictionary, pos: Vector2) -> void:
+	var info := Rules.stock_state(gs)
+	if gs.get("type", "") == "freecell":
+		return
+
+	var text := str(info["cards"])
+	if gs.get("type", "") == "spider":
+		text += " ⬇"
+	if bool(info["shows_redeals"]):
+		text += "  ↻ " + ("∞" if bool(info["infinite"]) else str(info["redeals"]))
+
+	var pill := PanelContainer.new()
+	# Near-opaque, not a tint: the pill sits on the card-back artwork, which is a
+	# busy lightning-and-tower illustration that swallowed the first, translucent
+	# version of this.
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.04, 0.03, 0.02, 0.92)
+	box.set_corner_radius_all(4)
+	box.set_border_width_all(1)
+	box.border_color = UITheme.GOLD_DIM
+	box.content_margin_top = 2
+	box.content_margin_bottom = 2
+	pill.add_theme_stylebox_override("panel", box)
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", UITheme.font("pixel"))
+	label.add_theme_font_size_override("font_size", maxi(int(_card_size.y * 0.17), 12))
+	label.add_theme_color_override("font_color", UITheme.GOLD)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.add_child(label)
+
+	_board.add_child(pill)
+	pill.size = Vector2(_card_size.x, 0)
+	pill.position = pos + Vector2(0, _card_size.y - pill.size.y)
+	# The pill's height is only known once it has laid its label out, so the
+	# bottom edge is re-pinned after that rather than guessed here.
+	pill.resized.connect(func():
+		pill.position = pos + Vector2(0, _card_size.y - pill.size.y))
+
+
 func _layout_klondike(gs: Dictionary) -> void:
 	var gap := _card_size.x * PILE_GAP
 	var step := _card_size.x + gap
@@ -1155,6 +1213,7 @@ func _layout_klondike(gs: Dictionary) -> void:
 		_spawn_slot(Vector2.ZERO, {"kind": "stock"}, "↻")
 	else:
 		_spawn(gs["stock"][gs["stock"].size() - 1], Vector2.ZERO, {"kind": "stock"}, false)
+	_spawn_stock_counter(gs, Vector2.ZERO)
 
 	var waste: Array = gs["waste"]
 	if waste.is_empty():
@@ -1204,6 +1263,7 @@ func _layout_spider(gs: Dictionary) -> void:
 		for g in groups.size():
 			var back = (groups[g] as Array)[0]
 			_spawn(back, Vector2(g * fan, 0), {"kind": "stock"}, false)
+	_spawn_stock_counter(gs, Vector2.ZERO)
 
 	# Eight foundation slots along the top-right: a completed suit shows its King,
 	# each unfilled slot is a dashed outline. Spider tracks completions as a list
@@ -1296,6 +1356,7 @@ func _layout_tripeaks(gs: Dictionary) -> void:
 		_spawn_slot(Vector2(0, base_y), {"kind": "stock"}, "—")
 	else:
 		_spawn(gs["stock"][0], Vector2(0, base_y), {"kind": "stock"}, false)
+	_spawn_stock_counter(gs, Vector2(0, base_y))
 	var waste: Array = gs["waste"]
 	if not waste.is_empty():
 		_spawn(waste[waste.size() - 1], Vector2(_card_size.x * 1.3, base_y), {"kind": "waste"})
@@ -1325,6 +1386,7 @@ func _layout_pyramid(gs: Dictionary) -> void:
 		_spawn_slot(Vector2(0, base_y), {"kind": "stock"}, "↻")
 	else:
 		_spawn(gs["stock"][gs["stock"].size() - 1], Vector2(0, base_y), {"kind": "stock"}, false)
+	_spawn_stock_counter(gs, Vector2(0, base_y))
 	# Two draw spots, as the web build: WASTE 2 (older) then WASTE 1 (most recent).
 	# Both top cards are playable, and every stock draw rotates what they show.
 	var waste: Array = gs["waste"]
@@ -2291,6 +2353,26 @@ func _try_unstash(meta: Dictionary) -> void:
 func _after_move() -> void:
 	_rebuild()
 	_check_win()
+	_check_stuck()
+
+
+## Speaks up the moment the board dies, so the player is not left hunting for a
+## move that does not exist. Fires once per dead end rather than on every
+## rebuild: _stuck_announced is cleared by a new deal or a new floor, and an
+## undo that re-opens the board clears it too, so backing out and locking up
+## again gets a fresh warning.
+##
+## Checked after the win test, never before it — a cleared board has no legal
+## move either, and announcing a dead end over the victory overlay would be
+## both wrong and unkind.
+func _check_stuck() -> void:
+	if RunState.win_overlay or not Rules.is_stuck(RunState.gs):
+		_stuck_announced = false
+		return
+	if _stuck_announced:
+		return
+	_stuck_announced = true
+	_coach(Coach.stuck(RunState.gs))
 
 
 func _check_win() -> void:

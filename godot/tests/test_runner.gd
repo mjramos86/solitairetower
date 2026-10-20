@@ -68,6 +68,8 @@ func _ready() -> void:
 	test_ui_scale()
 	test_patron_shop()
 	await test_dialog_and_ledger_localization()
+	test_stock_counter_and_stuck()
+	test_affordable_unlocks()
 
 	# Hand the developer's own language back before quitting.
 	Locale.set_language(player_language)
@@ -2686,3 +2688,117 @@ func test_localization() -> void:
 	SaveManager.profile["language"] = original
 	SaveManager.mark_dirty()
 	SaveManager.save_game()
+
+
+## The draw-pile counter and the dead-end warning both read Rules.stock_state,
+## so this pins what that helper reports for each variant — including the two
+## sentinels for "unlimited", which are different numbers in different variants
+## and were the reason the helper exists at all.
+func test_stock_counter_and_stuck() -> void:
+	suite("stock counter + dead ends")
+
+	# Klondike counts redeals DOWN from 999. Easy and medium use 999 as the
+	# "unlimited" sentinel; hard gets three.
+	var easy := Rules.init_klondike(0)
+	var e := Rules.stock_state(easy)
+	check_eq(int(e["cards"]), 24, "a fresh Klondike stock holds 24 cards")
+	check(bool(e["infinite"]), "redeals are unlimited on an easy floor")
+	check(bool(e["shows_redeals"]), "Klondike shows a redeal count")
+	check(bool(e["can_draw"]), "a full stock can be drawn")
+
+	var hard := Rules.init_klondike(9)
+	var h := Rules.stock_state(hard)
+	check(not bool(h["infinite"]), "redeals are limited on a hard floor")
+	check_eq(int(h["redeals"]), 3, "and there are three of them")
+
+	# Pyramid counts cycles UP toward max_cycles, whose unlimited sentinel is a
+	# different number again (9999).
+	var pyr := Rules.init_pyramid(0)
+	var py := Rules.stock_state(pyr)
+	check_eq(int(py["cards"]), 23, "Pyramid deals 28 to the board and one to the waste")
+	check(bool(py["infinite"]), "Pyramid redeals freely on an easy floor")
+	check_eq(int(Rules.stock_state(Rules.init_pyramid(9))["redeals"]), 1,
+		"a hard Pyramid floor allows one redeal")
+
+	# TriPeaks never redeals, whatever its unused max_recycle key says.
+	var tri := Rules.stock_state(Rules.init_tripeaks(0))
+	check(not bool(tri["shows_redeals"]), "TriPeaks shows no redeal count")
+
+	# Spider counts DEALS, not cards.
+	var spi := Rules.stock_state(Rules.init_spider(0))
+	check_eq(int(spi["cards"]), 5, "Spider has five deals left after the opening")
+
+	# FreeCell has no stock at all, and must not be reported as stuck the moment
+	# it has no hint — it has no draw to fall back on, so the guard that matters
+	# is the win test and the hint finder, not the stock.
+	var fc := Rules.stock_state(Rules.init_freecell(0))
+	check_eq(int(fc["cards"]), 0, "FreeCell has no stock")
+	check(not bool(fc["can_draw"]), "and nothing to draw")
+
+	# A partial state is not a board. is_stuck must answer no rather than reach
+	# into keys that are not there — the move loop calls it after every move.
+	check(not Rules.is_stuck({}), "an empty state is not stuck")
+	check(not Rules.is_stuck({"type": "klondike"}), "a stub state is not stuck")
+	check(not Rules.is_board_complete({"type": "klondike"}), "a stub is not a board")
+	check(Rules.is_board_complete(easy), "a real deal is a board")
+
+	# A real dead end: a TriPeaks board with nothing playable and no stock left.
+	var dead := Rules.init_tripeaks(0)
+	dead["stock"] = []
+	dead["waste"] = [Cards.make_card(0, 7, true)]
+	# Strip the peaks down to one card that cannot pair with a 7 (needs 6 or 8).
+	for i in 28:
+		dead["pyramid"][i] = null
+	dead["pyramid"][27] = Cards.make_card(1, 13, true)
+	Rules.tripeaks_update_face_up(dead["pyramid"])
+	check(Hints.find(dead, false).is_empty(), "the test board really has no move")
+	check(Rules.is_stuck(dead), "no move and no draw is a dead end")
+	check(not Coach.stuck(dead).is_empty(), "and the patron has something to say")
+
+	# The same board with one card back in the stock is not a dead end: the draw
+	# is exactly what can rescue it.
+	dead["stock"] = [Cards.make_card(2, 6, false)]
+	check(Rules.is_stuck(dead) == false, "a drawable stock is not a dead end")
+
+	# A won board is never "stuck", however few moves it has left.
+	var won := Rules.init_tripeaks(0)
+	for i in 28:
+		won["pyramid"][i] = null
+	check(Rules.is_won(won), "the board is won")
+	check(not Rules.is_stuck(won), "a won board is not reported as a dead end")
+
+
+## The map's second compendium badge. It answers "you can afford to uncover
+## something", which is a different question from the unseen-content badge —
+## a player who has read every locked thread would never be told about the
+## first by the second.
+func test_affordable_unlocks() -> void:
+	suite("affordable unlocks badge")
+	SaveManager.erase_all()
+
+	# John Dee's thread is gated behind his third dialogue, so a fresh profile
+	# cannot afford it no matter how rich it is.
+	SaveManager.profile["banked_credits"] = 100000
+	check_eq(SaveManager.affordable_unlocks_count(), 0,
+		"a gated thread is not offered however much energy is banked")
+
+	SaveManager.profile["dee_dialogue3_done"] = true
+	check(SaveManager.affordable_unlocks_count() > 0,
+		"once the gate opens a rich profile can afford a thread")
+
+	SaveManager.profile["banked_credits"] = 0
+	check_eq(SaveManager.affordable_unlocks_count(), 0, "a broke profile is offered none")
+
+	# Exactly the price counts as affordable; a credit short does not.
+	var cost := int(Narrative.PATRONS[0].get("connection_cost", 500))
+	SaveManager.profile["banked_credits"] = cost - 1
+	check_eq(SaveManager.affordable_unlocks_count(), 0, "one short of the price is not enough")
+	SaveManager.profile["banked_credits"] = cost
+	check_eq(SaveManager.affordable_unlocks_count(), 1, "exactly the price is enough")
+
+	# An already-uncovered thread stops counting, or the badge would never clear.
+	SaveManager.mark_seen("unlocked_connections", String(Narrative.PATRONS[0]["id"]))
+	check_eq(SaveManager.affordable_unlocks_count(), 0,
+		"an uncovered thread no longer counts")
+
+	SaveManager.erase_all()

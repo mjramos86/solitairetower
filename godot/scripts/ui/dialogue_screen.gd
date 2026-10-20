@@ -35,6 +35,15 @@ const FRAME_WIDTH_RATIO := 0.92
 const FRAME_TOP_RATIO := 0.06
 const FRAME_MAX_HEIGHT_RATIO := 0.64
 
+## Footer geometry for the plain (intro) mode. The gap is what keeps a misaimed
+## press off Skip: Continue and Skip used to sit 8px apart, close enough that
+## the pair read as one control.
+const FOOTER_GAP := 34
+const FOOTER_BOTTOM_MARGIN := 46.0
+## What the flowing column reserves at its foot so the narration never runs
+## under the anchored footer: both buttons, the gap, and the bottom margin.
+const FOOTER_RESERVE := 160.0
+
 const PLAIN_TEXT := Color("e8e0d0")
 const PORTRAIT_LABEL := Color("39ff6a")
 
@@ -77,6 +86,8 @@ var _plain_choices: VBoxContainer
 var _plain_footer: VBoxContainer
 var _plain_next: Button
 var _plain_skip: Button
+## Last footer height written to the anchor offsets; see _place_plain_footer.
+var _footer_height := -1.0
 
 # Call mode nodes.
 var _call: Control
@@ -194,24 +205,61 @@ func _build_plain() -> void:
 	_plain_choices.add_theme_constant_override("separation", 12)
 	choices_holder.add_child(_plain_choices)
 
-	var footer_holder := CenterContainer.new()
-	footer_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lower.add_child(footer_holder)
-
+	# The footer is pinned to the bottom of the screen instead of flowing after
+	# the text. In the flowing layout a long narration beat pushed Continue and
+	# Skip down the screen and a short one pulled them back up, so the pair
+	# jumped between beats and players reaching for Continue hit Skip and lost
+	# the intro. Anchored here, both buttons stay at the same place for every
+	# beat whatever the line above them is doing.
 	_plain_footer = VBoxContainer.new()
-	_plain_footer.add_theme_constant_override("separation", 8)
+	_plain_footer.add_theme_constant_override("separation", FOOTER_GAP)
 	_plain_footer.alignment = BoxContainer.ALIGNMENT_CENTER
-	footer_holder.add_child(_plain_footer)
+	_plain_footer.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_plain_footer.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_plain_footer.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_plain_footer.mouse_filter = Control.MOUSE_FILTER_PASS
+	_plain.add_child(_plain_footer)
+	_plain_footer.resized.connect(_place_plain_footer)
+	resized.connect(_place_plain_footer)
+	_place_plain_footer()
+
+	# The flowing column must not run underneath the anchored footer, so it
+	# reserves exactly the height the footer takes plus its margin.
+	var footer_gap := Control.new()
+	footer_gap.custom_minimum_size.y = FOOTER_RESERVE
+	lower.add_child(footer_gap)
 
 	_plain_next = Button.new()
 	_style_next(_plain_next)
 	_plain_next.pressed.connect(_advance)
 	_plain_footer.add_child(_plain_next)
 
+	# Skip sits in its own centred row so it can be narrower than Continue
+	# rather than being stretched to the column's width by the VBox.
+	var skip_row := CenterContainer.new()
+	_plain_footer.add_child(skip_row)
+
 	_plain_skip = Button.new()
 	_style_skip(_plain_skip)
 	_plain_skip.pressed.connect(_finish)
-	_plain_footer.add_child(_plain_skip)
+	skip_row.add_child(_plain_skip)
+
+
+## Keeps the anchored footer the same distance from the bottom of the screen at
+## every window size. PRESET_CENTER_BOTTOM alone pins its top edge, so the
+## offsets are re-derived from the footer's own height each time it changes.
+func _place_plain_footer() -> void:
+	if _plain_footer == null:
+		return
+	# Writing the offsets resizes the footer, which re-emits `resized`. Without
+	# this guard that is an endless loop — the first pass runs on a zero height,
+	# the second on the real one, and every pass after that re-enters itself.
+	var h := _plain_footer.get_combined_minimum_size().y
+	if is_equal_approx(h, _footer_height):
+		return
+	_footer_height = h
+	_plain_footer.offset_top = -h - FOOTER_BOTTOM_MARGIN
+	_plain_footer.offset_bottom = -FOOTER_BOTTOM_MARGIN
 
 
 ## Sizes the fixed frame against the current window, matching the CSS box:
@@ -640,8 +688,8 @@ func _style_skip(button: Button) -> void:
 	button.text = Locale.t("Skip ▸▸")
 	button.flat = false
 	button.add_theme_font_override("font", UITheme.font("pixel"))
-	button.add_theme_font_size_override("font_size", 20)
-	button.add_theme_color_override("font_color", UITheme.GOLD)
+	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_color_override("font_color", UITheme.GOLD_DIM)
 	button.add_theme_color_override("font_hover_color", Color.WHITE)
 	button.add_theme_color_override("font_pressed_color", Color.WHITE)
 	button.add_theme_stylebox_override("normal", _skip_box(UITheme.W95_TITLEBAR2))
@@ -677,16 +725,19 @@ func _next_box(bg: Color, border: Color) -> StyleBoxFlat:
 	return s
 
 
+## Skip is deliberately the smaller of the two: tighter padding than Continue's
+## 26/10 and a dimmer border, so the eye lands on Continue first and a stray
+## press is less likely to end the intro.
 func _skip_box(bg: Color) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.set_border_width_all(1)
 	s.border_color = UITheme.GOLD_DIM
 	s.set_corner_radius_all(3)
-	s.content_margin_left = 16
-	s.content_margin_right = 16
-	s.content_margin_top = 7
-	s.content_margin_bottom = 7
+	s.content_margin_left = 10
+	s.content_margin_right = 10
+	s.content_margin_top = 3
+	s.content_margin_bottom = 3
 	return s
 
 

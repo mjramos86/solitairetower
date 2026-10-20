@@ -24,7 +24,7 @@ horizontal_alignment = 1
 text = "🏆 HIGH SCORES"
 
 [node name="Frame" type="PanelContainer" parent="Center/Col"]
-custom_minimum_size = Vector2(560, 0)
+custom_minimum_size = Vector2(700, 0)
 layout_mode = 2
 
 [node name="Scroll" type="ScrollContainer" parent="Center/Col/Frame"]

@@ -155,3 +155,21 @@ static func _nowhere(type: String) -> String:
 		"freecell": return "Nowhere for that card to go — park it in a free cell and dig deeper."
 		"klondike": return "Nowhere for that card to go. Draw from the stock and come back to it."
 	return "Nowhere for that card to go just now."
+
+
+## The board offers nothing and no draw will change that. Unlike every other
+## line here this one is not a reaction to something the player tried — it is
+## the patron noticing the dead end first, and pointing at the only two ways
+## out: a fresh deal of the same variant, or giving the floor up.
+##
+## The wording names both buttons by their labels on purpose. A player who has
+## just been told "there is nothing left" needs to be told what to press, not
+## sympathised with.
+static func stuck(gs: Dictionary) -> String:
+	match String(gs.get("type", "")):
+		"spider":
+			return "Nothing moves, and the stock is spent. Shuffle deals you a fresh board on this floor; Abandon costs a life and sends you back to the tower."
+		"pyramid", "tripeaks":
+			return "No pair is left within reach and the stock is done. Shuffle deals you a fresh board on this floor; Abandon costs a life and sends you back to the tower."
+		_:
+			return "The table is locked — no legal move remains. Shuffle deals you a fresh board on this floor; Abandon costs a life and sends you back to the tower."

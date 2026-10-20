@@ -346,26 +346,64 @@ func _compendium_button() -> Button:
 		func(): RunState.set_screen("compendium"))
 	var unseen := SaveManager.compendium_unseen_count()
 	if unseen > 0:
-		var badge := Label.new()
-		badge.text = str(unseen)
-		badge.add_theme_font_override("font", UITheme.font("pixel"))
-		badge.add_theme_font_size_override("font_size", 13)
-		badge.add_theme_color_override("font_color", Color.WHITE)
-		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		badge.custom_minimum_size = Vector2(20, 20)
-		var pill := StyleBoxFlat.new()
-		pill.bg_color = Color("c0392b")  # the badge's crimson
-		pill.set_corner_radius_all(10)
-		pill.content_margin_left = 5
-		pill.content_margin_right = 5
-		badge.add_theme_stylebox_override("normal", pill)
-		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-		badge.position = Vector2(-8, -8)
-		badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		button.add_child(badge)
+		_attach_badge(button, str(unseen), Color("c0392b"), Vector2(-8, -8))
+	# A second badge, below the first: the player has banked enough Time Energy
+	# to uncover a thread. It is a different message from "there is new content"
+	# — energy accumulates silently while the unseen badge stays at zero — so it
+	# gets its own mark rather than being folded into that count. Gold with the
+	# ⚡ of the currency, so the two never read as the same alert.
+	var affordable := SaveManager.affordable_unlocks_count()
+	if affordable > 0:
+		_attach_badge(button, "⚡" + str(affordable), UITheme.GOLD,
+			Vector2(-8, 16), Color("2a1f08"), 34.0)
 	return button
+
+
+## The little pill in a button's top-right corner. `offset` moves it down the
+## corner so several can stack without overlapping.
+## `min_w` widens the pill for a badge whose text is more than a digit or two —
+## "⚡3" in a 20px circle came out clipped on both sides.
+func _attach_badge(button: Button, text: String, bg: Color, offset: Vector2,
+		fg: Color = Color.WHITE, min_w: float = 20.0) -> void:
+	var badge := Label.new()
+	badge.text = text
+	badge.add_theme_font_override("font", UITheme.font("pixel"))
+	badge.add_theme_font_size_override("font_size", 13)
+	badge.add_theme_color_override("font_color", fg)
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.custom_minimum_size = Vector2(min_w, 20)
+	var pill := StyleBoxFlat.new()
+	pill.bg_color = bg
+	pill.set_corner_radius_all(10)
+	pill.content_margin_left = 7
+	pill.content_margin_right = 7
+	badge.add_theme_stylebox_override("normal", pill)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	button.add_child(badge)
+	# The offsets are written out rather than set through a preset and `position`.
+	# A preset bakes them from the size the control has at the moment it is
+	# applied, and a Label only reaches its real width once it has laid its text
+	# out — so a badge wider than its minimum ("⚡3" rather than "3") was pinned
+	# from a stale width and hung off the button's edge, where the panel clipped
+	# it. `position` is no use either: on an anchored control it is measured from
+	# the anchor, so writing it after the badge has a parent throws the pill a
+	# full button-width to the left. Re-run on resize, because the text's width
+	# is what moves.
+	var pin := func():
+		var w: float = maxf(badge.get_combined_minimum_size().x, badge.size.x)
+		var h: float = maxf(badge.get_combined_minimum_size().y, badge.size.y)
+		badge.anchor_left = 1.0
+		badge.anchor_right = 1.0
+		badge.anchor_top = 0.0
+		badge.anchor_bottom = 0.0
+		badge.offset_right = offset.x
+		badge.offset_left = offset.x - w
+		badge.offset_top = offset.y
+		badge.offset_bottom = offset.y + h
+	badge.resized.connect(pin)
+	pin.call()
 
 
 func _ghost_button_box(border_alpha: float) -> StyleBoxFlat:
