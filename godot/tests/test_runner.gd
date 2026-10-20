@@ -2755,6 +2755,23 @@ func test_stock_counter_and_stuck() -> void:
 	check(Rules.is_stuck(dead), "no move and no draw is a dead end")
 	check(not Coach.stuck(dead).is_empty(), "and the patron has something to say")
 
+	# The dead-end line is the only place the game explains the two ways out, and
+	# BOTH of them cost a life — new_shuffle calls _lose_life exactly as
+	# abandon_floor does (pinned in "shuffle vs abandon" above). The first
+	# version of this line said only Abandon charged one, which would have walked
+	# players into a free-looking re-deal that quietly took a life. Every variant
+	# has to say so, and each has its own sentence.
+	var seen := {}
+	for type in ["klondike", "spider", "freecell", "tripeaks", "pyramid"]:
+		var line := Coach.stuck({"type": type})
+		check(line.contains("cost a life"),
+			"%s's dead-end line says both ways out cost a life" % type)
+		check(line.contains("Shuffle") and line.contains("Abandon"),
+			"%s's dead-end line names both buttons" % type)
+		seen[line] = true
+	check_eq(seen.size(), 4,
+		"Pyramid, TriPeaks and Spider each get their own wording; Klondike and FreeCell share one")
+
 	# The same board with one card back in the stock is not a dead end: the draw
 	# is exactly what can rescue it.
 	dead["stock"] = [Cards.make_card(2, 6, false)]
