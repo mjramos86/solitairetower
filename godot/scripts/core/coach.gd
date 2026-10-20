@@ -155,3 +155,29 @@ static func _nowhere(type: String) -> String:
 		"freecell": return "Nowhere for that card to go — park it in a free cell and dig deeper."
 		"klondike": return "Nowhere for that card to go. Draw from the stock and come back to it."
 	return "Nowhere for that card to go just now."
+
+
+## The board offers nothing and no draw will change that. Unlike every other
+## line here this one is not a reaction to something the player tried — it is
+## the patron noticing the dead end first, and pointing at the only two ways
+## out.
+##
+## BOTH cost a life. new_shuffle calls _lose_life just as abandon_floor does;
+## what separates them is where they leave the player, not what they charge.
+## An earlier version of this line said only Abandon cost one, which would have
+## sent players into a free-looking re-deal that quietly took a life.
+##
+## The wording names both buttons by their labels on purpose. A player who has
+## just been told "there is nothing left" needs to be told what to press — and
+## each translation below must name the buttons as THAT language labels them,
+## not as English does.
+static func stuck(gs: Dictionary) -> String:
+	match String(gs.get("type", "")):
+		"spider":
+			return "Nothing moves, and the stock is spent. Both ways out cost a life: Shuffle re-deals this floor, Abandon returns you to the tower for a different game."
+		"tripeaks":
+			return "Nothing on the peaks is within a rank of the waste, and the stock is done. Both ways out cost a life: Shuffle re-deals this floor, Abandon returns you to the tower for a different game."
+		"pyramid":
+			return "No pair is left within reach and the stock is done. Both ways out cost a life: Shuffle re-deals this floor, Abandon returns you to the tower for a different game."
+		_:
+			return "The table is locked — no legal move remains. Both ways out cost a life: Shuffle re-deals this floor, Abandon returns you to the tower for a different game."

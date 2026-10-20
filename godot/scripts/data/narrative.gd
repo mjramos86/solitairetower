@@ -191,7 +191,7 @@ const DEE_DIALOGUE := [
 	{
 		"speaker": "dee",
 		"scene": true,
-		"text": "It's a bearded man with a look straight out of an 17th century painting."
+		"text": "It's a bearded man with a look straight out of a 17th century painting."
 	},
 	{
 		"speaker": "you",
@@ -641,7 +641,7 @@ const DEE_DIALOGUE3_TOPICS := [
 			},
 			{
 				"speaker": "dee",
-				"text": "You need to generate Time Energy, but also you need to weave the threads of time, find the connections between the Time Patrons. Even I do not know their all their identities. There is one from my time..."
+				"text": "You need to generate Time Energy, but also you need to weave the threads of time, find the connections between the Time Patrons. Even I do not know all their identities. There is one from my time..."
 			},
 			{
 				"speaker": "you",

@@ -632,3 +632,101 @@ static func is_won(state: Dictionary) -> bool:
 		"pyramid": return pyramid_won(state)
 		"freecell": return freecell_won(state)
 	return false
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  STOCK STATE
+# ══════════════════════════════════════════════════════════════════════════════
+
+## What the draw pile still holds, for the counter drawn beside it and for
+## stuck detection.
+##
+##   cards     — how many cards are left to draw. Spider counts DEALS, not
+##               cards, because its stock is handed out ten at a time and a
+##               "7 cards left" there would mean nothing to the player.
+##   redeals   — how many times the waste can still be turned back into stock.
+##   infinite  — true when redeals are unlimited at this difficulty, so the
+##               counter shows ∞ instead of a number.
+##   can_draw  — whether clicking the pile right now would do anything. This is
+##               what separates "the stock is empty" from "the stock is spent".
+##
+## The three stock variants each track redeals under their own key and their own
+## sentinel for unlimited, which is why this exists rather than the callers
+## reading gs directly: Klondike counts DOWN in `draws_left` from 999, Pyramid
+## counts UP in `cycles` toward `max_cycles` of 9999, and TriPeaks never redeals
+## at all despite carrying a `max_recycle` key that nothing reads.
+static func stock_state(state: Dictionary) -> Dictionary:
+	var out := {"cards": 0, "redeals": 0, "infinite": false, "can_draw": false,
+		"shows_redeals": false}
+	if state.is_empty():
+		return out
+	# Every key is read through `get` with a default. A partial state — a stub in
+	# a test, a save written by an older build — must come back as "no stock, no
+	# draw" rather than take down the move loop that calls this after every move.
+	var stock: Array = state.get("stock", [])
+	var waste: Array = state.get("waste", [])
+	match state.get("type", ""):
+		"klondike":
+			var left := int(state.get("draws_left", 0))
+			out["cards"] = stock.size()
+			out["infinite"] = left >= 999
+			out["redeals"] = left
+			out["shows_redeals"] = true
+			out["can_draw"] = out["cards"] > 0 or (left > 0 and not waste.is_empty())
+		"pyramid":
+			var used := int(state.get("cycles", 0))
+			var cap := int(state.get("max_cycles", 0))
+			out["cards"] = stock.size()
+			out["infinite"] = cap >= 9999
+			out["redeals"] = maxi(cap - used, 0)
+			out["shows_redeals"] = true
+			out["can_draw"] = out["cards"] > 0 or (out["redeals"] > 0 and waste.size() > 1)
+		"tripeaks":
+			# No redeal at any difficulty, so the counter is cards only.
+			out["cards"] = stock.size()
+			out["can_draw"] = out["cards"] > 0
+		"spider":
+			out["cards"] = (state.get("stock_groups", []) as Array).size()
+			out["can_draw"] = out["cards"] > 0
+		_:
+			pass  # FreeCell has no stock at all.
+	return out
+
+
+## True when the board offers nothing: no legal move among the cards, and no
+## draw left to change that. Spider is the exception that makes the `can_draw`
+## term matter — a Spider board with no move is routinely rescued by dealing a
+## new row, so it is only stuck once the stock is spent too.
+##
+## Spider deals carry their own restriction (no empty column may be left), which
+## `spider_deal` enforces; a deal that is refused still counts as a draw here
+## because the player can clear the column and deal after.
+## The piles each variant's win test and hint finder read. A state missing any
+## of them is not a board — it is a stub or a partial save — and asking whether
+## it is stuck is meaningless, so is_stuck answers no rather than reaching into
+## keys that are not there.
+const BOARD_KEYS := {
+	"klondike": ["tableau", "stock", "waste", "foundations"],
+	"spider": ["tableau", "stock_groups", "foundations"],
+	"tripeaks": ["pyramid", "stock", "waste"],
+	"pyramid": ["pyramid", "stock", "waste"],
+	"freecell": ["tableau", "freecells", "foundations"],
+}
+
+
+static func is_board_complete(state: Dictionary) -> bool:
+	var keys = BOARD_KEYS.get(state.get("type", ""), null)
+	if keys == null:
+		return false
+	for k in keys:
+		if not state.has(k):
+			return false
+	return true
+
+
+static func is_stuck(state: Dictionary) -> bool:
+	if not is_board_complete(state) or is_won(state):
+		return false
+	if not Hints.find(state, false).is_empty():
+		return false
+	return not stock_state(state)["can_draw"]

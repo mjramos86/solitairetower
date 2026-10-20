@@ -94,7 +94,7 @@ func _build_card(patron: Dictionary) -> Control:
 	var occ := String(patron.get("occupation", ""))
 	if occ != "":
 		var occ_lbl := Label.new()
-		occ_lbl.text = occ
+		occ_lbl.text = Locale.t(occ)
 		occ_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		occ_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		occ_lbl.custom_minimum_size = Vector2(CARD_W - 28, 0)
@@ -107,7 +107,7 @@ func _build_card(patron: Dictionary) -> Control:
 	var tagline := String(patron.get("tagline", ""))
 	if tagline != "":
 		var flavour := Label.new()
-		flavour.text = tagline
+		flavour.text = Locale.t(tagline)
 		flavour.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		flavour.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		flavour.custom_minimum_size = Vector2(CARD_W - 28, 0)

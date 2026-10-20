@@ -54,8 +54,8 @@ func _build_controls() -> void:
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 8)
-	_local_button = _tab("Local", func(): _set_mode("local"))
-	_combined_button = _tab("Local + Online", func(): _set_mode("combined"))
+	_local_button = _tab(Locale.t("Local"), func(): _set_mode("local"))
+	_combined_button = _tab(Locale.t("Local + Online"), func(): _set_mode("combined"))
 	tabs.add_child(_local_button)
 	tabs.add_child(_combined_button)
 	col.add_child(tabs)
@@ -107,7 +107,11 @@ func _style_tabs() -> void:
 	_combined_button.button_pressed = _mode == "combined"
 	for b in [_local_button, _combined_button]:
 		var active: bool = b.button_pressed
-		b.add_theme_color_override("font_color", UITheme.GOLD if active else UITheme.TEXT_DIM)
+		# Both colours have to read on the W95 button face, which is light grey.
+		# TEXT_DIM is a pale lavender meant for the dark felt and vanished into
+		# that grey, leaving the inactive tab looking like an empty box.
+		b.add_theme_color_override("font_color",
+			UITheme.GOLD_PILL_TEXT if active else UITheme.W95_DARKER)
 
 
 func _on_sync() -> void:
@@ -152,7 +156,8 @@ func _build_rows() -> void:
 		_rows.add_child(none)
 		return
 
-	_rows.add_child(_row("#", "Player", "Time", "Score", UITheme.TEXT_DIM, true))
+	_rows.add_child(_row("#", Locale.t("Player"), Locale.t("Date"), Locale.t("Time"),
+		Locale.t("Score"), UITheme.TEXT_DIM, true))
 
 	for i in entries.size():
 		var e: Dictionary = entries[i]
@@ -163,6 +168,7 @@ func _build_rows() -> void:
 		_rows.add_child(_row(
 			"%d." % (i + 1),
 			who,
+			_format_date(float(e.get("date", 0.0))),
 			_format_time(float(e.get("time", 0.0))),
 			"%d" % int(e.get("score", 0)),
 			UITheme.TEXT))
@@ -173,19 +179,22 @@ func _key(e: Dictionary) -> String:
 		float(e.get("time", 0.0))]
 
 
-func _row(rank: String, who: String, time: String, score: String, color: Color, header := false) -> Control:
+func _row(rank: String, who: String, date: String, time: String, score: String,
+		color: Color, header := false) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 
 	var rank_label := _cell(rank, color, 40)
 	var who_label := _cell(who, color, 0)
 	who_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var date_label := _cell(date, color if header else UITheme.TEXT_DIM, 110)
+	date_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var time_label := _cell(time, color, 90)
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var score_label := _cell(score, UITheme.GOLD if not header else color, 90)
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
-	for c in [rank_label, who_label, time_label, score_label]:
+	for c in [rank_label, who_label, date_label, time_label, score_label]:
 		if header:
 			c.add_theme_font_override("font", UITheme.font_at("display", 700))
 			c.add_theme_font_size_override("font_size", 13)
@@ -200,6 +209,23 @@ func _cell(text: String, color: Color, min_w: float) -> Label:
 	if min_w > 0:
 		l.custom_minimum_size.x = min_w
 	return l
+
+
+## When the run was recorded, as YYYY-MM-DD. Deliberately ISO rather than a
+## locale order: the board is shared across four languages and 03/04 would read
+## as two different days depending on who is looking at it.
+##
+## Local entries store unix SECONDS and the online board stores MILLISECONDS
+## (the web build writes ms, and Leaderboard keeps that on the wire), so a
+## combined view mixes both scales in one column. Anything past the year 5138
+## in seconds is really milliseconds.
+func _format_date(stamp: float) -> String:
+	if stamp <= 0.0:
+		return "—"
+	if stamp > 100000000000.0:
+		stamp /= 1000.0
+	var d := Time.get_datetime_dict_from_unix_time(int(stamp))
+	return "%04d-%02d-%02d" % [d["year"], d["month"], d["day"]]
 
 
 func _format_time(seconds: float) -> String:

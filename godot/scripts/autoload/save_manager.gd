@@ -467,6 +467,36 @@ func _compendium_entry_visible(entry: Dictionary) -> bool:
 ## John Dee's connection can only be uncovered after his third transmission —
 ## mirrors connectionAvailable() in the web build and _connection_available()
 ## in the compendium screen.
+## How many compendium threads the player could pay for RIGHT NOW: available,
+## not yet uncovered, and within the banked Time Energy.
+##
+## Separate from compendium_unseen_count, which counts content that is new.
+## The two answer different questions — "there is something you have not read"
+## versus "you can afford to uncover something" — and a player who has already
+## browsed every locked thread would never be told about the second by the
+## first. They get their own badge on the map for that reason.
+##
+## Costs are compared one at a time rather than summed: the badge means "you can
+## afford at least one of these", not "you can afford them all".
+func affordable_unlocks_count() -> int:
+	var banked := int(profile.get("banked_credits", 0))
+	var count := 0
+	var entries: Array = []
+	entries.append_array(Narrative.PATRONS)
+	entries.append_array(Narrative.LORE)
+	for entry in entries:
+		if not entry.has("lore"):
+			continue
+		var id := String(entry["id"])
+		if has_seen("unlocked_connections", id):
+			continue
+		if not _compendium_connection_available(entry):
+			continue
+		if banked >= int(entry.get("connection_cost", 500)):
+			count += 1
+	return count
+
+
 func _compendium_connection_available(entry: Dictionary) -> bool:
 	if String(entry["id"]) == "johndee":
 		return bool(profile.get("dee_dialogue3_done", false))
