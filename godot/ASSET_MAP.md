@@ -155,8 +155,6 @@ them. **Exclude this folder from exports** (Project → Export → Resources →
 | `solitairedoom_cardback.png` | `cardback_solitairedoom.png` |
 | `MaryQueenofScots.png` | `mary_queen_of_scots_small.png` |
 | `Solitaire Tower of Doom Key art - 2.png.png` | `title_keyart_alt.png` |
-| `SolitaireDoom_Keyart_notitle.jpg` | `keyart_notitle.jpg` |
-| `keyart.jpg` | `keyart_legacy.jpg` |
 
 ## Store art — `/steam/` (outside the Godot project)
 
