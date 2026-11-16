@@ -486,13 +486,29 @@ func _refresh_scores() -> void:
 		_score_font(rank, UITheme.GOLD if all_floors else UITheme.TEXT_DIM)
 		row.add_child(rank)
 
+		# The name, then — for a run that cleared all ten floors — a small red
+		# check, exactly as the web board marks it (.map-lb-name ✓, #ff4444).
+		# A plain ✓ rather than an emoji: the bundled fonts carry it, so it never
+		# depends on the player's system having an emoji font to fall back on.
+		var who_box := HBoxContainer.new()
+		who_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		who_box.add_theme_constant_override("separation", 6)
+		who_box.clip_contents = true
 		var who := Label.new()
-		# A crown marks a run that cleared all ten floors — escaped the Tower.
-		who.text = ("👑 " if all_floors else "") + str(e.get("name", "—"))
-		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		who.clip_text = true
+		who.text = str(e.get("name", "—"))
 		_score_font(who, Color("ffe98a") if all_floors else UITheme.TEXT)
-		row.add_child(who)
+		who_box.add_child(who)
+		if all_floors:
+			var check := Label.new()
+			check.text = "✓"
+			check.tooltip_text = Locale.t("Cleared all floors")
+			check.mouse_filter = Control.MOUSE_FILTER_PASS
+			check.add_theme_font_override("font", UITheme.font_at("body", 500))
+			check.add_theme_font_size_override("font_size", 15)
+			check.add_theme_color_override("font_color", Color("ff4444"))
+			check.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			who_box.add_child(check)
+		row.add_child(who_box)
 
 		var pts := Label.new()
 		pts.text = "%d" % int(e.get("score", 0))
