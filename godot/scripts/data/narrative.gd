@@ -38,11 +38,14 @@ const PATRONS := [
 		"name": "The Other Queen",
 		"true_name": "Mary, Queen of Scots",
 		"occupation": "Queen of Scots, England's royal prisoner",
-		"tagline": "",
+		"tagline": "The prisoner queen trades in intrigue — remove what blocks you, put what you need in its place.",
 		"img": "res://assets/patrons/mary_stuart_portrait.png",
-		"unlocked": false,
+		# Playable, but only once John Dee's thread has been uncovered: that
+		# purchase is what sets is_patron_revealed("marie"), so she stays a
+		# padlocked "???" on the picker until the player has paid for the lore
+		# that names her.
+		"unlocked": true,
 		"revealed": false,
-		"in_development": true,
 		"year": 1567,
 		"links": [
 			"johndee"

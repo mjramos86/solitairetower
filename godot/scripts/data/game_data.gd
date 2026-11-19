@@ -176,9 +176,40 @@ const SHOP_ITEMS := [
 	{"id": "extinguisher", "name": "Vial of Quicksilver", "icon": "🧫", "price": 825, "tier": 3,
 	 "effect": "no-life-abandon", "desc": "Abandon this floor without losing a life.",
 	 "use": "Instant: safe retreat to the map.", "best_for": "All games (emergency!)"},
-	{"id": "exec-chair", "name": "Queen's Patronage", "icon": "👑", "price": 1050, "tier": 3,
+	{"id": "exec-chair", "name": "Elizabeth's Royal Seal", "icon": "🔏", "price": 1050, "tier": 3,
 	 "effect": "skip-floor", "desc": "Skip this floor entirely -- counts as cleared!",
 	 "use": "Instant: auto-win current floor.", "best_for": "All games (boss skip!)"},
+	# ── Mary, Queen of Scots ──
+	# Her pool mirrors John Dee's shape — two cheap, four medium, three rare, no
+	# tier 2 — so both patrons deal at the same rhythm. Where Dee sells sight,
+	# she sells interference: four of these nine change the board outright.
+	{"id": "nomenclator", "name": "Nomenclator Disc", "icon": "🔢", "price": 40, "tier": 0,
+	 "effect": "mark-rank", "desc": "Name a rank. Every card of that rank glows for the rest of the floor, even ones turned over later.",
+	 "use": "Opens a rank picker.", "best_for": "Pyramid · Spider"},
+	{"id": "ale-cask", "name": "Chartley Ale Cask", "icon": "🛢️", "price": 55, "tier": 0,
+	 "effect": "draw-bottom", "desc": "Draws the card at the BOTTOM of the stock instead of the top.",
+	 "use": "Instant: one draw from underneath.", "best_for": "Klondike · TriPeaks"},
+	{"id": "ledger", "name": "Walsingham's Ledger", "icon": "📒", "price": 105, "tier": 1,
+	 "effect": "read-stock", "desc": "Lays the whole stock open, in order, for the rest of the floor.",
+	 "use": "Instant: the stock order stays listed.", "best_for": "TriPeaks · Pyramid"},
+	{"id": "dagger", "name": "Rizzio's Dagger", "icon": "🔪", "price": 120, "tier": 1,
+	 "effect": "remove-card", "desc": "Removes any one face-up card from the board entirely.",
+	 "use": "Click mode: pick a card to vanish it.", "best_for": "Pyramid · TriPeaks"},
+	{"id": "cloak", "name": "Laundress's Cloak", "icon": "🧥", "price": 135, "tier": 1,
+	 "effect": "swap-cards", "desc": "Swaps any two face-up cards on the board, wherever they lie.",
+	 "use": "Click mode: pick two cards.", "best_for": "FreeCell · Spider"},
+	{"id": "pearls", "name": "The Black Pearls", "icon": "📿", "price": 155, "tier": 1,
+	 "effect": "queens-to-hand", "desc": "Digs all four Queens out from anywhere — buried or face-down — and makes them playable at once.",
+	 "use": "Instant: the Queens come to hand.", "best_for": "Klondike · FreeCell"},
+	{"id": "block", "name": "Fotheringhay Block", "icon": "🪓", "price": 690, "tier": 3,
+	 "effect": "purge-rank", "desc": "Name a rank: all four of its cards leave the board and the stock for good.",
+	 "use": "Opens a rank picker.", "best_for": "Pyramid · TriPeaks"},
+	{"id": "deed", "name": "Lochleven Deed", "icon": "📜", "price": 825, "tier": 3,
+	 "effect": "free-reshuffle", "desc": "Re-deals this floor from a fresh shuffle, and costs no life. Gold, score and pack are kept.",
+	 "use": "Instant: the floor begins again.", "best_for": "All games (emergency!)"},
+	{"id": "estate", "name": "Cloth of Estate", "icon": "🏵️", "price": 1050, "tier": 3,
+	 "effect": "queens-wild", "desc": "For the rest of the floor every Queen is free: it may be played on anything, anywhere.",
+	 "use": "Instant: the Queens answer to no rule.", "best_for": "All games"},
 ]
 
 ## Selectable card backs. `requires_reveal` gates a back behind a patron reveal.
@@ -205,7 +236,18 @@ const PATRON_ITEMS := {
 		"calculator",    # Astrolabe       — reveal every move
 		"master-key",    # Enochian Key    — reach into the stock
 		"extinguisher",  # Vial of Quicksilver — emergency escape
-		"exec-chair",    # Queen's Patronage   — boss skip
+		"exec-chair",    # Elizabeth's Royal Seal — boss skip
+	],
+	"marie": [
+		"nomenclator",   # Nomenclator Disc   — mark a rank
+		"ale-cask",      # Chartley Ale Cask  — draw from underneath
+		"ledger",        # Walsingham's Ledger — read the whole stock
+		"dagger",        # Rizzio's Dagger    — remove a card
+		"cloak",         # Laundress's Cloak  — swap two cards
+		"pearls",        # The Black Pearls   — gather the Queens
+		"block",         # Fotheringhay Block — purge a rank
+		"deed",          # Lochleven Deed     — re-deal, no life spent
+		"estate",        # Cloth of Estate    — the Queens go anywhere
 	],
 }
 
