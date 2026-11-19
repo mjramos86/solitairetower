@@ -2105,13 +2105,23 @@ func test_unlockables() -> void:
 	check(SaveManager.is_patron_revealed("marie"), "Mary stays revealed after reload")
 	check(cardback_unlocked.call("marie"), "Mary's Cipher stays unlocked after reload")
 
-	# In-development patrons carry a cost in the data but cannot be bought — the
-	# only reveal path is the connection above.
+	# Mary is playable now, but she is not given away: the picker only offers her
+	# once the player has uncovered John Dee's thread, which is what flips
+	# is_patron_revealed("marie"). The pair below is the whole gate — unlocked
+	# but unrevealed — so a regression that reveals her early, or that locks her
+	# again, fails here.
 	var marie := {}
 	for entry in Narrative.PATRONS:
 		if String(entry["id"]) == "marie":
 			marie = entry
-	check(bool(marie.get("in_development", false)), "Mary is flagged in development")
+	check(bool(marie.get("unlocked", false)), "Mary is playable")
+	check(not bool(marie.get("revealed", false)), "but not revealed from the start")
+	check(not bool(marie.get("in_development", false)), "and no longer flagged in development")
+	SaveManager.erase_all()
+	check(not SaveManager.is_patron_revealed("marie"), "a fresh profile has not met her")
+	SaveManager.mark_seen("unlocked_connections", "johndee")
+	check(SaveManager.is_patron_revealed("marie"),
+		"uncovering Dee's thread is what reveals her")
 	check(marie.has("patron_unlock_cost"), "Mary carries a patron unlock cost in the data")
 
 	# A fresh save with no John Dee connection keeps Mary locked regardless of

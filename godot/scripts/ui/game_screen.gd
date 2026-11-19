@@ -694,6 +694,10 @@ func _apply_result(result: Dictionary, inv_index: int) -> void:
 		_show_win_overlay()
 	else:
 		_check_win()
+		# Items are the main way out of a dead end, so this is where the warning
+		# most often stops being true — and, before this call existed, where it
+		# stayed on screen over a board the player had just rescued.
+		_check_stuck()
 
 
 func _cancel_item_mode() -> void:
@@ -2367,6 +2371,13 @@ func _after_move() -> void:
 ## both wrong and unkind.
 func _check_stuck() -> void:
 	if RunState.win_overlay or not Rules.is_stuck(RunState.gs):
+		# Retire the warning the moment it stops being true. An item that opens
+		# the position — a dug-out Ace, a fifth free cell — leaves the bubble
+		# still reading "the table is locked" over a board that has just been
+		# rescued, which is worse than saying nothing. A sticky line is someone
+		# else's: the player opened a briefing and it is not ours to close.
+		if _stuck_announced and _patron_coach != null and not _patron_coach.is_sticky():
+			_patron_coach.hide_line()
 		_stuck_announced = false
 		return
 	if _stuck_announced:
