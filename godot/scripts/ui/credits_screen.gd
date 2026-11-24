@@ -4,6 +4,13 @@ extends Control
 ## the licensed music, the engine and libraries the build ships, the bundled
 ## fonts (all under the SIL Open Font License), and the copyright / trademark
 ## notice. Rebuilt on a language change so the labels switch immediately.
+##
+## AUTHORSHIP OF RECORD. Everything this screen shows a player is credited to
+## the pen name "Emjayhar". The legal person behind it, and the holder of the
+## copyright and of the Solitaire Tower of Doom™ mark, is Mario Jorge Ramos.
+## The name is deliberately kept here and nowhere a player can read it: the
+## game is published under the pen name, but the record of who owns it should
+## not be lost with a display string.
 
 var _panel: VBoxContainer
 
@@ -53,6 +60,8 @@ func _rebuild() -> void:
 	_panel.add_child(_spacer(6))
 
 	# ── Authorship ──
+	# The pen name is what is shown; see AUTHORSHIP OF RECORD at the top of this
+	# file for the legal name behind it.
 	_panel.add_child(_section(Locale.t("Game Design, Art & Writing")))
 	_panel.add_child(_line("Emjayhar", 22, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	_panel.add_child(_spacer(4))
