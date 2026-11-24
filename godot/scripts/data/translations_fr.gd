@@ -585,6 +585,7 @@ const MAP := {
 	"You Escaped the Tower": "Vous vous êtes échappé de la Tour",
 	"The Tower Keeps You": "La Tour vous garde",
 	"Local High Scores": "Meilleurs scores locaux",
+	"Cleared all floors": "A terminé tous les étages",
 	"No runs recorded yet.": "Aucune partie enregistrée pour l’instant.",
 	"Your name": "Votre nom",
 	"RECORD SCORE": "ENREGISTRER LE SCORE",

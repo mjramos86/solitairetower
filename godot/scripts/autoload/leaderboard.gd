@@ -16,6 +16,16 @@ extends Node
 ##     retroactively once the player is back online.
 ##   • `fetch_online()` pulls the global top scores for the combined view.
 ##
+## Units on the wire match the web build: `date` and `time` are both
+## MILLISECONDS. Locally (SaveManager) both are seconds; the encode/decode below
+## converts. Godot builds before this fix uploaded `time` in seconds as a
+## Firestore double — those legacy rows are recognised by that type and read back
+## as seconds, so they still display correctly.
+##
+## Test and capture harnesses must never publish: set `online_enabled = false`
+## before they touch scores. A session that does not persist its save
+## (`SaveManager.persist == false`) never reaches the network either.
+##
 ## All network work is best-effort: a failure updates `status`/`last_error` and
 ## emits `sync_state_changed`, never crashes or blocks the game.
 
@@ -34,10 +44,17 @@ var online_scores: Array = []
 var status := "idle"
 var last_error := ""
 
+## Master switch for every request this node makes. Harnesses turn it off.
+var online_enabled := true
+
 signal online_scores_updated(scores: Array)
 signal sync_state_changed(status: String)
 
 var _syncing := false
+## Keys (see `_entry_key`) of scores whose upload is in flight, so a sync
+## started while the end screen's upload is still pending cannot send the same
+## run a second time.
+var _in_flight := {}
 
 
 func _ready() -> void:
@@ -55,23 +72,24 @@ func _on_score_recorded(entry: Dictionary) -> void:
 ## Pushes one local entry to the online board. On success marks it synced in the
 ## local table so it is not sent twice.
 func submit_score(entry: Dictionary) -> void:
-	var body := JSON.stringify({"fields": to_firestore_fields(entry)})
-	var url := "%s/%s?key=%s" % [BASE % PROJECT_ID, COLLECTION, API_KEY]
+	if not _can_go_online():
+		return
+	if bool(entry.get("synced", false)) or _in_flight.has(_entry_key(entry)):
+		return
 	_set_status("syncing")
-	_send(url, HTTPClient.METHOD_POST, body, func(ok: bool, _code: int, _resp):
-		if ok:
-			SaveManager.mark_score_synced(entry)
-			_set_status("ok")
-		else:
-			_set_status("offline"))
+	_upload(entry, func(ok: bool):
+		_set_status("ok" if ok else "offline"))
 
 
 ## Retries every local score not yet on the board, then refreshes the online
 ## view. Safe to call anytime the player is (or might be) back online.
 func sync_pending() -> void:
-	if _syncing:
+	if _syncing or not _can_go_online():
 		return
-	var pending := SaveManager.unsynced_scores()
+	var pending := []
+	for e in SaveManager.unsynced_scores():
+		if not _in_flight.has(_entry_key(e)):
+			pending.append(e)
 	if pending.is_empty():
 		fetch_online()
 		return
@@ -86,11 +104,11 @@ func _sync_next(pending: Array, i: int) -> void:
 		fetch_online()
 		return
 	var entry: Dictionary = pending[i]
-	var body := JSON.stringify({"fields": to_firestore_fields(entry)})
-	var url := "%s/%s?key=%s" % [BASE % PROJECT_ID, COLLECTION, API_KEY]
-	_send(url, HTTPClient.METHOD_POST, body, func(ok: bool, _code: int, _resp):
+	if bool(entry.get("synced", false)) or _in_flight.has(_entry_key(entry)):
+		_sync_next(pending, i + 1)  # uploaded meanwhile by submit_score()
+		return
+	_upload(entry, func(ok: bool):
 		if ok:
-			SaveManager.mark_score_synced(entry)
 			_sync_next(pending, i + 1)
 		else:
 			# Stop on the first failure — almost certainly offline; try again later.
@@ -100,6 +118,8 @@ func _sync_next(pending: Array, i: int) -> void:
 
 ## Pulls the global top scores, ordered like the web query (score desc, time asc).
 func fetch_online() -> void:
+	if not _can_go_online():
+		return
 	var query := {
 		"structuredQuery": {
 			"from": [{"collectionId": COLLECTION}],
@@ -120,10 +140,35 @@ func fetch_online() -> void:
 		online_scores_updated.emit(online_scores))
 
 
+## POSTs one entry, tracking it as in flight until the answer arrives.
+func _upload(entry: Dictionary, on_done: Callable) -> void:
+	var key := _entry_key(entry)
+	_in_flight[key] = true
+	var body := JSON.stringify({"fields": to_firestore_fields(entry)})
+	var url := "%s/%s?key=%s" % [BASE % PROJECT_ID, COLLECTION, API_KEY]
+	_send(url, HTTPClient.METHOD_POST, body, func(ok: bool, _code: int, _resp):
+		_in_flight.erase(key)
+		if ok:
+			SaveManager.mark_score_synced(entry)
+		on_done.call(ok))
+
+
+func _can_go_online() -> bool:
+	return online_enabled and SaveManager.persist
+
+
+## Identity of one recorded run. The local date is part of it, so two genuine
+## runs with the same name, score and time are still two runs.
+static func _entry_key(e: Dictionary) -> String:
+	return "%s|%d|%.3f|%d" % [String(e.get("name", "")), int(e.get("score", 0)),
+		float(e.get("time", 0.0)), int(e.get("date", 0))]
+
+
 # ── Encoding / decoding (pure, unit-tested) ──────────────────────────────────
 
 ## A local highscore entry → Firestore typed fields. Sends exactly the five keys
-## the security rules allow, with the date in milliseconds like the web build.
+## the security rules allow, with the date AND time in integer milliseconds like
+## the web build (locally both are seconds).
 static func to_firestore_fields(entry: Dictionary) -> Dictionary:
 	var date_ms := int(entry.get("date", 0))
 	# Local dates are unix seconds; the web writes milliseconds. Normalise up so
@@ -136,7 +181,7 @@ static func to_firestore_fields(entry: Dictionary) -> Dictionary:
 	return {
 		"name": {"stringValue": name},
 		"score": {"integerValue": str(int(entry.get("score", 0)))},
-		"time": {"doubleValue": float(entry.get("time", 0.0))},
+		"time": {"integerValue": str(int(round(float(entry.get("time", 0.0)) * 1000.0)))},
 		"date": {"integerValue": str(date_ms)},
 		"allFloors": {"booleanValue": bool(entry.get("all_floors", false))},
 	}
@@ -147,7 +192,7 @@ static func from_firestore_fields(fields: Dictionary) -> Dictionary:
 	return {
 		"name": _string_of(fields.get("name", {})),
 		"score": _number_of(fields.get("score", {})),
-		"time": float(_number_of(fields.get("time", {}))),
+		"time": time_seconds_of(fields.get("time", {})),
 		"date": _number_of(fields.get("date", {})),
 		"all_floors": bool(fields.get("allFloors", {}).get("booleanValue", false)),
 		"synced": true,
@@ -191,6 +236,15 @@ static func merge_scores(local: Array, online: Array, limit: int = FETCH_LIMIT) 
 	return merged
 
 
+## A Firestore `time` field → seconds. The web build and current Godot builds
+## write integer milliseconds; Godot builds before the fix wrote seconds as a
+## double, and only they ever produced a doubleValue here.
+static func time_seconds_of(field: Dictionary) -> float:
+	if field.has("doubleValue"):
+		return float(field["doubleValue"])
+	return float(_number_of(field)) / 1000.0
+
+
 static func _string_of(field: Dictionary) -> String:
 	return String(field.get("stringValue", ""))
 
@@ -208,6 +262,10 @@ static func _number_of(field: Dictionary):
 ## Fires one request on a throwaway HTTPRequest node and hands the callback
 ## (ok, http_code, body_text). `ok` is true only on a 2xx transport success.
 func _send(url: String, method: int, body: String, on_done: Callable) -> void:
+	# Last line of defence: nothing leaves the machine from a harness run.
+	if not _can_go_online():
+		on_done.call(false, 0, "")
+		return
 	var req := HTTPRequest.new()
 	req.timeout = REQUEST_TIMEOUT
 	add_child(req)

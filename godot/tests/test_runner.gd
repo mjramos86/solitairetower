@@ -16,6 +16,9 @@ var _current := ""
 
 func _ready() -> void:
 	print("\n══ Solitaire Tower of Doom — logic tests ══\n")
+	# Never publish to the live online leaderboard from a harness: every
+	# record_score() below would otherwise be uploaded as a real player's run.
+	Leaderboard.online_enabled = false
 
 	# Pin the language before the first assertion. Locale reads it from the save
 	# file at startup, and several tests below assert on rendered English text,
@@ -1094,6 +1097,8 @@ func test_leaderboard() -> void:
 	check_eq(String(fields["score"]["integerValue"]), "900", "score encoded as an int")
 	check_eq(bool(fields["allFloors"]["booleanValue"]), true, "allFloors encoded")
 	check_eq(String(fields["date"]["integerValue"]), "1690000000000", "seconds date scaled to ms")
+	check(fields["time"].has("integerValue"), "time sent as an integer, like the web build")
+	check_eq(String(fields["time"]["integerValue"]), "12500", "seconds time scaled to ms")
 
 	# An over-long name is clamped to the rules' 20-char limit.
 	var long := Leaderboard.to_firestore_fields({"name": "X".repeat(40), "score": 1, "time": 1.0})
@@ -1108,7 +1113,15 @@ func test_leaderboard() -> void:
 	check_eq(parsed.size(), 1, "readTime rows are skipped")
 	check_eq(String(parsed[0]["name"]), "Grace", "name decoded")
 	check_eq(int(parsed[0]["score"]), 7100, "score decoded")
-	check_eq(float(parsed[0]["time"]), 52.0, "time decoded")
+	check_eq(float(parsed[0]["time"]), 52.0, "legacy Godot seconds (double) decoded as seconds")
+	var web := Leaderboard.parse_run_query('[{"document":{"fields":{"name":{"stringValue":"W"},'
+		+ '"score":{"integerValue":"1"},"time":{"integerValue":"2761804"},'
+		+ '"date":{"integerValue":"1690000000000"},"allFloors":{"booleanValue":false}}}}]')
+	check_eq(float(web[0]["time"]), 2761.804, "web milliseconds decoded as seconds")
+	# Encode → decode round trip keeps the local value, so merge de-dup matches.
+	var rt := Leaderboard.from_firestore_fields(Leaderboard.to_firestore_fields(
+		{"name": "R", "score": 1, "time": 2831.345, "date": 1690000000}))
+	check_eq("%.3f" % float(rt["time"]), "2831.345", "time survives the round trip")
 	check_eq(bool(parsed[0]["all_floors"]), false, "allFloors decoded")
 
 	# Merge: a score that exists both locally and online appears once; result is
@@ -1143,6 +1156,16 @@ func test_leaderboard() -> void:
 	SaveManager.mark_score_synced(captured[0])
 	check(bool(captured[0].get("synced", false)), "mark_score_synced flips the flag")
 	check_eq(SaveManager.unsynced_scores().size(), 0, "nothing left to sync")
+
+	# The harness guard: with online_enabled off, recording a score never starts
+	# an upload (status stays put, nothing is marked in flight).
+	check(not Leaderboard.online_enabled, "the test run has the online board switched off")
+	var status_before := Leaderboard.status
+	SaveManager.record_score("Tester", 400, 40.0, false)
+	Leaderboard.sync_pending()
+	Leaderboard.fetch_online()
+	check_eq(Leaderboard.status, status_before, "no request is attempted while disabled")
+	check_eq(Leaderboard._in_flight.size(), 0, "no upload is in flight while disabled")
 	SaveManager.erase_all()
 
 

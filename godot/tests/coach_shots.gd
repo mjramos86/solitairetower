@@ -15,6 +15,9 @@ func _ready() -> void:
 	# Photographs only: stage whatever makes a good picture, but never let it
 	# reach the save file of whoever is running this.
 	SaveManager.persist = false
+	# Never publish to the live online leaderboard from a harness: every
+	# record_score() below would otherwise be uploaded as a real player's run.
+	Leaderboard.online_enabled = false
 	get_window().size = Vector2i(1600, 900)
 	# app.gd puts the Windows-95 theme on the App root, which this harness never
 	# instantiates — without it every button here would render unstyled and the

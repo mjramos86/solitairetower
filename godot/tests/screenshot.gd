@@ -9,6 +9,9 @@ func _ready() -> void:
 	# Photographs only: stage whatever makes a good picture, but never let it
 	# reach the save file of whoever is running this.
 	SaveManager.persist = false
+	# Never publish to the live online leaderboard from a harness: every
+	# record_score() below would otherwise be uploaded as a real player's run.
+	Leaderboard.online_enabled = false
 	get_window().size = Vector2i(1280, 720)
 	await get_tree().process_frame
 
