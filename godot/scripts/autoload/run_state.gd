@@ -283,17 +283,28 @@ func forfeit_run() -> void:
 ## A fresh deal of the floor the player is already on: same variant, same floor,
 ## new cards, and they stay at the table. It costs a life, like abandoning, but
 ## it is not abandoning — it must not bounce the player out to the tower.
-func new_shuffle() -> bool:
-	SaveManager.record_game_result(gtype, false)
-	if not _lose_life(false):
-		return false
+##
+## `free` is Mary Stuart's Lochleven Deed: the same re-deal at no cost. No life
+## is spent and the abandoned deal is not recorded as a loss. Gold, score and the
+## inventory are untouched either way; so are the floor's lasting item effects
+## (ItemEffects.CARRIED_FLAGS), which belong to the floor, not to the deal.
+func new_shuffle(free := false) -> bool:
+	if not free:
+		SaveManager.record_game_result(gtype, false)
+		if not _lose_life(false):
+			return false
+	else:
+		tp_streak = 0
+		_reset_board_flags()
 	undo_stack = []
 	moves = 0
 	floor_undos_used = 0
 	floor_start_time = Time.get_ticks_msec()
 	floor_start_score = score
+	var old := gs
 	gs = Rules.init_game(gtype, floor_index, extra_freecell)
 	Cards.assign_uids(gs)
+	ItemEffects.carry_floor_flags(old, gs)
 	state_changed.emit()
 	return true
 
@@ -481,7 +492,9 @@ func undo_move() -> bool:
 		toast.emit(Locale.t("No undos left this floor!"))
 		return false
 	var prev: Dictionary = undo_stack.pop_back()
+	var now := gs
 	gs = prev["gs"]
+	ItemEffects.carry_floor_flags(now, gs)
 	moves = int(prev["moves"])
 	score = int(prev["score"])
 	tp_streak = int(prev.get("tp_streak", 0))

@@ -58,6 +58,8 @@ func _ready() -> void:
 	await test_stock_recycle_click()
 	await test_foundation_takeback()
 	test_item_effects()
+	test_mary_items()
+	await test_mary_items_on_board()
 	test_narrative()
 	test_compendium_features()
 	test_every_scene_loads()
@@ -2852,3 +2854,276 @@ func test_affordable_unlocks() -> void:
 		"an uncovered thread no longer counts")
 
 	SaveManager.erase_all()
+
+
+## Mary Stuart's nine items. Each effect is pinned on the variant it is sold
+## for, plus the rule changes two of them make (Cloth of Estate, Fotheringhay
+## Block) and the floor flags that must outlive an undo and a re-deal.
+func test_mary_items() -> void:
+	suite("mary stuart items")
+	SaveManager.erase_all()
+	var c := func(suit: int, rank: int, up := true) -> Dictionary:
+		return Cards.make_card(suit, rank, up)
+
+	# Every one of her nine effects is handled — none falls through to "does nothing".
+	for id in GameData.PATRON_ITEMS["marie"]:
+		var item := GameData.item_by_id(id)
+		check(not item.is_empty(), "%s is in the catalogue" % id)
+
+	# ── Nomenclator Disc: a rank picker, then the rank is marked for the floor ──
+	RunState.new_run()
+	RunState.start_game("pyramid", 3)
+	var r := ItemEffects.activate(GameData.item_by_id("nomenclator"), 0)
+	check(not r["consumed"], "disc waits for a choice")
+	check(bool(r["picker"].get("ranks", false)), "disc opens a RANK picker")
+	check_eq((r["picker"]["cards"] as Array).size(), 13, "the picker offers all thirteen ranks")
+	var res := ItemEffects.resolve_picker(r["picker"], {"suit": 0, "rank": 7})
+	check(res["consumed"], "disc is consumed once a rank is named")
+	check((RunState.gs["marked_ranks"] as Array).has(7), "the 7s are marked")
+	res = ItemEffects.resolve_picker(r["picker"], {"suit": 0, "rank": 7})
+	check(not res["consumed"], "naming a rank twice wastes nothing")
+	# The mark survives an undo of a later move and a re-deal of the floor.
+	RunState.push_undo()
+	RunState.gs = Rules.pyramid_draw(RunState.gs)
+	RunState.undo_move()
+	check((RunState.gs.get("marked_ranks", []) as Array).has(7), "the mark survives an undo")
+	RunState.new_shuffle(true)
+	check((RunState.gs.get("marked_ranks", []) as Array).has(7), "the mark survives a re-deal")
+	RunState.start_game("pyramid", 4)
+	check(not RunState.gs.has("marked_ranks"), "a new floor starts unmarked")
+
+	# ── Chartley Ale Cask: draws the BOTTOM card of the stock ──
+	RunState.start_game("klondike", 5)
+	var bottom: Dictionary = RunState.gs["stock"][0]
+	var stock_n: int = RunState.gs["stock"].size()
+	r = ItemEffects.activate(GameData.item_by_id("ale-cask"), 0)
+	check(r["consumed"], "ale cask is consumed in klondike")
+	check_eq(RunState.gs["stock"].size(), stock_n - 1, "exactly one card leaves the stock")
+	check_eq(Cards.key(RunState.gs["waste"].back()), Cards.key(bottom),
+		"klondike: the bottom card is now on the waste")
+	RunState.start_game("tripeaks", 5)
+	bottom = RunState.gs["stock"].back()  # TriPeaks draws from the front
+	r = ItemEffects.activate(GameData.item_by_id("ale-cask"), 0)
+	check_eq(Cards.key(RunState.gs["waste"].back()), Cards.key(bottom),
+		"tripeaks: the bottom card is now on the waste")
+	RunState.start_game("spider", 5)
+	r = ItemEffects.activate(GameData.item_by_id("ale-cask"), 0)
+	check(not r["consumed"], "ale cask is refused in spider")
+	check(not ItemEffects.usable_in("draw-bottom", "freecell"), "and not offered in freecell")
+
+	# ── Walsingham's Ledger: the stock stays open for the floor ──
+	RunState.start_game("tripeaks", 5)
+	r = ItemEffects.activate(GameData.item_by_id("ledger"), 0)
+	check(r["consumed"], "ledger is consumed")
+	check(bool(RunState.gs.get("ledger", false)), "the ledger flag is set")
+	r = ItemEffects.activate(GameData.item_by_id("ledger"), 0)
+	check(not r["consumed"], "a second ledger on the same floor is refused")
+	RunState.start_game("freecell", 5)
+	r = ItemEffects.activate(GameData.item_by_id("ledger"), 0)
+	check(not r["consumed"], "ledger is refused where there is no stock")
+
+	# ── Rizzio's Dagger reuses the Athame's remove-card ──
+	check_eq(String(GameData.item_by_id("dagger")["effect"]), "remove-card",
+		"the dagger shares the athame's effect")
+	RunState.start_game("pyramid", 5)
+	r = ItemEffects.activate(GameData.item_by_id("dagger"), 0)
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "pyramid", "index": 27})
+	check(res["consumed"], "the dagger removes a pyramid card")
+	check(RunState.gs["pyramid"][27] == null, "the slot is empty")
+
+	# ── Laundress's Cloak: two clicks, two cards trade places ──
+	RunState.start_game("freecell", 5)
+	var a: Dictionary = RunState.gs["tableau"][0].back()
+	var b: Dictionary = RunState.gs["tableau"][5][2]  # mid-pile: "wherever they lie"
+	r = ItemEffects.activate(GameData.item_by_id("cloak"), 0)
+	check_eq(String(r["mode"]["effect"]), "swap-cards", "cloak arms swap-cards")
+	var first := {"kind": "tableau", "col": 0, "index": RunState.gs["tableau"][0].size() - 1}
+	res = ItemEffects.resolve_mode(r["mode"], first)
+	check(not res["consumed"], "the first click does not spend the cloak")
+	check(res["mode"].has("first"), "the first click re-arms the mode with its card")
+	var again := ItemEffects.resolve_mode(res["mode"], first)
+	check(not again["consumed"], "clicking the same card twice is refused")
+	res = ItemEffects.resolve_mode(res["mode"], {"kind": "tableau", "col": 5, "index": 2})
+	check(res["consumed"], "the second click spends the cloak")
+	check_eq(Cards.key(RunState.gs["tableau"][0].back()), Cards.key(b), "B now sits where A was")
+	check_eq(Cards.key(RunState.gs["tableau"][5][2]), Cards.key(a), "A now sits where B was")
+	RunState.start_game("klondike", 5)
+	r = ItemEffects.activate(GameData.item_by_id("cloak"), 0)
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "tableau", "col": 6, "index": 0})
+	check(not res["consumed"] and not res["mode"].has("first"),
+		"a face-down card cannot be picked")
+	res = ItemEffects.resolve_mode(r["mode"], {"kind": "foundation", "col": 0})
+	check(not res["consumed"], "a foundation cannot be picked")
+
+	# ── The Black Pearls: every Queen comes to hand ──
+	RunState.start_game("klondike", 5)
+	var gs := Cards.clone_state(RunState.gs)
+	gs["tableau"] = [[c.call(0, 12, false), c.call(1, 5)], [c.call(1, 12, false), c.call(0, 9, false), c.call(3, 2)],
+		[], [], [], [], []]
+	gs["stock"] = [c.call(2, 12, false), c.call(2, 3, false)]
+	gs["waste"] = [c.call(3, 12)]
+	gs["foundations"] = [[], [], [], []]
+	RunState.gs = gs
+	r = ItemEffects.activate(GameData.item_by_id("pearls"), 0)
+	check(r["consumed"], "pearls are consumed")
+	var queens := 0
+	for w in RunState.gs["waste"]:
+		if int(w["rank"]) == 12:
+			queens += 1
+			check(bool(w["face_up"]), "a gathered Queen is face-up")
+	check_eq(queens, 4, "all four Queens are on the waste")
+	check_eq(int(RunState.gs["waste"].back()["rank"]), 12, "and one is playable on top")
+	check_eq(RunState.gs["tableau"][1].size(), 2, "the buried Queen left its pile")
+	r = ItemEffects.activate(GameData.item_by_id("pearls"), 0)
+	check(not r["consumed"], "with no Queen left to gather, nothing is spent")
+	# FreeCell: into the free cells, the most deeply buried first.
+	RunState.start_game("freecell", 5)
+	gs = Cards.clone_state(RunState.gs)
+	gs["freecells"] = [c.call(0, 2), c.call(0, 3), null, null]
+	gs["tableau"] = [[c.call(0, 12), c.call(1, 4), c.call(1, 5), c.call(1, 6)],
+		[c.call(1, 12)], [c.call(2, 12), c.call(2, 4)], [c.call(3, 12)], [], [], [], []]
+	RunState.gs = gs
+	r = ItemEffects.activate(GameData.item_by_id("pearls"), 0)
+	check(r["consumed"], "pearls work in freecell")
+	check_eq(int(RunState.gs["freecells"][2]["rank"]), 12, "a Queen fills the first empty cell")
+	check_eq(Cards.key(RunState.gs["freecells"][2]), Cards.key(c.call(0, 12)),
+		"the most deeply buried Queen is taken first")
+	check_eq(Cards.key(RunState.gs["freecells"][3]), Cards.key(c.call(2, 12)),
+		"then the next most buried")
+	RunState.gs["freecells"] = [c.call(0, 2), c.call(0, 3), c.call(0, 4), c.call(0, 5)]
+	r = ItemEffects.activate(GameData.item_by_id("pearls"), 0)
+	check(not r["consumed"], "pearls refused when every cell is full")
+
+	# ── Fotheringhay Block: a rank leaves the floor; nothing is stranded ──
+	check(not ItemEffects.usable_in("purge-rank", "klondike"), "the block is not sold for klondike")
+	check(ItemEffects.usable_in("purge-rank", "tripeaks"), "the block works in tripeaks")
+	RunState.start_game("pyramid", 5)
+	r = ItemEffects.activate(GameData.item_by_id("block"), 0)
+	check(bool(r["picker"].get("ranks", false)), "block opens a rank picker")
+	res = ItemEffects.resolve_picker(r["picker"], {"suit": 0, "rank": 7})
+	check(res["consumed"], "block is consumed")
+	var sevens := 0
+	for p in RunState.gs["pyramid"]:
+		if p != null and int(p["rank"]) == 7:
+			sevens += 1
+	for z in ["stock", "waste"]:
+		for p in RunState.gs[z]:
+			if int(p["rank"]) == 7:
+				sevens += 1
+	check_eq(sevens, 0, "no 7 is left anywhere on the floor")
+	check(Rules.pyramid_clears_alone(c.call(0, 6), RunState.gs), "the orphaned 6s now clear alone")
+	check(not Rules.pyramid_clears_alone(c.call(0, 5), RunState.gs), "other ranks still need a pair")
+	res = ItemEffects.resolve_picker(r["picker"], {"suit": 0, "rank": 7})
+	check(not res["consumed"], "purging a rank already gone is refused")
+	RunState.undo_move()
+	check(not RunState.gs.has("lone_ranks"), "an undo brings the 7s back and un-orphans the 6s")
+	# TriPeaks: the purged rank drops out of the ring.
+	check(Rules.tripeaks_can_play(c.call(0, 6), c.call(1, 8), false, [7]), "6 plays on 8 once the 7s are gone")
+	check(not Rules.tripeaks_can_play(c.call(0, 6), c.call(1, 8)), "but not otherwise")
+	check(Rules.tripeaks_can_play(c.call(0, 1), c.call(1, 13)), "A and K still wrap")
+	check(Rules.tripeaks_can_play(c.call(0, 1), c.call(1, 12), false, [13]), "and A reaches Q past a purged K")
+
+	# ── Lochleven Deed: a re-deal that costs no life ──
+	RunState.new_run()
+	RunState.start_game("klondike", 5)
+	RunState.gold = 400
+	var lives := RunState.lives
+	var old_key := Cards.key(RunState.gs["tableau"][6].back())
+	RunState.push_undo()
+	r = ItemEffects.activate(GameData.item_by_id("deed"), 0)
+	check(r["consumed"], "the deed is consumed")
+	check_eq(RunState.lives, lives, "no life is spent")
+	check_eq(RunState.gold, 400, "gold is kept")
+	check_eq(RunState.screen, "game", "the player stays at the table")
+	check(RunState.undo_stack.is_empty(), "the old deal cannot be undone back into")
+	check_eq(RunState.gs["stock"].size(), 24, "the floor is dealt from scratch")
+	check(old_key != "" , "re-deal ran")
+
+	# ── Cloth of Estate: a Queen plays on anything ──
+	var q: Dictionary = c.call(1, 12)
+	var five: Array = [c.call(1, 5)]
+	check(not Rules.klondike_can_tableau([q], five), "normally a Queen cannot go on a 5")
+	check(Rules.klondike_can_tableau([q], five, true), "under the Cloth it can")
+	check(Rules.freecell_can_tableau(q, five, true), "freecell too")
+	check(Rules.spider_can_drop([q], five, true), "spider too")
+	check(Rules.tripeaks_can_play(q, c.call(0, 3), true), "tripeaks: a Queen plays on a 3")
+	check(not Rules.klondike_can_tableau([c.call(0, 4)], [q], true), "only the Queen is freed")
+	RunState.start_game("pyramid", 5)
+	r = ItemEffects.activate(GameData.item_by_id("estate"), 0)
+	check(r["consumed"], "the cloth is consumed")
+	check(Rules.pyramid_clears_alone(q, RunState.gs), "pyramid: a Queen clears alone")
+	r = ItemEffects.activate(GameData.item_by_id("estate"), 0)
+	check(not r["consumed"], "a second cloth on the same floor is refused")
+	RunState.start_game("klondike", 5)
+	gs = Cards.clone_state(RunState.gs)
+	gs["queens_wild"] = true
+	gs["waste"] = [q]
+	gs["tableau"][0] = [c.call(1, 5)]
+	RunState.gs = gs
+	var found := Hints.klondike(RunState.gs, true)
+	var wild_hint := false
+	for h in found:
+		if String(h["src"]) == "waste" and String(h["tsrc"]) == "tab" and int(h["tcol"]) == 0:
+			wild_hint = true
+	check(wild_hint, "the hint finder sees the Queen's wild move")
+
+	RunState.new_run()
+	SaveManager.erase_all()
+
+
+## The board-side wiring: the Cloak's two clicks through the real screen, the
+## marked-rank ring and the Ledger strip.
+func test_mary_items_on_board() -> void:
+	suite("mary stuart items on the board")
+	RunState.new_run()
+	RunState.start_game("freecell", 5)
+	RunState.inventory = [GameData.item_by_id("cloak")]
+	var screen := (load("res://scenes/screens/game_screen.tscn") as PackedScene).instantiate()
+	add_child(screen)
+	await get_tree().process_frame
+	var a: Dictionary = RunState.gs["tableau"][0].back()
+	var b: Dictionary = RunState.gs["tableau"][1].back()
+	screen._on_item_pressed(0)
+	screen._click_slot({"kind": "tableau", "col": 0, "index": RunState.gs["tableau"][0].size() - 1})
+	check_eq(RunState.inventory.size(), 1, "the cloak is held after the first click")
+	check(screen._item_mode.has("first"), "the board remembers the first card")
+	screen._click_slot({"kind": "tableau", "col": 1, "index": RunState.gs["tableau"][1].size() - 1})
+	check_eq(RunState.inventory.size(), 0, "the cloak is spent after the second")
+	check_eq(Cards.key(RunState.gs["tableau"][0].back()), Cards.key(b), "the swap happened")
+	check(screen._item_mode.is_empty(), "the mode is disarmed")
+
+	# Marked rank: every face-up card of that rank carries the ring.
+	var gs := Cards.clone_state(RunState.gs)
+	gs["marked_ranks"] = [int(a["rank"])]
+	RunState.gs = gs
+	screen._rebuild()
+	var rings := 0
+	var expected := 0
+	for view in screen._board.get_children():
+		if view.has_meta("card_ref"):
+			var card: Dictionary = view.get_meta("card_ref")
+			if int(card["rank"]) == int(a["rank"]) and bool(card["face_up"]):
+				expected += 1
+				if view.marked:
+					rings += 1
+			elif view.marked:
+				rings += 100
+	check(expected > 0 and rings == expected, "exactly the marked rank's cards are ringed")
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+
+	# Ledger: the strip lists the stock in draw order.
+	RunState.start_game("klondike", 5)
+	RunState.gs["ledger"] = true
+	screen = (load("res://scenes/screens/game_screen.tscn") as PackedScene).instantiate()
+	add_child(screen)
+	await get_tree().process_frame
+	check(screen._ledger != null and screen._ledger.visible, "the ledger strip is shown")
+	var next: Dictionary = RunState.gs["stock"].back()
+	check(screen._ledger.text.contains("%s%s" % [Cards.rank_name(next), Cards.symbol(next)]),
+		"the next card to draw is listed")
+	remove_child(screen)
+	screen.queue_free()
+	await get_tree().process_frame
+	RunState.new_run()
