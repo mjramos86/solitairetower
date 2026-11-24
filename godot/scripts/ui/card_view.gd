@@ -15,6 +15,7 @@ const CORNER_RADIUS := 4.0
 ## a 1px line was lost to anti-aliasing when the canvas is scaled, so the first
 ## of three fanned waste cards had no visible divider from the second.
 const BORDER_WIDTH := 2.0
+const MARK_COLOUR := Color("c0143c")
 
 ## Card face metrics as fractions of card width, from the CSS --cfs/--cfss/--cfc
 ## on a 116px card: rank 32, corner suit 18, centre pip 84.
@@ -38,6 +39,13 @@ var hinted := false:
 		_hint_phase = 0.0
 		queue_redraw()
 var playable := true
+## Mary Stuart's Nomenclator Disc: this card's rank was named, so it carries a
+## steady crimson ring for the rest of the floor. Steady rather than pulsing, so
+## it never reads as a hint.
+var marked := false:
+	set(value):
+		marked = value
+		queue_redraw()
 
 ## Advances while the card is hinted so the Scrying Glass glow pulses.
 var _hint_phase := 0.0
@@ -96,6 +104,9 @@ func _draw() -> void:
 	else:
 		_draw_face(r)
 
+	if marked and face_up:
+		draw_rect(r.grow(-2.0), MARK_COLOUR, false, 3.0)
+		draw_rect(r.grow(1.0), Color(MARK_COLOUR, 0.35), false, 2.0)
 	if hinted:
 		_draw_hint_glow(r)
 	if selected:

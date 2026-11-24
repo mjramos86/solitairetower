@@ -26,6 +26,7 @@ static func find(state: Dictionary, all: bool = false) -> Array:
 
 static func klondike(gs: Dictionary, all: bool) -> Array:
 	var hints := []
+	var wild := Rules.queens_wild(gs)
 	var waste: Array = gs["waste"]
 	if not waste.is_empty():
 		var wtop: Dictionary = waste[waste.size() - 1]
@@ -33,7 +34,7 @@ static func klondike(gs: Dictionary, all: bool) -> Array:
 			hints.append({"src": "waste", "col": -1, "index": -1,
 				"tsrc": "found", "tcol": wtop["suit"]})
 		for c in 7:
-			if Rules.klondike_can_tableau([wtop], gs["tableau"][c]):
+			if Rules.klondike_can_tableau([wtop], gs["tableau"][c], wild):
 				hints.append({"src": "waste", "col": -1, "index": -1, "tsrc": "tab", "tcol": c})
 
 	for c in 7:
@@ -51,7 +52,7 @@ static func klondike(gs: Dictionary, all: bool) -> Array:
 			for d in 7:
 				if d == c:
 					continue
-				if Rules.klondike_can_tableau(cards, gs["tableau"][d]):
+				if Rules.klondike_can_tableau(cards, gs["tableau"][d], wild):
 					hints.append({"src": "tab", "col": c, "index": idx, "tsrc": "tab", "tcol": d})
 			if not all:
 				break
@@ -65,6 +66,7 @@ static func klondike(gs: Dictionary, all: bool) -> Array:
 
 static func spider(gs: Dictionary, all: bool) -> Array:
 	var hints := []
+	var wild := Rules.queens_wild(gs)
 	var columns: int = gs["tableau"].size()
 	for c in columns:
 		var pile: Array = gs["tableau"][c]
@@ -77,7 +79,7 @@ static func spider(gs: Dictionary, all: bool) -> Array:
 			for d in columns:
 				if d == c:
 					continue
-				if Rules.spider_can_drop(cards, gs["tableau"][d]):
+				if Rules.spider_can_drop(cards, gs["tableau"][d], wild):
 					hints.append({"src": "tab", "col": c, "index": idx, "tsrc": "tab", "tcol": d})
 					if not all:
 						return hints
@@ -93,7 +95,8 @@ static func tripeaks(gs: Dictionary, all: bool) -> Array:
 		var card = gs["pyramid"][i]
 		if card == null:
 			continue
-		if Rules.tripeaks_free(gs["pyramid"], i) and Rules.tripeaks_can_play(card, wtop):
+		if Rules.tripeaks_free(gs["pyramid"], i) and Rules.tripeaks_can_play(card, wtop,
+				Rules.queens_wild(gs), Rules.purged_ranks(gs)):
 			hints.append({"src": "pycard", "col": 0, "index": i})
 			if not all:
 				return hints
@@ -113,8 +116,8 @@ static func pyramid(gs: Dictionary, all: bool) -> Array:
 			if card == null or Rules.pyramid_blocked(gs["pyramid"], r, c):
 				continue
 
-			# A king clears by itself.
-			if int(card["rank"]) == Cards.RANK_KING:
+			# A king clears by itself (and, under Mary Stuart's items, a few more).
+			if Rules.pyramid_clears_alone(card, gs):
 				hints.append({"src": "pycard", "col": 0, "index": i})
 				if not all:
 					return hints
@@ -145,6 +148,7 @@ static func pyramid(gs: Dictionary, all: bool) -> Array:
 
 static func freecell(gs: Dictionary, all: bool) -> Array:
 	var hints := []
+	var wild := Rules.queens_wild(gs)
 	var movable := []
 	for c in gs["tableau"].size():
 		var pile: Array = gs["tableau"][c]
@@ -167,7 +171,7 @@ static func freecell(gs: Dictionary, all: bool) -> Array:
 		for d in 8:
 			if m["src"] == "tab" and d == m["col"]:
 				continue
-			if Rules.freecell_can_tableau(m["card"], gs["tableau"][d]):
+			if Rules.freecell_can_tableau(m["card"], gs["tableau"][d], wild):
 				hints.append({"src": m["src"], "col": m["col"], "index": m["index"],
 					"tsrc": "tab", "tcol": d})
 				if not all:

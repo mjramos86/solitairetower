@@ -77,6 +77,9 @@ var _seen_key := ""
 var _active_topic: Dictionary = {}
 var _victory_choice := -1
 var _is_intro := false
+## Whose transmission this is: "johndee" or "marie". Picks the portrait, the
+## name plate, the title bar and which speaker id talks from the bubble.
+var _patron := "johndee"
 
 # Plain mode nodes.
 var _plain: Control
@@ -105,10 +108,25 @@ var _typing_label: Label
 
 
 func _ready() -> void:
+	_patron = Narrative.patron_for_screen(RunState.screen, RunState.patron)
 	_build_plain()
 	_build_call()
 	_configure()
 	_render()
+
+
+## The speaker id that talks from the patron's speech bubble. Dee's lines were
+## authored as "dee"; Mary's use her patron id.
+func _patron_speaker() -> String:
+	return "marie" if _patron == "marie" else "dee"
+
+
+func _victory_choices() -> Array:
+	return Narrative.MARIE_VICTORY_CHOICES if _patron == "marie" else Narrative.VICTORY_CHOICES
+
+
+func _victory_responses() -> Array:
+	return Narrative.MARIE_VICTORY_RESPONSES if _patron == "marie" else Narrative.VICTORY_RESPONSES
 
 
 func _configure() -> void:
@@ -128,8 +146,24 @@ func _configure() -> void:
 			_beats = Narrative.DEE_FINAL
 		"victory-dialogue":
 			_beats = []
-			for line in Narrative.VICTORY_LINES:
-				_beats.append({"speaker": "dee", "text": line})
+			var lines: Array = Narrative.MARIE_VICTORY_LINES if _patron == "marie" \
+				else Narrative.VICTORY_LINES
+			for line in lines:
+				_beats.append({"speaker": _patron_speaker(), "text": line})
+		"marie-greeting":
+			_beats = Narrative.MARIE_GREETING
+		"marie-checkin":
+			_beats = Narrative.MARIE_CHECKIN_INTRO
+			_topics = Narrative.MARIE_CHECKIN_TOPICS
+			_seen_key = "seen_marie_topics"
+		"marie-dialogue3":
+			_beats = Narrative.MARIE_DIALOGUE3_INTRO
+			_topics = Narrative.MARIE_DIALOGUE3_TOPICS
+			_seen_key = "seen_marie3_topics"
+		"marie-final":
+			_beats = Narrative.MARIE_FINAL
+		"marie-defeat":
+			_beats = Narrative.MARIE_DEFEAT
 		_:
 			_beats = []
 
@@ -447,14 +481,14 @@ func _build_call() -> void:
 	body.add_child(portrait_col)
 
 	_portrait = TextureRect.new()
-	_portrait.texture = load(AssetPaths.PATRONS["johndee"])
+	_portrait.texture = load(AssetPaths.PATRONS[_patron])
 	_portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait_col.add_child(_portrait)
 
 	var label := Label.new()
-	label.text = "JOHN DEE"
+	label.text = "MARY STUART" if _patron == "marie" else "JOHN DEE"
 	label.position = Vector2(8, 8)
 	label.add_theme_font_override("font", UITheme.font("pixel"))
 	label.add_theme_font_size_override("font_size", 15)
@@ -512,7 +546,8 @@ func _build_titlebar() -> Control:
 	bar.add_child(row)
 
 	var title := Label.new()
-	title.text = Locale.t("📞  Incoming Transmission -- John Dee")
+	title.text = Locale.t("📞  Incoming Transmission -- Mary Stuart") if _patron == "marie" \
+		else Locale.t("📞  Incoming Transmission -- John Dee")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.add_theme_font_override("font", UITheme.font("pixel"))
 	title.add_theme_font_size_override("font_size", 18)
@@ -608,7 +643,7 @@ func _call_content(beat: Dictionary) -> void:
 		_animate_type(label)
 		return
 
-	if speaker == "dee":
+	if speaker == _patron_speaker():
 		_content.add_child(_speech_bubble(text, "left"))
 		return
 
@@ -842,8 +877,9 @@ func _show_victory_choices() -> void:
 	_call.visible = true
 	for child in _content.get_children():
 		child.queue_free()
-	for i in Narrative.VICTORY_CHOICES.size():
-		var button := _choice_button(Locale.t(String(Narrative.VICTORY_CHOICES[i])))
+	var choices := _victory_choices()
+	for i in choices.size():
+		var button := _choice_button(Locale.t(String(choices[i])))
 		button.pressed.connect(_choose_victory.bind(i))
 		_content.add_child(button)
 	_call_footer.visible = false
@@ -851,7 +887,7 @@ func _show_victory_choices() -> void:
 
 func _choose_victory(index: int) -> void:
 	_victory_choice = index
-	_beats = [{"speaker": "dee", "text": String(Narrative.VICTORY_RESPONSES[index])}]
+	_beats = [{"speaker": _patron_speaker(), "text": String(_victory_responses()[index])}]
 	_index = 0
 	_call_footer.visible = true
 	_render()
@@ -891,10 +927,17 @@ func _finish() -> void:
 			else:
 				RunState.new_run()
 				RunState.set_screen("patron-select")
-		"dee-checkin-dialogue", "dee-dialogue3", "dee-final-dialogue":
+		"dee-checkin-dialogue", "dee-dialogue3", "dee-final-dialogue", \
+		"marie-checkin", "marie-dialogue3", "marie-final":
 			SaveManager.mark_dirty()
 			RunState.proceed_to_shop()
 		"victory-dialogue":
 			RunState.set_screen("victory")
+		"marie-greeting":
+			RunState.set_screen("map")
+		"marie-defeat":
+			# The run already ended when the last life went (RunState._lose_life);
+			# this only hands over to the game-over screen it was holding back.
+			RunState.set_screen("gameover")
 		_:
 			RunState.set_screen("map")

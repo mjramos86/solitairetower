@@ -89,6 +89,8 @@ var _stuck_announced := false
 
 ## Armed click-targeting item, e.g. the Athame waiting for a card to remove.
 var _item_mode: Dictionary = {}
+## The Walsingham's Ledger strip; built the first time the ledger opens.
+var _ledger: Label
 ## Slots currently glowing from a hint item.
 var _hint_slots: Array = []
 var _hint_timer: SceneTreeTimer
@@ -700,6 +702,50 @@ func _apply_result(result: Dictionary, inv_index: int) -> void:
 		_check_stuck()
 
 
+## Walsingham's Ledger: once opened, the stock's whole order stays listed in a
+## strip under the toolbar for the rest of the floor, next card first. Built in
+## code beside the item banner so the felt's per-move rebuild never touches it.
+func _refresh_ledger() -> void:
+	var gs := RunState.gs
+	var on := bool(gs.get("ledger", false))
+	if _ledger == null:
+		if not on:
+			return
+		_ledger = Label.new()
+		_ledger.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_ledger.add_theme_font_override("font", UITheme.font("pixel"))
+		_ledger.add_theme_font_size_override("font_size", 18)
+		_ledger.add_theme_color_override("font_color", UITheme.GOLD)
+		var box := StyleBoxFlat.new()
+		box.bg_color = Color(0.08, 0.02, 0.04, 0.92)
+		box.border_width_bottom = 2
+		box.border_color = Color("c0143c")
+		box.content_margin_left = 12
+		box.content_margin_right = 12
+		box.content_margin_top = 4
+		box.content_margin_bottom = 4
+		_ledger.add_theme_stylebox_override("normal", box)
+		_banner.get_parent().add_child(_ledger)
+		_banner.get_parent().move_child(_ledger, _banner.get_index() + 1)
+	_ledger.visible = on
+	if not on:
+		return
+	var names := PackedStringArray()
+	for c in _stock_in_draw_order(gs):
+		names.append("%s%s" % [Cards.rank_name(c), Cards.symbol(c)])
+	_ledger.text = Locale.t("WALSINGHAM'S LEDGER — the stock, next card first:") \
+		+ "  " + ("  ".join(names) if not names.is_empty() else "—")
+
+
+## The stock as the player will meet it. Klondike and Pyramid draw from the end
+## of the array, TriPeaks from the front.
+func _stock_in_draw_order(gs: Dictionary) -> Array:
+	var stock: Array = (gs.get("stock", []) as Array).duplicate()
+	if String(gs.get("type", "")) != "tripeaks":
+		stock.reverse()
+	return stock
+
+
 func _cancel_item_mode() -> void:
 	_item_mode = {}
 	_banner.visible = false
@@ -770,9 +816,13 @@ func _open_picker(picker: Dictionary) -> void:
 	grid.add_theme_constant_override("v_separation", 6)
 
 	var layer: CanvasLayer
+	var ranks_only := bool(picker.get("ranks", false))
 	for card in picker["cards"]:
 		var button := Button.new()
-		button.text = "%s%s" % [Cards.rank_name(card), Cards.symbol(card)]
+		# A rank picker (Nomenclator Disc, Fotheringhay Block) names ranks, not
+		# cards, so its buttons carry no suit.
+		button.text = Cards.rank_name(card) if ranks_only \
+			else "%s%s" % [Cards.rank_name(card), Cards.symbol(card)]
 		button.custom_minimum_size = Vector2(56, 44)
 		button.pressed.connect(func():
 			var result := ItemEffects.resolve_picker(picker, card)
@@ -836,6 +886,7 @@ func _rebuild() -> void:
 		return
 	_refresh_header()
 	_refresh_inventory()
+	_refresh_ledger()
 
 	var gs := RunState.gs
 	# The patron's column is permanent furniture on the right of the felt, so
@@ -1091,9 +1142,22 @@ func _spawn(card, pos: Vector2, meta: Dictionary, face_up_override = null) -> Co
 		view.set_meta("card_ref", card)
 	view.set_meta("slot", meta)
 	view.card_pressed.connect(_on_card_pressed)
-	view.selected = _is_selected(meta)
+	view.selected = _is_selected(meta) or _is_swap_first(meta)
 	view.hinted = _is_hinted(meta)
+	if card != null:
+		view.marked = (RunState.gs.get("marked_ranks", []) as Array).has(int(card.get("rank", 0)))
 	return view
+
+
+## The card the Laundress's Cloak has already picked, waiting for its partner.
+func _is_swap_first(meta: Dictionary) -> bool:
+	var first: Dictionary = _item_mode.get("first", {})
+	if first.is_empty():
+		return false
+	return String(first.get("kind", "")) == String(meta.get("kind", "")) \
+		and int(first.get("col", -1)) == int(meta.get("col", -1)) \
+		and int(first.get("index", -1)) == int(meta.get("index", -1)) \
+		and int(first.get("windex", -1)) == int(meta.get("windex", -1))
 
 
 ## Empty pile marker — a dashed outline the player can click as a drop target.
@@ -1635,9 +1699,9 @@ func _auto_targets(gs: Dictionary, from: Dictionary) -> Array:
 		var pile: Array = gs["tableau"][c]
 		var ok := false
 		match type:
-			"klondike": ok = Rules.klondike_can_tableau(cards, pile)
-			"spider": ok = Rules.spider_can_drop(cards, pile)
-			"freecell": ok = Rules.freecell_can_tableau(cards[0], pile)
+			"klondike": ok = Rules.klondike_can_tableau(cards, pile, Rules.queens_wild(gs))
+			"spider": ok = Rules.spider_can_drop(cards, pile, Rules.queens_wild(gs))
+			"freecell": ok = Rules.freecell_can_tableau(cards[0], pile, Rules.queens_wild(gs))
 		if not ok:
 			continue
 		if pile.is_empty():
@@ -1971,9 +2035,9 @@ func _try_move(from: Dictionary, to: Dictionary) -> bool:
 			var target: Array = gs["tableau"][to["col"]]
 			var ok := false
 			match gs["type"]:
-				"klondike": ok = Rules.klondike_can_tableau(cards, target)
-				"spider": ok = Rules.spider_can_drop(cards, target)
-				"freecell": ok = Rules.freecell_can_tableau(cards[0], target)
+				"klondike": ok = Rules.klondike_can_tableau(cards, target, Rules.queens_wild(gs))
+				"spider": ok = Rules.spider_can_drop(cards, target, Rules.queens_wild(gs))
+				"freecell": ok = Rules.freecell_can_tableau(cards[0], target, Rules.queens_wild(gs))
 			if ok:
 				for c in cards:
 					target.append(c)
@@ -2137,7 +2201,8 @@ func _tripeaks_play(meta: Dictionary) -> void:
 	if not gs["waste"].is_empty():
 		waste_top = gs["waste"][gs["waste"].size() - 1]
 	var card = gs["pyramid"][idx] if Rules.tripeaks_free(gs["pyramid"], idx) else null
-	if card == null or not Rules.tripeaks_can_play(card, waste_top):
+	if card == null or not Rules.tripeaks_can_play(card, waste_top,
+			Rules.queens_wild(gs), Rules.purged_ranks(gs)):
 		# A failed play resets the streak.
 		RunState.tp_streak = 0
 		_rebuild()
@@ -2166,7 +2231,7 @@ func _pyramid_click(meta: Dictionary) -> void:
 		_coach(Coach.play(gs, meta))
 		return
 
-	if int(picked["rank"]) == Cards.RANK_KING:
+	if Rules.pyramid_clears_alone(picked, gs):
 		RunState.push_undo()
 		_pyramid_remove(gs, meta)
 		RunState.gs = gs
@@ -2275,6 +2340,16 @@ func _resolve_item_click(meta: Dictionary) -> void:
 	var result := ItemEffects.resolve_mode(_item_mode, meta)
 	var message := String(result.get("message", ""))
 
+	# A two-click item (the Laundress's Cloak) answers its first click with the
+	# mode re-armed, carrying the card already chosen.
+	var rearmed: Dictionary = result.get("mode", {})
+	if not bool(result.get("consumed", false)) and not rearmed.is_empty():
+		_item_mode = rearmed
+		_show_banner()
+		AudioManager.card_taken()
+		_rebuild()
+		return
+
 	# A failed target keeps the mode armed so the player can try again, which
 	# is what the web build did — only a successful use consumes the item.
 	if not bool(result.get("consumed", false)):
@@ -2326,9 +2401,9 @@ func _try_unstash(meta: Dictionary) -> void:
 		"tableau":
 			var target: Array = gs["tableau"][meta["col"]]
 			match gs["type"]:
-				"klondike": accepted = Rules.klondike_can_tableau([card], target)
-				"spider": accepted = Rules.spider_can_drop([card], target)
-				"freecell": accepted = Rules.freecell_can_tableau(card, target)
+				"klondike": accepted = Rules.klondike_can_tableau([card], target, Rules.queens_wild(gs))
+				"spider": accepted = Rules.spider_can_drop([card], target, Rules.queens_wild(gs))
+				"freecell": accepted = Rules.freecell_can_tableau(card, target, Rules.queens_wild(gs))
 			if accepted:
 				target.append(card)
 		"foundation":

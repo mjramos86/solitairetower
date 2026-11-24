@@ -13,6 +13,18 @@ extends RefCounted
 
 const MAX_CARD_POINTS := 20
 
+const RANK_QUEEN := 12
+
+
+## True while Mary Stuart's Cloth of Estate is in force on this floor.
+static func queens_wild(state: Dictionary) -> bool:
+	return bool(state.get("queens_wild", false))
+
+
+## Ranks the Fotheringhay Block has taken off this floor.
+static func purged_ranks(state: Dictionary) -> Array:
+	return state.get("purged_ranks", [])
+
 ## Points awarded per event, from klondike.md (Klondike) and the per-variant
 ## handlers in index.html.
 ##
@@ -95,10 +107,14 @@ static func klondike_can_foundation(card: Dictionary, foundations: Array) -> boo
 	return f[f.size() - 1]["rank"] == card["rank"] - 1
 
 
-static func klondike_can_tableau(cards: Array, target: Array) -> bool:
+## `wild` is Mary Stuart's Cloth of Estate: while it hangs over the floor, a
+## Queen (alone or heading a run) may be laid on any pile at all.
+static func klondike_can_tableau(cards: Array, target: Array, wild := false) -> bool:
 	if cards.is_empty():
 		return false
 	var moving: Dictionary = cards[0]
+	if wild and int(moving["rank"]) == RANK_QUEEN:
+		return true
 	if target.is_empty():
 		return moving["rank"] == Cards.RANK_KING
 	var top: Dictionary = target[target.size() - 1]
@@ -312,9 +328,11 @@ static func spider_sequence_length(pile: Array) -> int:
 	return length
 
 
-static func spider_can_drop(cards: Array, target: Array) -> bool:
+static func spider_can_drop(cards: Array, target: Array, wild := false) -> bool:
 	if cards.is_empty():
 		return false
+	if wild and int(cards[0]["rank"]) == RANK_QUEEN:
+		return true
 	if target.is_empty():
 		return true
 	var top: Dictionary = target[target.size() - 1]
@@ -435,14 +453,31 @@ static func tripeaks_update_face_up(pyramid: Array) -> void:
 
 
 ## Rank must be adjacent to the waste top, wrapping A-K.
-static func tripeaks_can_play(card: Dictionary, waste_top) -> bool:
+##
+## Two of Mary Stuart's items bend this. With `wild` (Cloth of Estate) a Queen
+## plays on anything. With `purged` ranks (Fotheringhay Block) the purged ranks
+## drop out of the ring, so the ranks either side of a gap become neighbours —
+## without that, purging the 7s would strand every 6 and 8 for the whole floor.
+static func tripeaks_can_play(card: Dictionary, waste_top, wild := false, purged: Array = []) -> bool:
 	if waste_top == null:
 		return true
-	var d: int = abs(card["rank"] - waste_top["rank"])
-	if d == 1:
+	if wild and int(card["rank"]) == RANK_QUEEN:
 		return true
-	return (card["rank"] == 1 and waste_top["rank"] == 13) \
-		or (card["rank"] == 13 and waste_top["rank"] == 1)
+	var a := int(card["rank"])
+	var b := int(waste_top["rank"])
+	if a == b:
+		return false
+	# Walk the A..K ring one way and then the other, skipping purged ranks; the
+	# two are adjacent when the first unpurged rank reached is the other card.
+	for dir in [1, -1]:
+		var r := a
+		for _i in 13:
+			r = ((r - 1 + dir) % 13 + 13) % 13 + 1
+			if not purged.has(r):
+				break
+		if r == b:
+			return true
+	return false
 
 
 static func tripeaks_won(state: Dictionary) -> bool:
@@ -519,6 +554,19 @@ static func pyramid_pairs(a: Dictionary, b) -> bool:
 	return a["rank"] + b["rank"] == 13
 
 
+## Whether a pyramid card clears by itself, with no partner. A King always
+## does. Under the Cloth of Estate a Queen does too. And once the Fotheringhay
+## Block has purged a rank, that rank's partners (the 6s, if the 7s went) have
+## nothing left to pair with, so they clear alone — `lone_ranks` lists them.
+static func pyramid_clears_alone(card: Dictionary, state: Dictionary) -> bool:
+	var rank := int(card["rank"])
+	if rank == Cards.RANK_KING:
+		return true
+	if queens_wild(state) and rank == RANK_QUEEN:
+		return true
+	return (state.get("lone_ranks", []) as Array).has(rank)
+
+
 static func pyramid_won(state: Dictionary) -> bool:
 	for c in state["pyramid"]:
 		if c != null:
@@ -582,8 +630,10 @@ static func freecell_can_foundation(card: Dictionary, foundations: Array) -> boo
 	return klondike_can_foundation(card, foundations)
 
 
-static func freecell_can_tableau(card: Dictionary, target: Array) -> bool:
+static func freecell_can_tableau(card: Dictionary, target: Array, wild := false) -> bool:
 	if target.is_empty():
+		return true
+	if wild and int(card["rank"]) == RANK_QUEEN:
 		return true
 	var top: Dictionary = target[target.size() - 1]
 	return top["rank"] == card["rank"] + 1 \

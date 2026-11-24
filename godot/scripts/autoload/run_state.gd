@@ -216,6 +216,8 @@ func next_floor() -> void:
 ## and the dialogues' own topic menus keep their ✓ marks across runs through the
 ## separate seen_* records, so choices already explored stay checked.
 func _pending_interlude() -> String:
+	if patron == "marie":
+		return _pending_marie_interlude()
 	if patron != "johndee":
 		return ""
 	match floor_index:
@@ -232,6 +234,17 @@ func _pending_interlude() -> String:
 			SaveManager.mark_dirty()
 			return "dee-final-dialogue"
 	return ""
+
+
+## Mary's interludes land on the same floors as Dee's and stamp their own
+## profile flags the first time, for whatever the compendium comes to key off.
+func _pending_marie_interlude() -> String:
+	var beats := {2: "marie-checkin", 5: "marie-dialogue3", 8: "marie-final"}
+	if not beats.has(floor_index):
+		return ""
+	SaveManager.profile["%s_done" % String(beats[floor_index]).replace("-", "_")] = true
+	SaveManager.mark_dirty()
+	return beats[floor_index]
 
 
 ## Moves on to the next floor. The between-floors shop is gone — the patron
@@ -283,17 +296,28 @@ func forfeit_run() -> void:
 ## A fresh deal of the floor the player is already on: same variant, same floor,
 ## new cards, and they stay at the table. It costs a life, like abandoning, but
 ## it is not abandoning — it must not bounce the player out to the tower.
-func new_shuffle() -> bool:
-	SaveManager.record_game_result(gtype, false)
-	if not _lose_life(false):
-		return false
+##
+## `free` is Mary Stuart's Lochleven Deed: the same re-deal at no cost. No life
+## is spent and the abandoned deal is not recorded as a loss. Gold, score and the
+## inventory are untouched either way; so are the floor's lasting item effects
+## (ItemEffects.CARRIED_FLAGS), which belong to the floor, not to the deal.
+func new_shuffle(free := false) -> bool:
+	if not free:
+		SaveManager.record_game_result(gtype, false)
+		if not _lose_life(false):
+			return false
+	else:
+		tp_streak = 0
+		_reset_board_flags()
 	undo_stack = []
 	moves = 0
 	floor_undos_used = 0
 	floor_start_time = Time.get_ticks_msec()
 	floor_start_score = score
+	var old := gs
 	gs = Rules.init_game(gtype, floor_index, extra_freecell)
 	Cards.assign_uids(gs)
+	ItemEffects.carry_floor_flags(old, gs)
 	state_changed.emit()
 	return true
 
@@ -315,7 +339,9 @@ func _lose_life(to_map := true) -> bool:
 	_reset_board_flags()
 	if lives <= 0:
 		stop_timer()
-		set_screen("gameover")
+		# Mary has a last word before the game-over screen; Dee has none. The
+		# run is recorded as ended here either way.
+		set_screen("marie-defeat" if patron == "marie" else "gameover")
 		end_run(false)
 		return false
 	if to_map:
@@ -481,7 +507,9 @@ func undo_move() -> bool:
 		toast.emit(Locale.t("No undos left this floor!"))
 		return false
 	var prev: Dictionary = undo_stack.pop_back()
+	var now := gs
 	gs = prev["gs"]
+	ItemEffects.carry_floor_flags(now, gs)
 	moves = int(prev["moves"])
 	score = int(prev["score"])
 	tp_streak = int(prev.get("tp_streak", 0))

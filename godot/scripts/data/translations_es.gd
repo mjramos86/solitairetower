@@ -698,4 +698,6 @@ const MAP := {
 	"Your inventory is full.": "Tu inventario está lleno.",
 	"Points this floor": "Puntos de este piso",
 	"Earned on the Board": "Ganado en el tablero",
+	"WALSINGHAM'S LEDGER — the stock, next card first:": "REGISTRO DE WALSINGHAM — el mazo, la próxima carta primero:",
+	"📞  Incoming Transmission -- Mary Stuart": "📞  Transmisión entrante -- Mary Stuart",
 }

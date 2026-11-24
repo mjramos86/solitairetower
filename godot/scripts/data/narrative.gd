@@ -696,3 +696,182 @@ const DEE_FINAL := [
 		"text": "Go through the challenges of the Cult of Doom again, keep weaving the threads of the secret history of Solitaire and find the Sacred Shuffle!"
 	}
 ]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Mary Stuart — PLACEHOLDER TEXT
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Every line below is a placeholder written to stand up the structure: the
+# scenes, their order and their routing are final, the words are not. Rewrite
+# them in Tower Text Studio like Dee's. They are not yet translated, so French,
+# Spanish and Portuguese players see these English lines until they are.
+#
+# Mary speaks as "marie" (the patron id), so the dialogue screen gives her the
+# speech bubble and her own portrait, exactly as it does Dee.
+#
+# Where her scenes play, mirroring Dee's:
+#   MARIE_GREETING        straight after she is chosen on the patron picker
+#   MARIE_CHECKIN_*       after floor 3 (index 2), intro + a menu of topics
+#   MARIE_DIALOGUE3_*     after floor 6 (index 5), intro + a menu of topics
+#   MARIE_FINAL           after floor 9 (index 8)
+#   MARIE_VICTORY_*       on winning the run (Dee has VICTORY_* for his)
+#   MARIE_DEFEAT          on losing the last life — new, Dee has no equivalent
+
+const MARIE_GREETING := [
+	{
+		"scene": true,
+		"text": "The line crackles. A different voice, low and unhurried, as if it has all the time in the world — and has learned that it does not."
+	},
+	{
+		"speaker": "marie",
+		"text": "So. Master Dee's player. He spoke of you — rather less than he imagines."
+	},
+	{
+		"speaker": "you",
+		"text": "Who is this?"
+	},
+	{
+		"speaker": "marie",
+		"text": "A queen of two kingdoms and a claimant to a third. Lately, a prisoner. Patience is the one game I was never denied."
+	},
+	{
+		"speaker": "marie",
+		"text": "Dee sells you sight. I sell you something better: a hand in the outcome. Remove what blocks you. Put what you need in its place."
+	},
+	{
+		"speaker": "marie",
+		"text": "Descend. I will be listening."
+	}
+]
+
+const MARIE_CHECKIN_INTRO := [
+	{
+		"speaker": "marie",
+		"text": "Three floors, and still standing. My gaolers would be disappointed. Ask, if you must."
+	}
+]
+
+const MARIE_CHECKIN_TOPICS := [
+	{
+		"id": "dee",
+		"question": "How do you know John Dee?",
+		"beats": [
+			{
+				"speaker": "marie",
+				"text": "He came to me at Chartley with a deck of cards and a theory. He left with neither."
+			},
+			{
+				"speaker": "you",
+				"text": "What happened to them?"
+			},
+			{
+				"speaker": "marie",
+				"text": "The cards, I kept. The theory, I improved."
+			}
+		]
+	},
+	{
+		"id": "wares",
+		"question": "Why should I trust your wares?",
+		"beats": [
+			{
+				"speaker": "marie",
+				"text": "You should not. Trust is how I lost a throne. Use them anyway — they do exactly what they say."
+			}
+		]
+	}
+]
+
+const MARIE_DIALOGUE3_INTRO := [
+	{
+		"speaker": "marie",
+		"text": "Halfway down. The Cult will have noticed you by now. Good — let them watch the wrong hand."
+	}
+]
+
+const MARIE_DIALOGUE3_TOPICS := [
+	{
+		"id": "cult",
+		"question": "What does the Cult want with you?",
+		"beats": [
+			{
+				"speaker": "marie",
+				"text": "What everyone has always wanted with me: a crown to place, and a head to remove."
+			},
+			{
+				"speaker": "you",
+				"text": "That is grim."
+			},
+			{
+				"speaker": "marie",
+				"text": "It is history. Grim is merely its accent."
+			}
+		]
+	},
+	{
+		"id": "queens",
+		"question": "Why so many Queens among your wares?",
+		"beats": [
+			{
+				"speaker": "marie",
+				"text": "Because a Queen on the board is the only piece that should answer to no one. I intend to prove it."
+			}
+		]
+	}
+]
+
+const MARIE_FINAL := [
+	{
+		"speaker": "marie",
+		"text": "One floor left. I know a little about last mornings."
+	},
+	{
+		"speaker": "you",
+		"text": "Any advice?"
+	},
+	{
+		"speaker": "marie",
+		"text": "Dress well. Speak plainly. And never let them see you count the cards you have left."
+	}
+]
+
+const MARIE_VICTORY_LINES := [
+	"The Tower is cleared. You played it the way I would have — by refusing the rules that were never yours.",
+	"Dee will call this his victory. Let him. We both know whose wares carried you."
+]
+
+const MARIE_VICTORY_CHOICES := [
+	"Shall we go again?",
+	"I think I have earned a rest."
+]
+
+const MARIE_VICTORY_RESPONSES := [
+	"Of course. A queen never wins only once.",
+	"Rest is for those who are not being watched. Soon, then."
+]
+
+const MARIE_DEFEAT := [
+	{
+		"speaker": "marie",
+		"text": "Ah. I know that silence. It is the one that falls just before the axe."
+	},
+	{
+		"speaker": "you",
+		"text": "Is that it, then?"
+	},
+	{
+		"speaker": "marie",
+		"text": "In my end is my beginning. Shuffle, and come back to me."
+	}
+]
+
+
+## Which patron's lines a conversation screen plays, by its screen name. The
+## shared victory screen follows whoever patronised the run.
+static func patron_for_screen(screen: String, run_patron: String) -> String:
+	if screen.begins_with("marie-"):
+		return "marie"
+	if screen == "victory-dialogue":
+		return run_patron if run_patron == "marie" else "johndee"
+	return "johndee"
