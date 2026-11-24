@@ -60,6 +60,7 @@ func _ready() -> void:
 	test_item_effects()
 	test_mary_items()
 	await test_mary_items_on_board()
+	test_mary_dialogue()
 	test_narrative()
 	test_compendium_features()
 	test_every_scene_loads()
@@ -3127,3 +3128,94 @@ func test_mary_items_on_board() -> void:
 	screen.queue_free()
 	await get_tree().process_frame
 	RunState.new_run()
+
+
+## Mary Stuart's conversations: where each plays, where each leaves to, and that
+## the call window wears her face when she is the one calling.
+func test_mary_dialogue() -> void:
+	suite("mary stuart dialogue")
+	SaveManager.erase_all()
+
+	# Choosing her on the picker opens her greeting before the tower.
+	RunState.new_run()
+	var picker: Control = load("res://scenes/screens/patron_select_screen.tscn").instantiate()
+	add_child(picker)
+	picker._choose("marie")
+	check_eq(RunState.patron, "marie", "she becomes the run's patron")
+	check_eq(RunState.screen, "marie-greeting", "her greeting plays on choosing her")
+	picker._choose("johndee")
+	check_eq(RunState.screen, "map", "choosing Dee still goes straight to the tower")
+	picker.queue_free()
+
+	# Her interludes fire on Dee's floors, under her own screen names.
+	RunState.new_run()
+	RunState.patron = "marie"
+	var seen := {}
+	for f in GameData.TOTAL_FLOORS:
+		RunState.start_game("klondike", f)
+		RunState.next_floor()
+		if RunState.screen.begins_with("marie-") or RunState.screen.begins_with("dee-"):
+			seen[f] = RunState.screen
+			RunState.proceed_to_shop()
+	check_eq(String(seen.get(2, "")), "marie-checkin", "floor 3 brings her check-in")
+	check_eq(String(seen.get(5, "")), "marie-dialogue3", "floor 6 her third call")
+	check_eq(String(seen.get(8, "")), "marie-final", "floor 9 her final word")
+	check_eq(seen.size(), 3, "and Dee never interrupts her run")
+	check_eq(RunState.screen, "victory-dialogue", "the last floor leads to the victory exchange")
+	check_eq(Narrative.patron_for_screen("victory-dialogue", "marie"), "marie",
+		"which she, not Dee, speaks")
+	check_eq(Narrative.patron_for_screen("victory-dialogue", "johndee"), "johndee",
+		"Dee keeps his own victory")
+
+	# Every scene has lines, and every speaking line is hers or the player's.
+	var scenes := [Narrative.MARIE_GREETING, Narrative.MARIE_CHECKIN_INTRO,
+		Narrative.MARIE_DIALOGUE3_INTRO, Narrative.MARIE_FINAL, Narrative.MARIE_DEFEAT]
+	for topic in Narrative.MARIE_CHECKIN_TOPICS + Narrative.MARIE_DIALOGUE3_TOPICS:
+		scenes.append(topic["beats"])
+	var stray := 0
+	for scene in scenes:
+		check((scene as Array).size() > 0, "a Mary scene has beats")
+		for beat in scene:
+			var who := String(beat.get("speaker", "scene"))
+			if not ["marie", "you", "scene"].has(who) and not bool(beat.get("scene", false)):
+				stray += 1
+	check_eq(stray, 0, "no Mary line is attributed to anyone else")
+	check_eq(Narrative.MARIE_VICTORY_CHOICES.size(), Narrative.MARIE_VICTORY_RESPONSES.size(),
+		"each victory choice has its answer")
+
+	# Losing the last life under her goes through her last word to game over.
+	RunState.new_run()
+	RunState.patron = "marie"
+	RunState.start_game("klondike", 0)
+	RunState.lives = 1
+	RunState.new_shuffle()
+	check_eq(RunState.screen, "marie-defeat", "her defeat line plays when the last life goes")
+	var dlg: Control = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+	add_child(dlg)
+	check_eq(dlg._patron, "marie", "the call window is hers")
+	check(dlg._portrait.texture.resource_path.ends_with("mary_stuart_portrait.png"),
+		"and wears her portrait")
+	dlg._finish()
+	check_eq(RunState.screen, "gameover", "then the game-over screen follows")
+	dlg.queue_free()
+	RunState.new_run()
+	RunState.start_game("klondike", 0)
+	RunState.lives = 1
+	RunState.new_shuffle()
+	check_eq(RunState.screen, "gameover", "Dee's runs still go straight to game over")
+
+	# An interlude hands on to the tower, like Dee's.
+	RunState.new_run()
+	RunState.patron = "marie"
+	RunState.floor_index = 2
+	RunState.set_screen("marie-checkin")
+	dlg = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+	add_child(dlg)
+	check(not dlg._topics.is_empty(), "her check-in offers topics")
+	dlg._finish()
+	check_eq(RunState.screen, "map", "dismissing her check-in returns to the tower")
+	check_eq(RunState.floor_index, 3, "one floor further down")
+	dlg.queue_free()
+
+	RunState.new_run()
+	SaveManager.erase_all()

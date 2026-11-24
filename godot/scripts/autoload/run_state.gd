@@ -216,6 +216,8 @@ func next_floor() -> void:
 ## and the dialogues' own topic menus keep their ✓ marks across runs through the
 ## separate seen_* records, so choices already explored stay checked.
 func _pending_interlude() -> String:
+	if patron == "marie":
+		return _pending_marie_interlude()
 	if patron != "johndee":
 		return ""
 	match floor_index:
@@ -232,6 +234,17 @@ func _pending_interlude() -> String:
 			SaveManager.mark_dirty()
 			return "dee-final-dialogue"
 	return ""
+
+
+## Mary's interludes land on the same floors as Dee's and stamp their own
+## profile flags the first time, for whatever the compendium comes to key off.
+func _pending_marie_interlude() -> String:
+	var beats := {2: "marie-checkin", 5: "marie-dialogue3", 8: "marie-final"}
+	if not beats.has(floor_index):
+		return ""
+	SaveManager.profile["%s_done" % String(beats[floor_index]).replace("-", "_")] = true
+	SaveManager.mark_dirty()
+	return beats[floor_index]
 
 
 ## Moves on to the next floor. The between-floors shop is gone — the patron
@@ -326,7 +339,9 @@ func _lose_life(to_map := true) -> bool:
 	_reset_board_flags()
 	if lives <= 0:
 		stop_timer()
-		set_screen("gameover")
+		# Mary has a last word before the game-over screen; Dee has none. The
+		# run is recorded as ended here either way.
+		set_screen("marie-defeat" if patron == "marie" else "gameover")
 		end_run(false)
 		return false
 	if to_map:

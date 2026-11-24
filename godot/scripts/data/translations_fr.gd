@@ -694,4 +694,5 @@ const MAP := {
 	"Points this floor": "Points de cet étage",
 	"Earned on the Board": "Gagné sur le plateau",
 	"WALSINGHAM'S LEDGER — the stock, next card first:": "REGISTRE DE WALSINGHAM — la pioche, prochaine carte d'abord :",
+	"📞  Incoming Transmission -- Mary Stuart": "📞  Transmission entrante -- Mary Stuart",
 }

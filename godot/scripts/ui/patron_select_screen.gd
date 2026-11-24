@@ -151,4 +151,6 @@ func _on_card_input(event: InputEvent, id: String) -> void:
 func _choose(id: String) -> void:
 	RunState.patron = id
 	AudioManager.card_taken()
-	RunState.set_screen("map")
+	# Dee has already spoken by now — his first contact is the intro that leads
+	# here. Mary has not, so choosing her opens her line before the tower.
+	RunState.set_screen("marie-greeting" if id == "marie" else "map")
