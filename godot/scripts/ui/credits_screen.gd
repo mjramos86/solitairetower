@@ -54,8 +54,7 @@ func _rebuild() -> void:
 
 	# ── Authorship ──
 	_panel.add_child(_section(Locale.t("Game Design, Art & Writing")))
-	_panel.add_child(_line("Mario Jorge Ramos", 22, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
-	_panel.add_child(_line(Locale.t("aka Emjayhar"), 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
+	_panel.add_child(_line("Emjayhar", 22, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	_panel.add_child(_spacer(4))
 	_panel.add_child(_line(
 		Locale.t("AI tools were used to assist with the game's source code."),
@@ -93,11 +92,11 @@ func _rebuild() -> void:
 	_panel.add_child(rule)
 	_panel.add_child(_spacer(6))
 	var year: int = Time.get_datetime_dict_from_system()["year"]
-	_panel.add_child(_line("© %d Mario Jorge Ramos" % year, 14, UITheme.TEXT,
+	_panel.add_child(_line("© %d Emjayhar" % year, 14, UITheme.TEXT,
 		HORIZONTAL_ALIGNMENT_CENTER))
 	_panel.add_child(_line(Locale.t("All rights reserved."), 13, UITheme.TEXT_DIM,
 		HORIZONTAL_ALIGNMENT_CENTER))
-	_panel.add_child(_line(Locale.t("Solitaire Tower of Doom™ is a trademark of Mario Jorge Ramos."),
+	_panel.add_child(_line(Locale.t("Solitaire Tower of Doom™ is a trademark of Emjayhar."),
 		12, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
 
 	# ── Back ──

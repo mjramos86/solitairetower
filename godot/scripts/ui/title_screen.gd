@@ -96,7 +96,7 @@ func _add_version_label() -> void:
 func _add_copyright_footer() -> void:
 	var footer := Label.new()
 	var year: int = Time.get_datetime_dict_from_system()["year"]
-	footer.text = "© %d Mario Jorge Ramos · Solitaire Tower of Doom™" % year
+	footer.text = "© %d Emjayhar · Solitaire Tower of Doom™" % year
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	footer.add_theme_font_override("font", UITheme.font("body"))
 	footer.add_theme_font_size_override("font_size", 13)
