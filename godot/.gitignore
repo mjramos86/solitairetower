@@ -16,12 +16,15 @@ export/
 *.app/
 *.zip
 
-# Steam SDK — download it from partner.steamgames.com, do not commit it.
+# GodotSteam addon + Steam SDK — installed per developer, never committed.
 # The redistributable binaries are covered by the Steamworks SDK Access
 # Agreement, which does not permit redistribution in a public repo.
-addons/godotsteam/steam_api*.dll
-addons/godotsteam/libsteam_api.*
-addons/godotsteam/steam_appid.txt
+# The whole folder is ignored so it never shows up as a "change" in Git tools:
+# when it did, "Discard all changes" (GitHub Desktop, VS Code) deleted the local
+# install. The old patterns (addons/godotsteam/steam_api*.dll, ...) only matched
+# files at the folder's top level, but the zip puts them in win64/, linuxbsd/,
+# macos/, so nothing was actually ignored.
+/addons/godotsteam/
 steam_appid.txt
 sdk/
 
