@@ -696,4 +696,5 @@ const MAP := {
 	"Earned on the Board": "Ganho no tabuleiro",
 	"WALSINGHAM'S LEDGER — the stock, next card first:": "REGISTRO DE WALSINGHAM — o monte, a próxima carta primeiro:",
 	"📞  Incoming Transmission -- Mary Stuart": "📞  Transmissão recebida -- Mary Stuart",
+	"Select a Time Patron to begin your descent.": "Escolha um Patrono do Tempo para começar sua descida.",
 }

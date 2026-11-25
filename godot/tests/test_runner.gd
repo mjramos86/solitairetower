@@ -725,6 +725,35 @@ func test_shop_and_choices() -> void:
 	remove_child(picker)
 	picker.queue_free()
 
+	# Mary stays a padlocked "???" until John Dee's thread is uncovered, then
+	# her card is shown and can be picked. The picker used to read only the
+	# static `revealed: false` and never asked the save, so she never opened.
+	var marie_entry := {}
+	for p in Narrative.PATRONS:
+		if p["id"] == "marie":
+			marie_entry = p
+	SaveManager.erase_all()
+	picker = packed.instantiate()
+	add_child(picker)
+	check(not picker._is_playable(marie_entry), "Mary is locked before Dee's thread")
+	var card: Control = picker._build_card(marie_entry)
+	check_eq(card.gui_input.get_connections().size(), 0, "her locked card cannot be clicked")
+	card.free()
+	SaveManager.mark_seen("unlocked_connections", "johndee")
+	check(picker._is_playable(marie_entry), "uncovering Dee's thread makes Mary playable")
+	card = picker._build_card(marie_entry)
+	check_eq(card.gui_input.get_connections().size(), 1, "her card can now be clicked")
+	card.free()
+	remove_child(picker)
+	picker.queue_free()
+	picker = packed.instantiate()
+	add_child(picker)
+	check_eq(picker._confirm.text, "Select a Time Patron to begin your descent.",
+		"with two patrons on offer the prompt no longer names Dee")
+	remove_child(picker)
+	picker.queue_free()
+	SaveManager.erase_all()
+
 	for item in GameData.SHOP_ITEMS:
 		check(item.has("effect") and item["effect"] != "", "item %s has an effect" % item["id"])
 		check(int(item["price"]) > 0, "item %s has a price" % item["id"])
