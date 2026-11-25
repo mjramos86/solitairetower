@@ -43,6 +43,31 @@ func _ready() -> void:
 		_grid.add_child(_build_card(patron))
 
 
+## Patron art comes in different shapes: Dee's is a square bust, Mary's a tall
+## 2:3 painting with a grey strip along its top. Cropping both to a square
+## taken near the top of the image gives every card the same head-and-shoulders
+## framing; a plain centred cover crop cut through Mary's headdress instead.
+const PORTRAIT_TOP := 0.06
+## The share of a tall image's width the square keeps, so a full-figure
+## painting is brought in to roughly the head size of Dee's close bust.
+const PORTRAIT_ZOOM := 0.86
+
+
+static func square_portrait(texture: Texture2D) -> Texture2D:
+	if texture == null:
+		return texture
+	var w := float(texture.get_width())
+	var h := float(texture.get_height())
+	if h <= w:
+		return texture
+	var atlas := AtlasTexture.new()
+	atlas.atlas = texture
+	var side := w * PORTRAIT_ZOOM
+	var top := minf(h * PORTRAIT_TOP, h - side)
+	atlas.region = Rect2((w - side) * 0.5, top, side, side)
+	return atlas
+
+
 ## A patron is revealed either in its data (Dee) or by the player's progress:
 ## Mary's identity is uncovered with John Dee's thread in the compendium. The
 ## static flag alone left her a padlocked "???" here forever, whatever the save
@@ -66,7 +91,11 @@ func _build_card(patron: Dictionary) -> Control:
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	# Top-aligned, so every portrait sits at the same height whatever the length
+	# of the text beneath it. Centred, a longer tagline pushed Mary's portrait
+	# above Dee's.
+	col.alignment = BoxContainer.ALIGNMENT_BEGIN
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(col)
 
 	# Portrait (or a padlock for a patron not yet revealed).
@@ -74,10 +103,13 @@ func _build_card(patron: Dictionary) -> Control:
 	art.custom_minimum_size = Vector2(PORTRAIT, PORTRAIT)
 	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	art.clip_contents = true
+	# A bare Control stops the mouse by default, which made the portrait — the
+	# first thing a player clicks — the one part of the card that ignored them.
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(art)
 	if revealed:
 		var tex := TextureRect.new()
-		tex.texture = load(String(patron["img"]))
+		tex.texture = square_portrait(load(String(patron["img"])))
 		tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED

@@ -195,6 +195,8 @@ func _ghost_style(bg: Color, border: Color) -> StyleBoxFlat:
 func _entry_unlocked(entry: Dictionary) -> bool:
 	# The web build shows an entry (not the silhouette) when it is flagged
 	# unlocked OR revealed: `if(!p.revealed && !p.unlocked) locked`.
+	if bool(entry.get("hidden_until_revealed", false)):
+		return _entry_revealed(entry)
 	return bool(entry.get("unlocked", false)) or _entry_revealed(entry)
 
 

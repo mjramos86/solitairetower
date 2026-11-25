@@ -46,6 +46,10 @@ const PATRONS := [
 		# that names her.
 		"unlocked": true,
 		"revealed": false,
+		# `unlocked` makes her PLAYABLE once revealed; it must not make her
+		# visible. Without this the compendium, which shows any unlocked patron,
+		# listed her on a brand-new save before John Dee's thread named her.
+		"hidden_until_revealed": true,
 		"year": 1567,
 		"links": [
 			"johndee"
