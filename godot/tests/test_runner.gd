@@ -743,7 +743,36 @@ func test_shop_and_choices() -> void:
 	check(picker._is_playable(marie_entry), "uncovering Dee's thread makes Mary playable")
 	card = picker._build_card(marie_entry)
 	check_eq(card.gui_input.get_connections().size(), 1, "her card can now be clicked")
+	# A click anywhere on the card, the portrait included, reaches the card:
+	# nothing inside it may stop the mouse.
+	var stoppers := 0
+	var stack: Array = card.get_children()
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is Control and (n as Control).mouse_filter == Control.MOUSE_FILTER_STOP:
+			stoppers += 1
+		stack.append_array(n.get_children())
+	check_eq(stoppers, 0, "nothing inside the card, portrait included, swallows the click")
 	card.free()
+	# Every portrait is cut to the same square, whatever the source shape.
+	for p in Narrative.PATRONS:
+		if p.has("img") and ResourceLoader.exists(String(p["img"])):
+			var sq: Texture2D = picker.square_portrait(load(String(p["img"])))
+			check_eq(sq.get_width(), sq.get_height(), "%s's portrait is square" % p["id"])
+
+	# The compendium keeps her hidden until Dee's thread names her, even though
+	# she is flagged playable — then shows her, and grants The other Queen.
+	SaveManager.erase_all()
+	check(not SaveManager._compendium_entry_visible(marie_entry),
+		"a fresh save does not list Mary in the compendium")
+	var comp: Control = load("res://scenes/screens/compendium_screen.tscn").instantiate()
+	add_child(comp)
+	check(not comp._entry_unlocked(marie_entry), "the compendium shows her as unknown")
+	SaveManager.mark_seen("unlocked_connections", "johndee")
+	Achievements.on_connection_unlocked()
+	check(comp._entry_unlocked(marie_entry), "Dee's thread reveals her in the compendium")
+	check(Achievements.is_granted(Achievements.REVEAL_MARY), "and grants The other Queen")
+	comp.queue_free()
 	remove_child(picker)
 	picker.queue_free()
 	picker = packed.instantiate()

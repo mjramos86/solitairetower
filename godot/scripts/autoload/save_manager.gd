@@ -459,6 +459,8 @@ func is_patron_revealed(id: String) -> bool:
 ## A patron/lore entry is visible when it is flagged unlocked or revealed —
 ## the same test the compendium screen uses to decide silhouette vs. full entry.
 func _compendium_entry_visible(entry: Dictionary) -> bool:
+	if bool(entry.get("hidden_until_revealed", false)):
+		return is_patron_revealed(String(entry["id"]))
 	if bool(entry.get("unlocked", false)) or bool(entry.get("revealed", false)):
 		return true
 	return is_patron_revealed(String(entry["id"]))
