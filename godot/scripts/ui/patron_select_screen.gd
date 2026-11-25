@@ -28,7 +28,13 @@ func _ready() -> void:
 	_subtitle.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	_confirm.text = Locale.t("Select John Dee to begin your descent.")
+	# Name the choice only while Dee is the sole patron on offer.
+	var playable := 0
+	for patron in Narrative.PATRONS:
+		if _is_playable(patron):
+			playable += 1
+	_confirm.text = Locale.t("Select John Dee to begin your descent.") if playable <= 1 \
+		else Locale.t("Select a Time Patron to begin your descent.")
 	_confirm.add_theme_font_override("font", UITheme.font("pixel"))
 	_confirm.add_theme_font_size_override("font_size", 14)
 	_confirm.add_theme_color_override("font_color", UITheme.TEXT_DIM)
@@ -37,9 +43,22 @@ func _ready() -> void:
 		_grid.add_child(_build_card(patron))
 
 
+## A patron is revealed either in its data (Dee) or by the player's progress:
+## Mary's identity is uncovered with John Dee's thread in the compendium. The
+## static flag alone left her a padlocked "???" here forever, whatever the save
+## said — the compendium asked SaveManager, this screen never did.
+func _is_revealed(patron: Dictionary) -> bool:
+	return bool(patron.get("revealed", false)) \
+		or SaveManager.is_patron_revealed(String(patron["id"]))
+
+
+func _is_playable(patron: Dictionary) -> bool:
+	return bool(patron.get("unlocked", false)) and _is_revealed(patron)
+
+
 func _build_card(patron: Dictionary) -> Control:
 	var unlocked := bool(patron.get("unlocked", false))
-	var revealed := bool(patron.get("revealed", false))
+	var revealed := _is_revealed(patron)
 
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UITheme.occult_panel())
@@ -135,7 +154,7 @@ func _build_card(patron: Dictionary) -> Control:
 
 ## Patrons keep their alias until revealed in the compendium.
 func _patron_name(patron: Dictionary) -> String:
-	if bool(patron.get("revealed", false)) and patron.has("true_name") \
+	if _is_revealed(patron) and patron.has("true_name") \
 			and SaveManager.is_patron_revealed(String(patron["id"])):
 		return String(patron["true_name"])
 	return Locale.t(String(patron["name"]))
