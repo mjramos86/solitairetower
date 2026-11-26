@@ -124,6 +124,16 @@ static func klondike_can_tableau(cards: Array, target: Array, wild := false) -> 
 		and Cards.is_red(top["suit"]) != Cards.is_red(moving["suit"])
 
 
+## Whether this Klondike deal recycles its waste without limit. Easy and medium
+## floors do, and mark it with draws_left = 999. A deal saved by an earlier
+## build may already have counted that sentinel down (998, 997…), so the floor's
+## difficulty decides as well, which repairs such a deal on load.
+static func klondike_unlimited_redeals(state: Dictionary) -> bool:
+	if int(state.get("draws_left", 0)) >= 999:
+		return true
+	return state.has("floor") and difficulty(int(state["floor"])) != "hard"
+
+
 static func klondike_won(state: Dictionary) -> bool:
 	for f in state["foundations"]:
 		if f.size() != 13:
@@ -144,7 +154,11 @@ static func klondike_draw(state: Dictionary) -> Dictionary:
 			recycled.append(card)
 		s["stock"] = recycled
 		s["waste"] = []
-		s["draws_left"] = int(s["draws_left"]) - 1
+		# 999 is the "unlimited" sentinel (easy and medium floors). Counting it
+		# down made the draw-pile counter drop from ∞ to 998 after the first
+		# pass through the deck, so only a real, finite allowance is spent.
+		if not klondike_unlimited_redeals(s):
+			s["draws_left"] = int(s["draws_left"]) - 1
 		return s
 	for i in int(s["draw_count"]):
 		if s["stock"].is_empty():
@@ -719,7 +733,7 @@ static func stock_state(state: Dictionary) -> Dictionary:
 		"klondike":
 			var left := int(state.get("draws_left", 0))
 			out["cards"] = stock.size()
-			out["infinite"] = left >= 999
+			out["infinite"] = klondike_unlimited_redeals(state)
 			out["redeals"] = left
 			out["shows_redeals"] = true
 			out["can_draw"] = out["cards"] > 0 or (left > 0 and not waste.is_empty())
