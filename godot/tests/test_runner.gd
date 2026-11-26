@@ -3298,6 +3298,30 @@ func test_mary_dialogue() -> void:
 	check_eq(RunState.screen, "map", "clicking through the greeting reaches the tower")
 	dlg.queue_free()
 
+	# Her floor-3 check-in is the authored "D1": four questions, the long one
+	# about her execution included, each returning to the menu.
+	var questions := []
+	for t in Narrative.MARIE_CHECKIN_TOPICS:
+		questions.append(String(t["question"]))
+	check_eq(questions, ["How do you know John Dee?", "Why will you be executed?",
+		"What do you know about the Cult of Patience?", "What's your connection to Solitaire?"],
+		"her check-in asks the four authored questions, in order")
+	check_eq(String(Narrative.MARIE_CHECKIN_INTRO[0]["text"]),
+		"You are doing well, but we are far from done.", "and opens on her first line")
+	RunState.set_screen("marie-checkin")
+	dlg = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+	add_child(dlg)
+	dlg._index = dlg._beats.size()
+	dlg._render()
+	dlg._open_topic(Narrative.MARIE_CHECKIN_TOPICS[1])
+	var guard := 0
+	while not dlg._active_topic.is_empty() and guard < 60:
+		dlg._advance()
+		guard += 1
+	check(dlg._active_topic.is_empty(), "the execution topic plays through and returns to the menu")
+	check(SaveManager.has_seen("seen_marie_topics", "execution"), "and is ticked as seen")
+	dlg.queue_free()
+
 	# The call is a two-way video link: whoever speaks has the live feed.
 	RunState.set_screen("marie-greeting")
 	dlg = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
