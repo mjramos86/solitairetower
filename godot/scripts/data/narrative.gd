@@ -734,7 +734,7 @@ const MARIE_GREETING := [
 	},
 	{
 		"speaker": "marie",
-		"text": "Maybe manners and protocol don't matter in your time, but you will address me as Your Highness."
+		"text": "Maybe manners and protocol don't matter in your time, but you will address me as Your Majesty."
 	},
 	{
 		"speaker": "you",
@@ -758,7 +758,7 @@ const MARIE_GREETING := [
 	},
 	{
 		"speaker": "marie",
-		"text": "Your pity is meaningless. Listen : I know now thanks to Lord Dee that my son will live to become the first monarch to rule over the kingdoms of England and Scotland."
+		"text": "Your pity is meaningless. Listen: I know now, thanks to Lord Dee, that my son will live to become the first monarch to rule over the kingdoms of England and Scotland."
 	},
 	{
 		"speaker": "marie",
@@ -782,13 +782,13 @@ const MARIE_GREETING := [
 	},
 	{
 		"speaker": "marie",
-		"text": "That's settled. Now, as your queen, I command you : Beat the Cult of Patience, find the Sacred Shuffle, and make sure the timeline is preserved for my descendants so that I can die in peace. Is that clear?"
+		"text": "That's settled. Now, as your queen, I command you: beat the Cult of Patience, find the Sacred Shuffle, and make sure the timeline is preserved for my descendants so that I can die in peace. Is that clear?"
 	},
 	{
 		"speaker": "you",
 		"choices": [
 			"Yes, my queen.",
-			"Yes, your highness.",
+			"Yes, Your Majesty.",
 			"Crystal clear."
 		]
 	}
