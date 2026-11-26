@@ -706,8 +706,8 @@ const DEE_FINAL := [
 #  Mary Stuart — PLACEHOLDER TEXT
 # ══════════════════════════════════════════════════════════════════════════════
 #
-# MARIE_GREETING is the authored scene ("Conversation 1"). Every other scene
-# below is still a placeholder written to stand up the structure: the scenes,
+# MARIE_GREETING ("Conversation 1") and MARIE_CHECKIN_* ("D1") are authored
+# scenes. Every other scene below is still a placeholder written to stand up the structure: the scenes,
 # their order and their routing are final, the words are not. None of Mary's
 # lines are translated yet, so French, Spanish and Portuguese players see the
 # English until they are.
@@ -797,7 +797,27 @@ const MARIE_GREETING := [
 const MARIE_CHECKIN_INTRO := [
 	{
 		"speaker": "marie",
-		"text": "Three floors, and still standing. My gaolers would be disappointed. Ask, if you must."
+		"text": "You are doing well, but we are far from done."
+	},
+	{
+		"speaker": "you",
+		"text": "What about you, are you okay?"
+	},
+	{
+		"speaker": "marie",
+		"text": "Is that pity, again?"
+	},
+	{
+		"speaker": "you",
+		"choices": [
+			"Just curiosity.",
+			"Just caring, I guess?",
+			"Just a subject looking out for his monarch."
+		]
+	},
+	{
+		"speaker": "marie",
+		"text": "To be frank, this is all very surreal. I wouldn't know where to start."
 	}
 ]
 
@@ -808,25 +828,85 @@ const MARIE_CHECKIN_TOPICS := [
 		"beats": [
 			{
 				"speaker": "marie",
-				"text": "He came to me at Chartley with a deck of cards and a theory. He left with neither."
-			},
-			{
-				"speaker": "you",
-				"text": "What happened to them?"
+				"text": "I do not know much about him, except what is public knowledge. Some time ago, he started visiting me in secret. I did not give much credence to his warnings about the Cult of Patience."
 			},
 			{
 				"speaker": "marie",
-				"text": "The cards, I kept. The theory, I improved."
+				"text": "Until today. I now understand he was preparing my mind, as this would have been too much to learn in a single night. He showed me this game of patience... this Solitaire... and how to use it to see the future of my royal lineage."
 			}
 		]
 	},
 	{
-		"id": "wares",
-		"question": "Why should I trust your wares?",
+		"id": "execution",
+		"question": "Why will you be executed?",
 		"beats": [
 			{
 				"speaker": "marie",
-				"text": "You should not. Trust is how I lost a throne. Use them anyway — they do exactly what they say."
+				"text": "They say I plotted against my cousin, Queen Elizabeth."
+			},
+			{
+				"speaker": "you",
+				"text": "Wait, I thought you were the queen."
+			},
+			{
+				"speaker": "marie",
+				"text": "*sigh*"
+			},
+			{
+				"speaker": "marie",
+				"text": "I became Queen of Scotland a few days after my birth. I later became Queen of France through marriage. And then I returned to Scotland to reclaim my throne."
+			},
+			{
+				"speaker": "marie",
+				"text": "Because of religious shenanigans between Catholics and Protestants, they made me abdicate my throne, so I fled to England."
+			},
+			{
+				"speaker": "you",
+				"text": "So you tried to take a third throne in England?"
+			},
+			{
+				"speaker": "marie",
+				"text": "As a Stuart, I had a stronger claim to the throne of England than my cousin Elizabeth, especially considering she couldn't produce an heir."
+			},
+			{
+				"speaker": "you",
+				"text": "So, you did plot against her?"
+			},
+			{
+				"speaker": "marie",
+				"text": "What do your history books say?"
+			},
+			{
+				"speaker": "you",
+				"text": "I have no idea."
+			},
+			{
+				"speaker": "marie",
+				"text": "Then, you will find out when all this is done and you have the luxury of reading a history book."
+			},
+			{
+				"speaker": "marie",
+				"text": "After all, who am I to argue with history?"
+			}
+		]
+	},
+	{
+		"id": "cult",
+		"question": "What do you know about the Cult of Patience?",
+		"beats": [
+			{
+				"speaker": "marie",
+				"text": "Not much, and I don't care about their history or who they are. All I need to know is that they are jeopardizing the future of my lineage, and I won't stand for it."
+			}
+		]
+	},
+	{
+		"id": "solitaire",
+		"question": "What's your connection to Solitaire?",
+		"beats": [
+			{
+				"speaker": "marie",
+				"text": "None. While I love playing cards, I've always played games with my entourage. The first time I laid my eyes upon a Solitaire game was a few hours ago, when Lord Dee came to show it to me."
 			}
 		]
 	}
