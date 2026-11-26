@@ -1622,6 +1622,24 @@ func test_item_effects() -> void:
 	check(not r["consumed"], "brew is refused in spider")
 	check(String(r["message"]) != "", "refusal explains itself")
 
+	# ── Unlimited Klondike redeals stay unlimited after a pass ──
+	# The counter used to read ∞, then 998 after the first recycle, because the
+	# 999 sentinel was being counted down like a real allowance.
+	var unl := Rules.init_klondike(5)
+	unl["waste"] = unl["stock"].duplicate()
+	unl["stock"] = []
+	var after := Rules.klondike_draw(unl)
+	check_eq(int(after["draws_left"]), 999, "a recycle does not spend an unlimited allowance")
+	check(bool(Rules.stock_state(after)["infinite"]), "the counter still shows ∞ after a pass")
+	var old_save := Rules.init_klondike(5)
+	old_save["draws_left"] = 996  # a deal an earlier build had already counted down
+	check(bool(Rules.stock_state(old_save)["infinite"]), "an already-counted-down save shows ∞ again")
+	var hard_deal := Rules.init_klondike(9)
+	hard_deal["waste"] = hard_deal["stock"].duplicate()
+	hard_deal["stock"] = []
+	check_eq(int(Rules.klondike_draw(hard_deal)["draws_left"]), 2, "a hard floor still spends its three redeals")
+	check(not bool(Rules.stock_state(hard_deal)["infinite"]), "and shows a number, not ∞")
+
 	# ── Sealing Wax: one more recycle ──
 	RunState.start_game("klondike", 9)
 	var draws: int = RunState.gs["draws_left"]
