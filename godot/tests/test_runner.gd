@@ -3280,6 +3280,28 @@ func test_mary_dialogue() -> void:
 	check_eq(RunState.screen, "map", "clicking through the greeting reaches the tower")
 	dlg.queue_free()
 
+	# The call is a two-way video link: whoever speaks has the live feed.
+	RunState.set_screen("marie-greeting")
+	dlg = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+	add_child(dlg)
+	dlg._index = 0
+	dlg._render()
+	check(dlg._patron_plate.text.begins_with("●"), "when Mary speaks, her feed is live")
+	check(not dlg._self_plate.text.begins_with("●"), "and the player's camera is not")
+	check(dlg._self_picture.modulate != Color.WHITE, "the player's camera dims while she talks")
+	dlg._index = 1
+	dlg._render()
+	check(dlg._self_plate.text.begins_with("●"), "when the player speaks, their camera is live")
+	check(not dlg._patron_plate.text.begins_with("●"), "and Mary's feed is not")
+	check(dlg._portrait.modulate != Color.WHITE, "Mary's feed dims while the player talks")
+	dlg._index = 10  # the player's first choice of reply
+	dlg._render()
+	check(dlg._self_plate.text.begins_with("●"), "choosing a reply is the player's turn")
+	check(dlg._self_picture.texture is AtlasTexture \
+		and (dlg._self_picture.texture as AtlasTexture).atlas.resource_path.ends_with("intro_face_glimpse.jpg"),
+		"the player's camera shows the face from the intro")
+	dlg.queue_free()
+
 	# An interlude hands on to the tower, like Dee's.
 	RunState.new_run()
 	RunState.patron = "marie"
