@@ -701,4 +701,5 @@ const MAP := {
 	"WALSINGHAM'S LEDGER — the stock, next card first:": "REGISTRO DE WALSINGHAM — el mazo, la próxima carta primero:",
 	"📞  Incoming Transmission -- Mary Stuart": "📞  Transmisión entrante -- Mary Stuart",
 	"Select a Time Patron to begin your descent.": "Elige a un Mecenas del Tiempo para comenzar tu descenso.",
+	"YOU": "TÚ",
 }

@@ -45,7 +45,16 @@ const FOOTER_BOTTOM_MARGIN := 46.0
 const FOOTER_RESERVE := 160.0
 
 const PLAIN_TEXT := Color("e8e0d0")
-const PORTRAIT_LABEL := Color("39ff6a")
+
+## The player's camera: the intro's face in the monitor, cropped to the glass.
+const PLAYER_FACE := "res://assets/intro/intro_face_glimpse.jpg"
+const PLAYER_FACE_REGION := Rect2(50, 40, 165, 140)
+const SELF_TILE_SIZE := Vector2(168, 142)
+const SPEAKING := Color("39ff6a")
+const IDLE_PLATE := Color("9a9a9a")
+const IDLE_BORDER := Color("404040")
+## How far an idle feed is dimmed, so the live one reads at a glance.
+const IDLE_DIM := Color(0.55, 0.55, 0.55)
 
 ## Typewriter reveal for narration and spoken lines — seconds per character. A
 ## single constant rate for every line regardless of length (no clamps), so the
@@ -95,6 +104,15 @@ var _footer_height := -1.0
 # Call mode nodes.
 var _call: Control
 var _portrait: TextureRect
+## The call is a two-way video link: the patron's feed fills the left column and
+## the player's own "camera" sits in the bottom-right corner, showing the face
+## the intro catches reflected in the monitor. Whoever is speaking gets a green
+## frame and a ● on their name plate; the other feed dims.
+var _patron_tile: PanelContainer
+var _patron_plate: Label
+var _self_tile: PanelContainer
+var _self_plate: Label
+var _self_picture: TextureRect
 var _content: VBoxContainer
 var _call_footer: HBoxContainer
 var _call_next: Button
@@ -438,7 +456,9 @@ func _build_call() -> void:
 	_call.add_child(centre)
 
 	var window := PanelContainer.new()
-	window.custom_minimum_size = Vector2(900, 640)
+	# Taller than before: the player's camera tile now takes the bottom-right
+	# corner of the text column, and a full topic menu still has to fit above it.
+	window.custom_minimum_size = Vector2(960, 800)
 	window.add_theme_stylebox_override("panel", UITheme.bevel_raised())
 	centre.add_child(window)
 
@@ -474,46 +494,68 @@ func _build_call() -> void:
 	body.add_theme_constant_override("separation", 0)
 	area_stack.add_child(body)
 
-	# Portrait column: 42% of the window, image cropped to fill.
-	var portrait_col := Control.new()
-	portrait_col.custom_minimum_size.x = 360
-	portrait_col.clip_contents = true
-	body.add_child(portrait_col)
+	# The patron's feed: the left column, image cropped to fill.
+	var patron_holder: Control
+	var tile := _video_tile()
+	_patron_tile = tile[0]
+	patron_holder = tile[1]
+	_patron_plate = tile[2]
+	_patron_tile.custom_minimum_size.x = 360
+	body.add_child(_patron_tile)
 
 	_portrait = TextureRect.new()
 	_portrait.texture = load(AssetPaths.PATRONS[_patron])
 	_portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	portrait_col.add_child(_portrait)
+	patron_holder.add_child(_portrait)
+	patron_holder.move_child(_portrait, 0)
+	_patron_plate.set_meta("name", "MARY STUART" if _patron == "marie" else "JOHN DEE")
 
-	var label := Label.new()
-	label.text = "MARY STUART" if _patron == "marie" else "JOHN DEE"
-	label.position = Vector2(8, 8)
-	label.add_theme_font_override("font", UITheme.font("pixel"))
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", PORTRAIT_LABEL)
-	var label_bg := StyleBoxFlat.new()
-	label_bg.bg_color = Color(0, 0, 0, 0.75)
-	label_bg.content_margin_left = 8
-	label_bg.content_margin_right = 8
-	label_bg.content_margin_top = 2
-	label_bg.content_margin_bottom = 2
-	label.add_theme_stylebox_override("normal", label_bg)
-	portrait_col.add_child(label)
+	# The text column, with the player's own camera pinned to its corner. The
+	# lines are laid out above the camera, never under it.
+	var right := Control.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(right)
 
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	_content.add_theme_constant_override("separation", 18)
 	var margin := MarginContainer.new()
-	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 24)
 	margin.add_theme_constant_override("margin_right", 24)
 	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_bottom", 20)
+	margin.add_theme_constant_override("margin_bottom", int(SELF_TILE_SIZE.y) + 12)
 	margin.add_child(_content)
-	body.add_child(margin)
+	right.add_child(margin)
+
+	var self_tile := _video_tile()
+	_self_tile = self_tile[0]
+	_self_plate = self_tile[2]
+	_self_plate.set_meta("name", Locale.t("YOU"))
+	_self_picture = TextureRect.new()
+	var face := AtlasTexture.new()
+	face.atlas = load(PLAYER_FACE)
+	face.region = PLAYER_FACE_REGION
+	_self_picture.texture = face
+	_self_picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_self_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_self_picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	(self_tile[1] as Control).add_child(_self_picture)
+	(self_tile[1] as Control).move_child(_self_picture, 0)
+	right.add_child(_self_tile)
+	_self_tile.anchor_left = 1.0
+	_self_tile.anchor_top = 1.0
+	_self_tile.anchor_right = 1.0
+	_self_tile.anchor_bottom = 1.0
+	_self_tile.offset_left = -SELF_TILE_SIZE.x - 6
+	_self_tile.offset_top = -SELF_TILE_SIZE.y - 6
+	_self_tile.offset_right = -6
+	_self_tile.offset_bottom = -6
+
+	_set_speaker("")
 
 	_call_footer = HBoxContainer.new()
 	_call_footer.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -529,6 +571,58 @@ func _build_call() -> void:
 	_style_skip(skip)
 	skip.pressed.connect(_finish)
 	_call_footer.add_child(skip)
+
+
+## One video feed: a black frame (its border shows who is live), a clipping
+## holder for the picture, and a name plate in the corner. Returns
+## [frame, holder, plate]; the caller puts the picture in the holder.
+func _video_tile() -> Array:
+	var frame := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color.BLACK
+	style.set_border_width_all(2)
+	style.border_color = IDLE_BORDER
+	frame.add_theme_stylebox_override("panel", style)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var holder := Control.new()
+	holder.clip_contents = true
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(holder)
+
+	var plate := Label.new()
+	plate.position = Vector2(8, 8)
+	plate.add_theme_font_override("font", UITheme.font("pixel"))
+	plate.add_theme_font_size_override("font_size", 15)
+	var plate_bg := StyleBoxFlat.new()
+	plate_bg.bg_color = Color(0, 0, 0, 0.75)
+	plate_bg.content_margin_left = 8
+	plate_bg.content_margin_right = 8
+	plate_bg.content_margin_top = 2
+	plate_bg.content_margin_bottom = 2
+	plate.add_theme_stylebox_override("normal", plate_bg)
+	holder.add_child(plate)
+	return [frame, holder, plate]
+
+
+## Lights up whoever is talking: "patron", "you", or "" for narration, where
+## neither feed is live and neither is dimmed.
+func _set_speaker(who: String) -> void:
+	if _patron_tile == null:
+		return
+	_style_feed(_patron_tile, _patron_plate, _portrait, who == "patron", who == "you")
+	_style_feed(_self_tile, _self_plate, _self_picture, who == "you", who == "patron")
+
+
+func _style_feed(tile: PanelContainer, plate: Label, picture: CanvasItem, live: bool,
+		dimmed: bool) -> void:
+	var style := tile.get_theme_stylebox("panel") as StyleBoxFlat
+	style.set_border_width_all(4 if live else 2)
+	style.border_color = SPEAKING if live else IDLE_BORDER
+	plate.text = ("● " if live else "") + String(plate.get_meta("name", ""))
+	plate.add_theme_color_override("font_color", SPEAKING if live else IDLE_PLATE)
+	if picture != null:
+		picture.modulate = IDLE_DIM if dimmed else Color.WHITE
 
 
 func _build_titlebar() -> Control:
@@ -606,12 +700,15 @@ func _call_content(beat: Dictionary) -> void:
 	for child in _content.get_children():
 		child.queue_free()
 
+	_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	var speaker := String(beat.get("speaker", "scene"))
 	var text := _beat_text(beat)
 	var narration := bool(beat.get("scene", false)) or speaker == "scene"
 	var choices: Array = beat.get("choices", [])
 
 	if not choices.is_empty():
+		# Picking a reply is the player's turn to speak.
+		_set_speaker("you")
 		for line in choices:
 			var button := _choice_button(Locale.t(str(line)))
 			button.pressed.connect(_advance)
@@ -619,6 +716,7 @@ func _call_content(beat: Dictionary) -> void:
 		return
 
 	if narration:
+		_set_speaker("")
 		var box := PanelContainer.new()
 		var style := StyleBoxFlat.new()
 		style.bg_color = UITheme.W95_BG
@@ -644,12 +742,22 @@ func _call_content(beat: Dictionary) -> void:
 		return
 
 	if speaker == _patron_speaker():
+		_set_speaker("patron")
 		_content.add_child(_speech_bubble(text, "left"))
 		return
 
-	# The player also speaks from a comic bubble, its tail pointing down toward
-	# the viewer, so it is clear these are the player's own words.
-	_content.add_child(_speech_bubble(text, "down"))
+	# The player speaks from a comic bubble whose tail points down at their own
+	# camera in the corner, so it is clear these are the player's own words.
+	_set_speaker("you")
+	var bubble := _speech_bubble(text, "down") as BubbleTail
+	# Seated at the foot of the column, just above the camera it points at.
+	_content.alignment = BoxContainer.ALIGNMENT_END
+	_content.add_child(bubble)
+	# Aim the tail at the camera tile below-right, wherever the bubble's width
+	# ends up once its text has wrapped.
+	bubble.resized.connect(func():
+		bubble.offset = maxf(26.0, bubble.size.x - SELF_TILE_SIZE.x * 0.5 - 30.0)
+		bubble.queue_redraw())
 
 
 ## White box, heavy black border, hard offset shadow and a pointy tail. The tail
@@ -844,6 +952,8 @@ func _show_topic_menu() -> void:
 	for child in _content.get_children():
 		child.queue_free()
 
+	_set_speaker("you")
+	_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	var prompt := Label.new()
 	prompt.text = Locale.t("What would you like to ask?")
 	prompt.add_theme_font_override("font", UITheme.font("pixel"))
@@ -877,6 +987,8 @@ func _show_victory_choices() -> void:
 	_call.visible = true
 	for child in _content.get_children():
 		child.queue_free()
+	_set_speaker("you")
+	_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	var choices := _victory_choices()
 	for i in choices.size():
 		var button := _choice_button(Locale.t(String(choices[i])))
