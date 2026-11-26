@@ -3262,6 +3262,24 @@ func test_mary_dialogue() -> void:
 	RunState.new_shuffle()
 	check_eq(RunState.screen, "gameover", "Dee's runs still go straight to game over")
 
+	# Her greeting (the authored "Conversation 1") plays through to the tower,
+	# its two choice beats included.
+	check_eq(String(Narrative.MARIE_GREETING[0]["text"]),
+		"Hello? Are you the savior Lord Dee just announced to me?", "the greeting opens on her first line")
+	check_eq((Narrative.MARIE_GREETING.back()["choices"] as Array).size(), 3,
+		"and closes on the player's three answers")
+	RunState.new_run()
+	RunState.patron = "marie"
+	RunState.set_screen("marie-greeting")
+	dlg = load("res://scenes/screens/dialogue_screen.tscn").instantiate()
+	add_child(dlg)
+	var presses := 0
+	while RunState.screen == "marie-greeting" and presses < 80:
+		dlg._advance()
+		presses += 1
+	check_eq(RunState.screen, "map", "clicking through the greeting reaches the tower")
+	dlg.queue_free()
+
 	# An interlude hands on to the tower, like Dee's.
 	RunState.new_run()
 	RunState.patron = "marie"
