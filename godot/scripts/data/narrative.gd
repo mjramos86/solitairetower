@@ -706,10 +706,11 @@ const DEE_FINAL := [
 #  Mary Stuart — PLACEHOLDER TEXT
 # ══════════════════════════════════════════════════════════════════════════════
 #
-# Every line below is a placeholder written to stand up the structure: the
-# scenes, their order and their routing are final, the words are not. Rewrite
-# them in Tower Text Studio like Dee's. They are not yet translated, so French,
-# Spanish and Portuguese players see these English lines until they are.
+# MARIE_GREETING is the authored scene ("Conversation 1"). Every other scene
+# below is still a placeholder written to stand up the structure: the scenes,
+# their order and their routing are final, the words are not. None of Mary's
+# lines are translated yet, so French, Spanish and Portuguese players see the
+# English until they are.
 #
 # Mary speaks as "marie" (the patron id), so the dialogue screen gives her the
 # speech bubble and her own portrait, exactly as it does Dee.
@@ -724,28 +725,72 @@ const DEE_FINAL := [
 
 const MARIE_GREETING := [
 	{
-		"scene": true,
-		"text": "The line crackles. A different voice, low and unhurried, as if it has all the time in the world — and has learned that it does not."
-	},
-	{
 		"speaker": "marie",
-		"text": "So. Master Dee's player. He spoke of you — rather less than he imagines."
+		"text": "Hello? Are you the savior Lord Dee just announced to me?"
 	},
 	{
 		"speaker": "you",
-		"text": "Who is this?"
+		"text": "I hope so. Are you Mary Stuart?"
 	},
 	{
 		"speaker": "marie",
-		"text": "A queen of two kingdoms and a claimant to a third. Lately, a prisoner. Patience is the one game I was never denied."
+		"text": "Maybe manners and protocol don't matter in your time, but you will address me as Your Majesty."
+	},
+	{
+		"speaker": "you",
+		"text": "Well, I am not your subject."
 	},
 	{
 		"speaker": "marie",
-		"text": "Dee sells you sight. I sell you something better: a hand in the outcome. Remove what blocks you. Put what you need in its place."
+		"text": "Lord Dee has shown me how to see the future. Do you know why?"
+	},
+	{
+		"speaker": "you",
+		"text": "To thwart the Cult of Patience's plans to find the Sacred Shuffle?"
 	},
 	{
 		"speaker": "marie",
-		"text": "Descend. I will be listening."
+		"text": "Yes, but I would only care about such a thing if I knew my end would mean something. You see, I am about to be executed in a few hours."
+	},
+	{
+		"speaker": "you",
+		"text": "I am sorry..."
+	},
+	{
+		"speaker": "marie",
+		"text": "Your pity is meaningless. Listen: I know now, thanks to Lord Dee, that my son will live to become the first monarch to rule over the kingdoms of England and Scotland."
+	},
+	{
+		"speaker": "marie",
+		"text": "And I know that in your time, the current ruler of England is Elizabeth II, a descendant of mine. Are you not in Canada, still a dominion of England?"
+	},
+	{
+		"speaker": "you",
+		"choices": [
+			"Huh...",
+			"Yes.",
+			"I guess..."
+		]
+	},
+	{
+		"speaker": "marie",
+		"text": "So, you are a subject of mine."
+	},
+	{
+		"speaker": "you",
+		"text": "..."
+	},
+	{
+		"speaker": "marie",
+		"text": "That's settled. Now, as your queen, I command you: beat the Cult of Patience, find the Sacred Shuffle, and make sure the timeline is preserved for my descendants so that I can die in peace. Is that clear?"
+	},
+	{
+		"speaker": "you",
+		"choices": [
+			"Yes, my queen.",
+			"Yes, Your Majesty.",
+			"Crystal clear."
+		]
 	}
 ]
 
